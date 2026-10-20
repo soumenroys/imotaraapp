@@ -132,6 +132,52 @@ export function illustrationPrompt(style: IllustrationStyle, mood?: string | nul
     .join(" ");
 }
 
+/**
+ * 🔴 WHICH STYLE THIS POST GETS — and the lesson that shaped it.
+ *
+ * The owner chose, on 20 Oct, to rotate ALL FIVE rather than settle on one:
+ * *"use all of those randomly in different posts."* ⚠️ He chose that after
+ * hearing the argument for a single house style, so it is a decision, not an
+ * oversight.
+ *
+ * ⛔ THE TRAP THIS AVOIDS WAS LIVE THIS MORNING. The ANGLE rotation uses
+ * `nextPool(cycle, postsSoFar)` where `postsSoFar` is
+ * `postCountFor(schedule.id)` — **per schedule**. Facebook's and YouTube's
+ * pools are identical, so the two walked one cycle in lockstep and posted the
+ * same idea thirty minutes apart. ⇒ A style rotation keyed the same way would
+ * give all three channels ONE style per day, which is the exact failure this
+ * whole feature exists to end.
+ *
+ * 🔑 SO IT TAKES WHAT THE DAY HAS ALREADY SPENT, across every channel — the
+ * same shape as `poolsLeftForToday`. ⛔ And it is decided in CODE, never by
+ * asking a model to pick: a menu handed to a model is not a rotation, it picks
+ * the safest item every time ⇒ trap_a_menu_handed_to_a_model_is_not_a_rotation.
+ */
+export function styleForPost(
+  postsSoFar: number,
+  usedToday: string[] = [],
+  styles: IllustrationStyle[] = ILLUSTRATION_STYLES,
+): IllustrationStyle {
+  if (styles.length === 0) {
+    throw new Error("social/illustration: there are no styles to choose from.");
+  }
+  if (!Number.isFinite(postsSoFar) || postsSoFar < 0) {
+    throw new Error(`social/illustration: postsSoFar must be a non-negative number, got ${postsSoFar}`);
+  }
+
+  const spent = new Set(usedToday);
+  const fresh = styles.filter((s) => !spent.has(s.id));
+
+  /**
+   * ⛔ NEVER EMPTY — the same rule as the angle narrowing, for the same
+   * reason. With more channels in a day than styles, dropping every style
+   * would leave the post with no picture at all, and a missing illustration
+   * is worse than a repeated one.
+   */
+  const pool = fresh.length > 0 ? fresh : styles;
+  return pool[postsSoFar % pool.length];
+}
+
 export type IllustrationResult =
   | { ok: true; bytes: Uint8Array; mimeType: string; model: string }
   | { ok: false; reason: string; detail?: string };

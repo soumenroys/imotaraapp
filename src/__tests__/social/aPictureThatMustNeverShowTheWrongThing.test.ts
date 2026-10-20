@@ -20,6 +20,7 @@ import {
   illustrationPrompt,
   styleById,
   firstInlineImage,
+  styleForPost,
 } from "@/lib/social/illustration";
 
 describe("every prompt carries the safety clause", () => {
@@ -120,5 +121,58 @@ describe("⛔ reading the reply, whichever spelling it uses", () => {
     expect(firstInlineImage({ candidates: [] })).toBeNull();
     expect(firstInlineImage({ candidates: [{ content: { parts: [{ text: "refused" }] } }] })).toBeNull();
     expect(firstInlineImage({ candidates: [{ content: { parts: [{ inlineData: {} }] } }] })).toBeNull();
+  });
+});
+
+/**
+ * 🔴 THE STYLE ROTATION, AND THE BUG IT IS BUILT NOT TO REPEAT.
+ *
+ * The owner chose to rotate all five styles rather than settle on one. ⛔ The
+ * obvious way to do that — index by the schedule's own post count — is
+ * EXACTLY the bug found live this morning: the ANGLE rotation is keyed on
+ * `postCountFor(schedule.id)`, Facebook's and YouTube's pools are identical,
+ * and the two walked one cycle in lockstep and posted the same idea thirty
+ * minutes apart. A style rotation keyed the same way would give all three
+ * channels one style per day — the precise failure illustrations exist to end.
+ */
+describe("which style this post gets", () => {
+  const ids = ILLUSTRATION_STYLES.map((s) => s.id);
+
+  it("walks every style before repeating one", () => {
+    const seen = ids.map((_, i) => styleForPost(i).id);
+    expect([...new Set(seen)].sort()).toEqual([...ids].sort());
+  });
+
+  it("🔴 a second channel on the same day gets a DIFFERENT style", () => {
+    const first = styleForPost(0).id;
+    const second = styleForPost(0, [first]).id;
+    expect(second, "the second channel repeated the first channel's style").not.toBe(first);
+  });
+
+  it("⛔ and a third differs from both", () => {
+    const a = styleForPost(0).id;
+    const b = styleForPost(0, [a]).id;
+    const c = styleForPost(0, [a, b]).id;
+    expect(new Set([a, b, c]).size).toBe(3);
+  });
+
+  it("⛔ never returns nothing when the day has spent them all", () => {
+    /**
+     * 🔑 Same rule as the angle narrowing, same reason: with more channels in
+     * a day than styles, dropping every one would leave the post with no
+     * picture — and a missing illustration is worse than a repeated one.
+     */
+    const s = styleForPost(2, ids);
+    expect(ids).toContain(s.id);
+  });
+
+  it("is deterministic, so the same post always gets the same style", () => {
+    expect(styleForPost(3).id).toBe(styleForPost(3).id);
+  });
+
+  it("⛔ refuses a count it cannot use rather than silently picking the first", () => {
+    expect(() => styleForPost(-1)).toThrow();
+    expect(() => styleForPost(Number.NaN)).toThrow();
+    expect(() => styleForPost(0, [], [])).toThrow(/no styles/i);
   });
 });

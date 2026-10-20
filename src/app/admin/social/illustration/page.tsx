@@ -17,7 +17,8 @@ import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { SocialPage, Explain } from "@/app/admin/social/_components/ui";
 
 type Style = { id: string; label: string; note: string; family?: string; textZone?: string };
-type Shot = { dataUrl?: string; ms?: number; error?: string; detail?: string };
+type Plan = { ink: "light" | "dark"; scrim: number; measured: { mean: number; sd: number } };
+type Shot = { dataUrl?: string; ms?: number; error?: string; detail?: string; plan?: Plan };
 
 export default function Illustration() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -64,7 +65,7 @@ export default function Illustration() {
         setShots((s) => ({
           ...s,
           [styleId]: res.ok
-            ? { dataUrl: data.dataUrl, ms: data.ms }
+            ? { dataUrl: data.dataUrl, ms: data.ms, plan: data.plan }
             : // 🔑 The raw refusal, shown. This cannot be run locally, so the
               // first call IS the experiment and a tidy message wastes it.
               { error: data.error ?? `HTTP ${res.status}`, detail: data.detail },
@@ -195,6 +196,15 @@ export default function Illustration() {
                       {shot?.dataUrl ? "Draw another" : "Draw this one"}
                     </button>
                     {shot?.ms != null && <span className="ml-2 text-xs text-zinc-600">{shot.ms}ms</span>}
+                    {shot?.plan && (
+                      /* 🔑 What the words will actually be drawn in, read off
+                         this very picture ⇒ backgroundPlan. */
+                      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        {shot.plan.ink} ink ·{" "}
+                        {shot.plan.scrim > 0 ? `veil ${shot.plan.scrim.toFixed(2)}` : "no veil"} ·
+                        brightness {shot.plan.measured.mean} · spread {shot.plan.measured.sd}
+                      </p>
+                    )}
                   </figcaption>
                 </figure>
               );

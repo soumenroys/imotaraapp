@@ -765,6 +765,13 @@ function layoutFor(
   p: { ground: string; ink: string; muted: string; accent: string },
   pieces: { label: Node | null; headline: Node; support: Node | null; foot: Node },
   box: { w: number; h: number; pad: number; scale: number },
+  /**
+   * 🔑 WHERE THE WORDS MUST GO when there is a background picture, which is
+   * also where that picture was MEASURED ⇒ backgroundPlan.zoneRect. Null means
+   * no picture, and the eight recipe layouts behave exactly as they always
+   * have.
+   */
+  zone?: "top" | "bottom" | "left" | "right" | "centre" | null,
 ): Node {
   const { label, headline, support, foot } = pieces;
   const { w, h, pad, scale } = box;
@@ -862,6 +869,79 @@ function layoutFor(
     },
     children,
   });
+
+  /**
+   * 🔴 WITH A PICTURE, THE ZONE DECIDES WHERE THE WORDS GO — added 20 Oct 2026
+   * after rendering six real cards and looking at them.
+   *
+   * ⛔ THE BUG THIS FIXES, and it was mine twice over. The STYLE declares a
+   * quiet area — "words go top" — and the picture is MEASURED there. But the
+   * recipe LAYOUT decided where the words actually went, and
+   * `centred-statement` puts them in the middle. So one part of the picture
+   * was measured and another was written on: "Private until you say
+   * otherwise" landed straight across a dancing girl, and a support line
+   * vanished into a photograph. ⚠️ This file already carried a comment saying
+   * measuring one region and veiling another would be "worse than doing
+   * neither". I shipped the same mistake in a different form.
+   *
+   * 🔑 SO THE EIGHT RECIPE LAYOUTS STAND DOWN when there is a background, and
+   * that is honest rather than a loss: those layouts only ever moved the text
+   * block up and down, which is what made every card look alike. With a
+   * picture, the picture carries the variety.
+   *
+   * ⚠️ THE WHOLE TEXT BLOCK, headline and support together, sits inside the
+   * zone — the second gap the render found, where support fell outside the
+   * area that had been checked.
+   */
+  if (zone) {
+    const inZone = (children: Node[]): Node =>
+      column([
+        ...(zone === "bottom" || zone === "centre" ? [spacer()] : []),
+        ...children,
+        ...(zone === "top" || zone === "centre" ? [spacer()] : []),
+        /**
+         * ⛔ The footer is NOT part of the zone and never moves into it. It is
+         * the wordmark and the codes, it belongs at the foot of the card, and
+         * on a Short the padding above already keeps it clear of YouTube's own
+         * chrome ⇒ SHORTS_BOTTOM_UI.
+         */
+        ...(zone === "bottom" ? [spacer(28)] : []),
+        foot,
+      ]);
+
+    if (zone === "left" || zone === "right") {
+      /**
+       * ⚠️ A SIDE ZONE IS A COLUMN HALF THE WIDTH, not a narrower paragraph.
+       * The measurement covers 55% of the frame, so the words must stay inside
+       * that 55% or they are written on pixels nobody checked.
+       */
+      const half = Math.round(w * 0.55) - pad * 2;
+      return {
+        tag: "div",
+        style: { position: "relative", display: "flex", width: "100%", height: "100%" },
+        children: [
+          {
+            tag: "div",
+            style: {
+              position: "absolute",
+              display: "flex",
+              top: "0px",
+              ...(zone === "left" ? { left: "0px" } : { right: "0px" }),
+              width: `${Math.round(w * 0.55)}px`,
+              height: `${h}px`,
+            },
+            children: [
+              column([spacer(), ...body.map((n) => ({ ...n, style: { ...n.style, maxWidth: `${half}px` } })), spacer()]),
+            ],
+          },
+          // The footer spans the card as usual, under both halves.
+          column([spacer(), foot]),
+        ],
+      };
+    }
+
+    return inZone(body);
+  }
 
   switch (layout) {
     case "rule-over":
@@ -1210,6 +1290,9 @@ export function composePicture(input: ComposeInput): Picture {
     palette,
     { label, headline: headlineNode, support: supportNode, foot },
     { w, h, pad, scale },
+    // ⛔ The zone OVERRIDES the layout, so the words land where the picture
+    // was measured. Without a picture it is null and nothing changes.
+    input.illustration?.zone ?? null,
   );
   const motif = motifLayer(recipe.motif, palette.accent, w, h);
 

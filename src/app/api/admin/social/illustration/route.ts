@@ -25,6 +25,7 @@ import {
   listImageModels,
   generateIllustration,
 } from "@/lib/social/illustration";
+import { planBackground } from "@/lib/social/backgroundPlan";
 
 export const runtime = "nodejs";
 /** ⚠️ A drawing call is slow. The default would cut it off mid-request. */
@@ -106,12 +107,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  /**
+   * 🔑 THE SAMPLE IS MEASURED TOO, and shown beside it.
+   *
+   * ⛔ The whole safety argument for text over a picture is that the pixels
+   * under the words are read rather than guessed — so a preview that shows the
+   * picture but not the reading is only half of what there is to judge. It
+   * also answers the question nobody could otherwise answer: the owner's own
+   * reference photographs are busy enough that 18 of 27 would need a veil, and
+   * the only way to know whether OUR art is quieter is to measure ours.
+   */
+  const plan = await planBackground(out.bytes, style.textZone);
+
   return NextResponse.json({
     style: style.id,
     label: style.label,
     model: out.model,
     ms: Date.now() - started,
     mimeType: out.mimeType,
+    zone: style.textZone,
+    plan,
     /** Inline, because nothing here is stored — it is a sample, not an asset. */
     dataUrl: `data:${out.mimeType};base64,${Buffer.from(out.bytes).toString("base64")}`,
   });

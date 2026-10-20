@@ -76,7 +76,15 @@ export function zoneRect(
  * posts that are known to be readable, measured with this same code.
  */
 export const LIGHT_INK_BELOW = 140;
-export const BUSY_SD = 52;
+/**
+ * ⚠️ 44 RATHER THAN THE 52 THIS STARTED AT. Rendering six real cards found an
+ * autumn-wood photograph measuring **48.9** — comfortably under 52, so it got
+ * almost no veil, and its support line was genuinely hard to read against the
+ * foliage. ⛔ The headline survives a busy ground because it is large and
+ * heavy; the SUPPORT LINE is small and thin and gives up first, so the
+ * threshold has to be set for the weaker of the two.
+ */
+export const BUSY_SD = 44;
 
 /**
  * 🔴 THE FLOOR UNDER EVERY DECISION — added after measuring the owner's own

@@ -26,15 +26,19 @@
 export {
   SAFETY_CLAUSE,
   ILLUSTRATION_STYLES,
+  TONES_FOR_ANGLE,
   styleById,
+  stylesForAngle,
   illustrationPrompt,
   type IllustrationStyle,
   type StyleFamily,
+  type StyleTone,
 } from "@/lib/social/illustrationStyles";
 
 import {
   ILLUSTRATION_STYLES,
   illustrationPrompt,
+  stylesForAngle,
   type IllustrationStyle,
 } from "@/lib/social/illustrationStyles";
 
@@ -62,6 +66,19 @@ import {
 export function styleForPost(
   postsSoFar: number,
   usedToday: string[] = [],
+  /**
+   * 🔴 WHAT THE POST IS ABOUT — added after the owner's note: *"whatever you
+   * write on the image, that should be aligned with the background image."*
+   *
+   * ⛔ THE ROTATION IS NARROWED BY TONE BEFORE ANYTHING ELSE. A `quiet-hours`
+   * post is about three in the morning and the phone sitting silent; setting
+   * one of those over the children's-book fox picnic does not read as variety,
+   * it reads as nobody having looked ⇒ stylesForAngle.
+   *
+   * ⚠️ Null means "no angle recorded" and keeps the whole catalogue, which is
+   * the old behaviour exactly.
+   */
+  angle: string | null = null,
   styles: IllustrationStyle[] = ILLUSTRATION_STYLES,
 ): IllustrationStyle {
   if (styles.length === 0) {
@@ -71,8 +88,15 @@ export function styleForPost(
     throw new Error(`social/illustration: postsSoFar must be a non-negative number, got ${postsSoFar}`);
   }
 
+  /**
+   * ⛔ TONE FIRST, THEN THE DAY. Narrowing by what the day already spent and
+   * THEN by tone could leave nothing and fall back to the whole catalogue —
+   * which would quietly reintroduce the cheerful-picture-on-a-lonely-post the
+   * tone filter exists to prevent. Suiting the words outranks not repeating.
+   */
+  const suited = stylesForAngle(angle, styles);
   const spent = new Set(usedToday);
-  const fresh = styles.filter((s) => !spent.has(s.id));
+  const fresh = suited.filter((s) => !spent.has(s.id));
 
   /**
    * ⛔ NEVER EMPTY — the same rule as the angle narrowing, for the same
@@ -80,7 +104,7 @@ export function styleForPost(
    * would leave the post with no picture at all, and a missing illustration
    * is worse than a repeated one.
    */
-  const pool = fresh.length > 0 ? fresh : styles;
+  const pool = fresh.length > 0 ? fresh : suited;
   return pool[postsSoFar % pool.length];
 }
 

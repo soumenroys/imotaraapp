@@ -21,6 +21,8 @@ import {
   styleById,
   firstInlineImage,
   styleForPost,
+  stylesForAngle,
+  TONES_FOR_ANGLE,
 } from "@/lib/social/illustration";
 
 describe("every prompt carries the safety clause", () => {
@@ -193,6 +195,91 @@ describe("which style this post gets", () => {
   it("⛔ refuses a count it cannot use rather than silently picking the first", () => {
     expect(() => styleForPost(-1)).toThrow();
     expect(() => styleForPost(Number.NaN)).toThrow();
-    expect(() => styleForPost(0, [], [])).toThrow(/no styles/i);
+    expect(() => styleForPost(0, [], null, [])).toThrow(/no styles/i);
+  });
+});
+
+/**
+ * 🔴 THE PICTURE MUST SUIT THE WORDS.
+ *
+ * The owner, after reviewing all twelve: *"be careful, whatever you write on
+ * the image, that should be aligned with the background image."*
+ *
+ * ⛔ THE FAILURE THIS PREVENTS is not cosmetic. The `quiet-hours` angle writes
+ * about three in the morning, the phone sitting silent, "the hour nobody
+ * answers". Rotating styles blindly would eventually set one of those over
+ * the children's-book fox picnic — and a picture that cheerful behind a
+ * sentence that lonely does not read as variety. It reads as nobody looking.
+ *
+ * ⚠️ "quiet" is NOT "sad". Imotara never publishes bleak imagery. It means
+ * still and unhurried — a dusk field rather than a party.
+ */
+describe("the picture suits what the post is about", () => {
+  it("🔴 a post about the small hours never draws a bright style", () => {
+    const fit = stylesForAngle("quiet-hours");
+    expect(fit.length, "quiet-hours was left with nothing").toBeGreaterThan(0);
+    for (const s of fit) {
+      expect(s.tones, `${s.id} is offered to a quiet-hours post`).toContain("quiet");
+    }
+    expect(fit.map((s) => s.id)).not.toContain("childrens-book");
+    expect(fit.map((s) => s.id)).not.toContain("flat-vector-scene");
+  });
+
+  it("⚠️ and the rotation honours it, not just the filter", () => {
+    /**
+     * 🔑 The reachability half. `stylesForAngle` is pure and the rotation is
+     * free to ignore it — which is exactly the shape of bug that left
+     * `support` unused by every render route for weeks.
+     */
+    for (let i = 0; i < 12; i++) {
+      const picked = styleForPost(i, [], "quiet-hours");
+      expect(picked.tones, `post ${i} drew ${picked.id} for a quiet-hours subject`).toContain("quiet");
+    }
+  });
+
+  it("⛔ tone outranks not-repeating", () => {
+    /**
+     * ⛔ THE ORDERING THAT MATTERS. If the day's spent styles were removed
+     * FIRST and the result were empty, the fallback would hand back the whole
+     * catalogue — quietly reintroducing the cheerful picture on the lonely
+     * post that this exists to prevent. Suiting the words wins.
+     */
+    const quiet = stylesForAngle("quiet-hours").map((s) => s.id);
+    /**
+     * ⚠️ EVERY INDEX, not just zero. The first version of this test passed
+     * `postsSoFar: 0` only — and with the whole catalogue as the fallback,
+     * index 0 happens to land on a quiet style anyway, so the test passed with
+     * the bug in place. Found by mutation
+     * ⇒ trap_mutation_harness_can_report_false_caught.
+     */
+    for (let i = 0; i < ILLUSTRATION_STYLES.length; i++) {
+      const picked = styleForPost(i, quiet, "quiet-hours");
+      expect(quiet, `post ${i} escaped the tone filter to avoid a repeat: ${picked.id}`).toContain(
+        picked.id,
+      );
+    }
+  });
+
+  it("an open angle keeps the whole catalogue, so variety is not narrowed for nothing", () => {
+    expect(stylesForAngle("privacy").length).toBe(ILLUSTRATION_STYLES.length);
+  });
+
+  it("⛔ an unknown or missing angle is never left without a picture", () => {
+    expect(stylesForAngle(null).length).toBe(ILLUSTRATION_STYLES.length);
+    expect(stylesForAngle("an-angle-added-next-year").length).toBe(ILLUSTRATION_STYLES.length);
+  });
+
+  it("⚠️ every style can carry at least one tone, or it can never be chosen", () => {
+    for (const s of ILLUSTRATION_STYLES) {
+      expect(s.tones.length, `${s.id} suits no post at all`).toBeGreaterThan(0);
+    }
+  });
+
+  it("🔑 every angle the schedules actually use is mapped", () => {
+    // ⛔ An unmapped angle silently gets the whole catalogue, which is safe but
+    // is NOT alignment — and nobody would find out by looking at a post.
+    for (const angle of ["privacy", "quiet-hours", "untranslatable", "the-unsaid", "built-wrong", "ways-of-saying"]) {
+      expect(TONES_FOR_ANGLE[angle], `${angle} has no tone mapping`).toBeTruthy();
+    }
   });
 });

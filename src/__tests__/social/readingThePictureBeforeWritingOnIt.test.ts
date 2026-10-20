@@ -180,3 +180,64 @@ describe("the contrast floor", () => {
     for (const p of [near, nearer]) expect(p.scrim).toBeLessThanOrEqual(0.45);
   });
 });
+
+/**
+ * 🔴 AN AVERAGE OVER A BAND HIDES THE BUSY END OF IT.
+ *
+ * ⛔ FOUND ON THE FIRST REAL CARD EVER RENDERED with a generated background —
+ * a soft pastel still life, measured across the top band at spread 26.6 and
+ * called quiet, so it got no veil. It WAS quiet at the top: the headline read
+ * beautifully. The flowers rose into the LOWER part of that same band, which
+ * is exactly where the support line lands, and the second line ran across the
+ * petals.
+ *
+ * 🔑 The words occupy the whole band, so the quietest part of it does not help
+ * the line sitting in the busiest part.
+ */
+describe("the busy end of a quiet band", () => {
+  /** Plain at the top, detailed across the bottom — the still life, in miniature. */
+  const quietThenBusy = async () => {
+    /**
+     * ⚠️ THE DETAIL MUST SIT INSIDE THE ZONE. The top zone of a 500px frame is
+     * 210px, and the first version of this fixture put its stripes at y=300 —
+     * outside the band altogether, so it proved nothing and failed. The busy
+     * part belongs at the BOTTOM of the band, which is where the support line
+     * goes.
+     */
+    const stripes = Array.from(
+      { length: 30 },
+      (_, i) => `<rect x="${i * 14}" y="140" width="7" height="70" fill="#1d1d1d"/>`,
+    ).join("");
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500">
+      <rect width="400" height="500" fill="#e9e6e0"/>${stripes}</svg>`;
+    return sharp(Buffer.from(svg)).png().toBuffer();
+  };
+
+  it("🔴 the lower part of the zone is what decides the veil", async () => {
+    /**
+     * ⚠️ The top 42% of this image is 210px: the upper 300px are plain, so the
+     * zone's own average is unremarkable. Only the bottom strip gives it away
+     * — and that is where the support line goes.
+     */
+    const plan = await planBackground(await quietThenBusy(), "top");
+    expect(plan.scrim, "a band busy at its bottom was called readable").toBeGreaterThan(0);
+  });
+
+  it("⛔ and a genuinely quiet band still gets no veil", async () => {
+    // 🔑 The control. If this ever veils, the strips have made the check
+    // paranoid and every card gets a wash — the monotony this exists to end.
+    const plain = await sharp({
+      create: { width: 400, height: 500, channels: 3, background: "#e9e6e0" },
+    })
+      .png()
+      .toBuffer();
+    expect((await planBackground(plain, "top")).scrim).toBe(0);
+  });
+
+  it("⚠️ the reported spread is the worst strip, not the average", async () => {
+    const plan = await planBackground(await quietThenBusy(), "top");
+    // The whole-band average of this image sits well under the busy line;
+    // the worst strip does not.
+    expect(plan.measured.sd).toBeGreaterThan(BUSY_SD);
+  });
+});

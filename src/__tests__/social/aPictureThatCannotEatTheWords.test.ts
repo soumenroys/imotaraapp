@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { composePicture, zoneBox, imagesInPicture, wordsInPicture } from "@/lib/social/compose";
+import { composePicture, zoneBox, veilGradient, imagesInPicture, wordsInPicture } from "@/lib/social/compose";
 import { zoneRect, type TextZone } from "@/lib/social/backgroundPlan";
 import { recipeHash } from "@/lib/social/visualRecipe";
 
@@ -114,14 +114,14 @@ describe("the ink comes from the measurement, not the palette", () => {
 describe("the veil", () => {
   it("⛔ is absent when the measurement says the picture needs no help", () => {
     const kids = card({ scrim: 0 }).root.children ?? [];
-    const veils = kids.filter((k) => String(k.style.backgroundColor ?? "").startsWith("rgba"));
+    const veils = kids.filter((k) => String(k.style.backgroundImage ?? "").startsWith("linear-gradient"));
     expect(veils, "a veil was drawn over a picture that did not need one").toHaveLength(0);
   });
 
   it("🔴 covers the text zone ONLY, never the frame", () => {
     const pic = card({ scrim: 0.3, zone: "top" });
     const veil = (pic.root.children ?? []).find((k) =>
-      String(k.style.backgroundColor ?? "").startsWith("rgba"),
+      String(k.style.backgroundImage ?? "").startsWith("linear-gradient"),
     );
     expect(veil, "no veil drawn").toBeTruthy();
     expect(
@@ -132,14 +132,38 @@ describe("the veil", () => {
 
   it("⚠️ darkens for light ink and lightens for dark ink", () => {
     // ⛔ A dark wash under dark type would bury it.
-    const forLight = (card({ ink: "light", scrim: 0.3 }).root.children ?? []).find((k) =>
-      String(k.style.backgroundColor ?? "").startsWith("rgba"),
-    );
-    const forDark = (card({ ink: "dark", scrim: 0.3 }).root.children ?? []).find((k) =>
-      String(k.style.backgroundColor ?? "").startsWith("rgba"),
-    );
-    expect(String(forLight!.style.backgroundColor)).toContain("rgba(0,0,0");
-    expect(String(forDark!.style.backgroundColor)).toContain("rgba(255,255,255");
+    expect(veilGradient("top", "light", 0.3)).toContain("rgba(0,0,0,0.3)");
+    expect(veilGradient("top", "dark", 0.3)).toContain("rgba(255,255,255,0.3)");
+  });
+
+  it("🔴 fades out, so it leaves no seam across the picture", () => {
+    /**
+     * ⛔ FOUND ON THE FIRST REAL CARD. Drawn as a flat alpha block, the veil
+     * left a HARD HORIZONTAL LINE ruled across a soft pastel painting where it
+     * stopped — and the line was more noticeable than the busy pixels it had
+     * been hiding. A veil exists to make words readable, not to announce that
+     * something was laid over the art.
+     */
+    for (const zone of ZONES) {
+      const g = veilGradient(zone, "dark", 0.3);
+      expect(g, `${zone} is not a gradient`).toMatch(/^linear-gradient/);
+      expect(g, `${zone} never reaches transparent`).toContain("rgba(255,255,255,0)");
+    }
+  });
+
+  it("⛔ and it fades AWAY from the words, never towards them", () => {
+    /**
+     * 🔑 A fade in the wrong direction thins the veil exactly where the last
+     * line of text needs it most.
+     */
+    expect(veilGradient("top", "dark", 0.3)).toMatch(/to bottom.*rgba\(255,255,255,0\.3\) 0%/);
+    expect(veilGradient("bottom", "dark", 0.3)).toMatch(/to top.*rgba\(255,255,255,0\.3\) 0%/);
+  });
+
+  it("⚠️ the centre zone fades at BOTH ends, because words sit in the middle", () => {
+    const g = veilGradient("centre", "dark", 0.3);
+    expect(g.startsWith("linear-gradient(to bottom, rgba(255,255,255,0) 0%")).toBe(true);
+    expect(g.endsWith("rgba(255,255,255,0) 100%)")).toBe(true);
   });
 
   it("🔴 sits exactly where the measurement was taken", () => {

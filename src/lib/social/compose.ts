@@ -121,6 +121,38 @@ export type ComposeInput = {
  * is worse than doing neither — it would report a readable card and produce
  * an unreadable one. ⚠️ Pinned by test against `zoneRect`.
  */
+/**
+ * The veil, as a gradient that fades away from the words.
+ *
+ * ⚠️ Satori supports `linear-gradient`, and this is the one place a gradient
+ * earns its keep: a flat alpha block over a painting is visible as a ruled
+ * line, and the line is more noticeable than the busy pixels it was hiding.
+ *
+ * 🔑 `centre` fades at BOTH ends, because the words sit in the middle of it
+ * and either edge would otherwise show a seam.
+ */
+export function veilGradient(
+  zone: "top" | "bottom" | "left" | "right" | "centre",
+  ink: "light" | "dark",
+  scrim: number,
+): string {
+  const c = ink === "light" ? "0,0,0" : "255,255,255";
+  const solid = `rgba(${c},${scrim})`;
+  const clear = `rgba(${c},0)`;
+  switch (zone) {
+    case "top":
+      return `linear-gradient(to bottom, ${solid} 0%, ${solid} 55%, ${clear} 100%)`;
+    case "bottom":
+      return `linear-gradient(to top, ${solid} 0%, ${solid} 55%, ${clear} 100%)`;
+    case "left":
+      return `linear-gradient(to right, ${solid} 0%, ${solid} 55%, ${clear} 100%)`;
+    case "right":
+      return `linear-gradient(to left, ${solid} 0%, ${solid} 55%, ${clear} 100%)`;
+    case "centre":
+      return `linear-gradient(to bottom, ${clear} 0%, ${solid} 22%, ${solid} 78%, ${clear} 100%)`;
+  }
+}
+
 export function zoneBox(
   zone: "top" | "bottom" | "left" | "right" | "centre",
   w: number,
@@ -1350,11 +1382,19 @@ export function composePicture(input: ComposeInput): Picture {
             /**
              * ⚠️ THE VEIL MATCHES THE GROUND THE INK NEEDS, not a fixed
              * colour: a dark wash under dark type would bury it.
+             *
+             * 🔴 AND IT FADES OUT, which is not decoration. Drawn as a flat
+             * rectangle it left a HARD HORIZONTAL SEAM across the picture
+             * where the veil stopped — plainly visible on the first real card,
+             * a straight line ruled across a soft pastel painting. The veil
+             * exists to make words readable; a seam announces that something
+             * was laid over the art.
+             *
+             * ⛔ It fades AWAY FROM THE WORDS: strongest at the edge the text
+             * sits against, gone at the far edge. A fade in the other
+             * direction would thin it exactly where the last line needs it.
              */
-            backgroundColor:
-              illustration.ink === "light"
-                ? `rgba(0,0,0,${illustration.scrim})`
-                : `rgba(255,255,255,${illustration.scrim})`,
+            backgroundImage: veilGradient(illustration.zone, illustration.ink, illustration.scrim),
           },
         }
       : null;

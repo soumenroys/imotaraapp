@@ -77,14 +77,20 @@ export function zoneRect(
  */
 export const LIGHT_INK_BELOW = 140;
 /**
- * ⚠️ 44 RATHER THAN THE 52 THIS STARTED AT. Rendering six real cards found an
- * autumn-wood photograph measuring **48.9** — comfortably under 52, so it got
- * almost no veil, and its support line was genuinely hard to read against the
- * foliage. ⛔ The headline survives a busy ground because it is large and
- * heavy; the SUPPORT LINE is small and thin and gives up first, so the
- * threshold has to be set for the weaker of the two.
+ * ⚠️ MOVED TWICE, BOTH TIMES AGAINST A CARD SOMEBODY LOOKED AT — never by
+ * taste.
+ *   52 → 44: an autumn-wood photograph measured 48.9 across the band, sailed
+ *            under the line, and its support ran into the foliage.
+ *   44 → 36: the FIRST REAL CARD with a generated background — a soft pastel
+ *            still life — measured **37.1** in its worst strip and its support
+ *            line ran across the petals. 37.1 is therefore a measured value of
+ *            "not readable", so the line belongs below it.
+ *
+ * ⛔ The headline survives a busy ground because it is large and heavy; the
+ * SUPPORT LINE is small and thin and gives up first, so the threshold has to
+ * be set for the weaker of the two — not for the one that looks fine.
  */
-export const BUSY_SD = 44;
+export const BUSY_SD = 36;
 
 /**
  * 🔴 THE FLOOR UNDER EVERY DECISION — added after measuring the owner's own
@@ -154,7 +160,40 @@ export async function planBackground(
     const stats = await sharp(cropped).stats();
     const ch = stats.channels[0];
     const mean = ch.mean;
-    const sd = ch.stdev;
+
+    /**
+     * 🔴 THE SPREAD OF THE WORST STRIP, NOT OF THE WHOLE ZONE — 20 Oct 2026.
+     *
+     * ⛔ THE DEFECT THIS FIXES, found on the first real card ever rendered
+     * with a generated background. A soft pastel still life measured spread
+     * 26.6 across the top band and was called quiet, so it got no veil. It WAS
+     * quiet — at the top. The flowers rose into the LOWER part of that same
+     * band, which is exactly where the support line lands. The headline read
+     * beautifully; the second line ran across the petals.
+     *
+     * 🔑 AN AVERAGE OVER A BAND HIDES THE BUSY END OF IT. The zone is read in
+     * three strips and judged on the WORST, because the words occupy all three
+     * and the quietest two do not help the line sitting in the third.
+     *
+     * ⚠️ The MEAN stays whole-zone: it decides which ink, and that is genuinely
+     * an average property of what the words sit on. It is the spread — "will
+     * any ink do here" — that must not be averaged away.
+     */
+    const STRIPS = 3;
+    const stripH = Math.max(1, Math.floor(rect.height / STRIPS));
+    let worst = ch.stdev;
+    for (let i = 0; i < STRIPS; i++) {
+      const top = rect.top + i * stripH;
+      const h2 = i === STRIPS - 1 ? rect.height - i * stripH : stripH;
+      if (h2 < 1) continue;
+      const strip = await sharp(Buffer.from(bytes))
+        .extract({ left: rect.left, top, width: rect.width, height: h2 })
+        .greyscale()
+        .toBuffer();
+      const st = (await sharp(strip).stats()).channels[0];
+      if (st.stdev > worst) worst = st.stdev;
+    }
+    const sd = worst;
 
     /**
      * 🔑 LIGHT INK ON A DARK ZONE, DARK INK ON A LIGHT ONE — the obvious half.

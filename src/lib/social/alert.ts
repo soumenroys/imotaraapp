@@ -5,7 +5,7 @@
 // the address on every social profile, so it is the one somebody is already
 // reading when they are thinking about social ⇒ feedback_social_media_uses_the_social_mailbox.
 
-import { sendOne, isResendConfigured, envIdentities, sendingDomain } from "@/lib/broadcast/resendClient";
+import { sendOne, isResendConfigured, fromAddress } from "@/lib/broadcast/resendClient";
 
 const TO = "social@imotara.com";
 
@@ -48,10 +48,7 @@ export async function sendChannelAlert(
   // ⚠️ From a configured identity on our own sending domain. A From address
   // the domain does not authorise is how an operational alert lands in spam
   // and the channel stays broken ⇒ mailbox_mail_lands_in_spam_no_dkim.
-  const identity = envIdentities()[0];
-  const from = identity
-    ? `${identity.name} <${identity.email}>`
-    : `Imotara <social@${sendingDomain()}>`;
+  const from = fromAddress();
 
   const subject =
     broken.length === 1
@@ -124,10 +121,7 @@ export async function sendQueueAlert(
     "⛔ If the same reason repeats for several days it is a signal about the brief, not bad luck.",
   ].join("\n");
 
-  const identity = envIdentities()[0];
-  const from = identity
-    ? `${identity.name} <${identity.email}>`
-    : `Imotara <social@${sendingDomain()}>`;
+  const from = fromAddress();
 
   const subject =
     refused.length === 1
@@ -213,10 +207,7 @@ export async function sendMissedSlotAlert(
         ]),
   ].join("\n");
 
-  const identity = envIdentities()[0];
-  const from = identity
-    ? `${identity.name} <${identity.email}>`
-    : `Imotara <social@${sendingDomain()}>`;
+  const from = fromAddress();
 
   const outcome = await sendOne({
     from,
@@ -286,8 +277,7 @@ export async function sendUpsetAlert(
     "removed on the platform; if it is merely uncomfortable, it may be doing its job.",
   ].join("\n");
 
-  const identity = envIdentities()[0];
-  const from = identity ? `${identity.name} <${identity.email}>` : `Imotara <social@${sendingDomain()}>`;
+  const from = fromAddress();
 
   const outcome = await sendOne({
     from,
@@ -351,8 +341,7 @@ export async function sendUnapprovedSoonAlert(
     "https://www.imotara.com/admin/social",
   ].join("\n");
 
-  const identity = envIdentities()[0];
-  const from = identity ? `${identity.name} <${identity.email}>` : `Imotara <social@${sendingDomain()}>`;
+  const from = fromAddress();
 
   const outcome = await sendOne({
     from,

@@ -82,6 +82,35 @@ export function envIdentities(): Identity[] {
   return parseIdentities(process.env.BROADCAST_FROM_EMAIL ?? "");
 }
 
+/**
+ * 🔴 A `From` HEADER RESEND WILL ACTUALLY ACCEPT — added 20 Oct 2026.
+ *
+ * ⛔ THE BUG THIS CLOSES, found in the production logs. `BROADCAST_FROM_EMAIL`
+ * is a BARE address, so `parseIdentities` leaves `name` empty — correctly,
+ * there is no display name — and every caller then built
+ * `${name} <${email}>`, which with an empty name is `" <a@b.com>"`: a leading
+ * space and no name, which is NEITHER `email@example.com` NOR
+ * `Name <email@example.com>`. Resend answered `validation_error Invalid
+ * 'from' field` and **every social alert had been silently failing to send**.
+ *
+ * 🔴 WHICH IS THE WORST POSSIBLE PLACE FOR IT. The alerts are the things that
+ * speak when nothing else will — "a slot passed unreviewed", "three drafts
+ * were written and none passed". A guard whose message cannot be delivered is
+ * a guard that does not exist, and its silence is indistinguishable from
+ * everything being fine.
+ *
+ * 🔑 THE CORRECT FORM WAS ALREADY IN THIS REPO — `src/app/api/interest/route.ts`
+ * branches on the empty name and sends the bare address. It was simply never
+ * shared. ⇒ one helper now, so the next sender cannot get it wrong.
+ */
+export function fromAddress(fallbackName = "Imotara"): string {
+  const identity = envIdentities()[0];
+  if (!identity) return `${fallbackName} <social@${sendingDomain()}>`;
+  // ⚠️ A bare address is valid on its own; a bare address with an empty
+  // display name in front of it is not.
+  return identity.name ? `${identity.name} <${identity.email}>` : identity.email;
+}
+
 export function isResendConfigured(): boolean {
   return API_KEY.length > 0;
 }

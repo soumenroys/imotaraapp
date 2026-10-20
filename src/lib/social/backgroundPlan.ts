@@ -20,6 +20,7 @@
 // every post, instead of by a person on some of them.
 
 import sharp from "sharp";
+import { ZONE_DEPTH, ZONE_SIDE } from "@/lib/social/compose";
 
 /** Where the words go — declared per style ⇒ illustrationStyles.ts. */
 export type TextZone = "top" | "bottom" | "left" | "right" | "centre";
@@ -50,8 +51,10 @@ export function zoneRect(
   width: number,
   height: number,
 ): { left: number; top: number; width: number; height: number } {
-  const band = Math.max(1, Math.round(height * 0.42));
-  const side = Math.max(1, Math.round(width * 0.55));
+  // ⛔ THE SAME NUMBERS compose veils with ⇒ ZONE_DEPTH. Measuring one part of
+  // the picture and veiling another is worse than doing neither.
+  const band = Math.max(1, Math.round(height * ZONE_DEPTH));
+  const side = Math.max(1, Math.round(width * ZONE_SIDE));
   switch (zone) {
     case "top":
       return { left: 0, top: 0, width, height: band };

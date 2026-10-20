@@ -153,13 +153,43 @@ export function veilGradient(
   }
 }
 
+/**
+ * 🔴 HOW DEEP THE WORDS REACH — ONE CONSTANT, SHARED.
+ *
+ * ⛔ IT WAS 0.42 IN TWO PLACES, and 0.42 was too shallow. Rendering the whole
+ * queue showed "Your words don't leave your device" with a substantial veil
+ * (0.30, spread 61.7) and a support line that still read badly: the veil
+ * covered the headline's area and STOPPED before the support. A three-line
+ * headline plus two lines of support is taller than 42% of the frame.
+ *
+ * ⚠️ 0.48, NOT MORE, AND THE CEILING IS STRUCTURAL. Measured across all
+ * thirty queued cards: at 0.42 three would veil, at 0.52 five, at 0.60 six —
+ * so deeper catches more, and the deeper the zone the more of the picture a
+ * veil covers. Washing a fifth of the feed to catch one more card is the
+ * monotony this exists to end, arriving as grey.
+ *
+ * ⛔ AND ABOVE 0.5 THE TOP AND BOTTOM ZONES OVERLAP — they would measure some
+ * of the same pixels and stop being two different places. A test caught that
+ * at 0.52, which is why this is 0.48 rather than the value the numbers alone
+ * suggested. ▶️ The invariant outranks the extra card.
+ *
+ * 🔑 EXPORTED AND IMPORTED RATHER THAN REPEATED. `backgroundPlan.zoneRect`
+ * MEASURES this box and `zoneBox` VEILS it; two copies of a number that must
+ * agree is how one gets changed and the other does not — measuring one part
+ * of the picture and veiling another, which is worse than doing neither.
+ */
+export const ZONE_DEPTH = 0.48;
+
+/** How much of the width a side zone takes. */
+export const ZONE_SIDE = 0.55;
+
 export function zoneBox(
   zone: "top" | "bottom" | "left" | "right" | "centre",
   w: number,
   h: number,
 ): Record<string, string> {
-  const band = Math.max(1, Math.round(h * 0.42));
-  const side = Math.max(1, Math.round(w * 0.55));
+  const band = Math.max(1, Math.round(h * ZONE_DEPTH));
+  const side = Math.max(1, Math.round(w * ZONE_SIDE));
   switch (zone) {
     case "top":
       return { top: "0px", left: "0px", width: `${w}px`, height: `${band}px` };

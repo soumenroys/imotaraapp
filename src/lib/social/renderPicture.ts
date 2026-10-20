@@ -63,6 +63,12 @@ export async function loadFont(url: string): Promise<ArrayBuffer> {
 export type PictureSource = {
   platform: string;
   language: string;
+  /**
+   * 🔑 An illustration to sit behind the words, as a band ⇒ compose.ts.
+   * ⛔ A BAND, never the whole frame: the headline must land on flat colour,
+   * not on whatever the model happened to draw.
+   */
+  illustration?: { src: string } | null;
   /** 🔑 A carousel's cards after the subject ⇒ cardsForPost. */
   slides?: string[] | null;
   /**
@@ -317,6 +323,12 @@ export async function renderPostPicture(
        * ⛔ `cards.length` and not `slides.length`: the subject is a card.
        */
       counter: isCarousel ? { index: slide + 1, total: cards.length } : undefined,
+      /**
+       * 🔑 THE PICTURE BEHIND THE WORDS, when this post has one.
+       * ⚠️ Absent is the normal case and composes exactly today's card — which
+       * is also what a failed generation must degrade to.
+       */
+      illustration: post.illustration ?? null,
     });
   } catch (e) {
     return { ok: false, failure: { status: 422, error: (e as Error).message } };

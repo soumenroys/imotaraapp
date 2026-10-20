@@ -88,7 +88,32 @@ export type ComposeInput = {
    * third of all single cards whatever they were about.
    */
   eyebrow?: string | null;
+  /**
+   * 🔑 A PICTURE BEHIND THE WORDS — added 20 Oct 2026, because the owner,
+   * looking at the live feed: *"all posts still looks very similar."* Every
+   * card until now is type on a flat colour.
+   *
+   * ⛔ IT TAKES A BAND, NOT THE FRAME, and that is the whole safety argument.
+   * A full-bleed generated image under a headline is a legibility bet on what
+   * the model happened to draw — one dark passage and the post is unreadable,
+   * and nobody here would see it because the render looks fine at desk size
+   * ⇒ the blank poster, the Bengali card and the mobile crop were all that
+   * shape. With a band, the words always sit on the flat palette ground, and a
+   * failed or ugly generation degrades to exactly today's card.
+   *
+   * ⚠️ Absent is the normal case and draws nothing.
+   */
+  illustration?: { src: string } | null;
 };
+
+/**
+ * How much of the frame the picture may take.
+ *
+ * ⚠️ A FRACTION, NOT A PIXEL COUNT — the same card is composed at 1080×1350,
+ * 1080×1080 and 1080×1920, and a fixed band would be a third of one and a
+ * tenth of another.
+ */
+export const ILLUSTRATION_BAND = 0.38;
 
 /**
  * 🔴 ONE OPACITY FOR EVERY MOTIF WAS WHY ELEVEN MOTIFS LOOKED LIKE NONE.
@@ -940,7 +965,7 @@ function layoutFor(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function composePicture(input: ComposeInput): Picture {
-  const { recipe, headline, support, language, platform, qrCodes } = input;
+  const { recipe, headline, support, language, platform, qrCodes, illustration } = input;
 
   const spec = platformSpec(platform);
   const { width: w, height: h } = spec.picture;
@@ -1120,6 +1145,47 @@ export function composePicture(input: ComposeInput): Picture {
   );
   const motif = motifLayer(recipe.motif, palette.accent, w, h);
 
+  /**
+   * 🔑 THE BAND, AND THE INSET THAT MAKES IT SAFE.
+   *
+   * ⛔ The content is wrapped in a box that STARTS below the picture, so no
+   * layout can put a word over it — including the ones that position
+   * absolutely against the frame, because they now measure against this box.
+   * ⚠️ Doing it here rather than inside the eight layouts is deliberate: a
+   * rule enforced in one place cannot be forgotten by the ninth layout
+   * ⇒ trap_a_constraint_nobody_told_the_writer.
+   */
+  const band = illustration ? Math.round(h * ILLUSTRATION_BAND) : 0;
+  const picture: Node | null = illustration
+    ? {
+        tag: "img",
+        src: illustration.src,
+        style: {
+          position: "absolute",
+          display: "flex",
+          top: 0,
+          left: 0,
+          width: `${w}px`,
+          height: `${band}px`,
+          objectFit: "cover",
+        },
+      }
+    : null;
+
+  const body: Node = band
+    ? {
+        tag: "div",
+        style: {
+          position: "relative",
+          display: "flex",
+          width: `${w}px`,
+          height: `${h - band}px`,
+          marginTop: `${band}px`,
+        },
+        children: [content],
+      }
+    : content;
+
   return {
     width: w,
     height: h,
@@ -1141,7 +1207,8 @@ export function composePicture(input: ComposeInput): Picture {
         fontFamily: wordmark.font.family,
         overflow: "hidden",
       },
-      children: motif ? [motif, content] : [content],
+      // ⚠️ Order matters: ground, then motif, then the picture, then the words.
+      children: [...(motif ? [motif] : []), ...(picture ? [picture] : []), body],
     },
   };
 }

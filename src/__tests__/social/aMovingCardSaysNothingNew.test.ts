@@ -85,15 +85,34 @@ describe("nothing new is ever said", () => {
 });
 
 describe("the build order", () => {
-  it("starts with nothing but the ground and the motif", () => {
+  it("🔴 FRAME 0 CARRIES THE HEADLINE — a feed shows the poster, not the film", () => {
+    /**
+     * 🔴 THE DEFECT THIS REPLACES, and the old assertion is why it survived.
+     * This test used to REQUIRE frame 0 to hide everything: "starts with
+     * nothing but the ground and the motif". In motion that build reads well.
+     * ⛔ But a feed does not play a video — it shows frame 0 as the POSTER, so
+     * every video post appeared on Facebook and Instagram as an empty cream
+     * rectangle with a play button. A reader said the post was "coming blank",
+     * and they were right.
+     *
+     * ⚠️ The old comment even worried about this — "hiding it would make the
+     * first frame a blank rectangle" — about the MOTIF, while the frame went
+     * out with no words on it at all.
+     *
+     * 🔑 Opening the Reel directly showed the card perfectly. The fault
+     * existed only in the feed's still ⇒ the third time in two days that the
+     * code was right and the PICTURE was wrong.
+     */
     const board = storyboard(input());
     const hidden = hiddenRoles(board.frames[0]);
-    for (const role of ["rule", "headline", "support", "footer"]) {
-      expect(hidden.has(role), `frame 0 already shows the ${role}`).toBe(true);
-    }
+    expect(hidden.has("headline"), "frame 0 has no words — the feed will show a blank poster").toBe(false);
     // ⚠️ The motif is the ground the card is printed on, not an element that
     // arrives — hiding it would make the first frame a blank rectangle.
     expect(hidden.has("motif")).toBe(false);
+    // ⛔ The build is kept, not abandoned: the later parts still arrive.
+    for (const role of ["support", "footer"]) {
+      expect(hidden.has(role), `frame 0 already shows the ${role}`).toBe(true);
+    }
   });
 
   it("⛔ the QR panels do not appear before the headline", () => {
@@ -127,7 +146,13 @@ describe("the build order", () => {
         }
       }
     });
-    expect(arrivedAt.rule).toBeLessThanOrEqual(arrivedAt.headline);
+    /**
+     * ⚠️ THE HEADLINE NOW ARRIVES FIRST, and the rule draws in beneath it.
+     * The reading order that matters — words, then the line that underscores
+     * them, then the support, then the footer — is unchanged; what moved is
+     * that the words are present from frame 0 so the poster is legible.
+     */
+    expect(arrivedAt.headline).toBeLessThanOrEqual(arrivedAt.rule);
     expect(arrivedAt.headline).toBeLessThanOrEqual(arrivedAt.support);
     expect(arrivedAt.support).toBeLessThanOrEqual(arrivedAt.footer);
   });

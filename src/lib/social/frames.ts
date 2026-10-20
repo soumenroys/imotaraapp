@@ -86,8 +86,16 @@ export const MAX_HOLD_MS = 5_400;
  * down the card once rather than landing on a finished composition and hunting.
  */
 const STEPS = [
-  { show: { rule: false, headline: false, support: false, footer: false }, hold: 500 },
-  { show: { rule: true, headline: false, support: false, footer: false }, hold: 450 },
+  /**
+   * 🔴 THE FIRST STEP SHOWS THE HEADLINE. It used to show NOTHING, and a feed
+   * does not play a video — it shows frame 0 as the poster. So every video
+   * post appeared in the Facebook and Instagram feeds as an empty rectangle
+   * with a play button, and a reader reported it as "coming blank".
+   * ⇒ The build now grows the RULE in under words that are there from the
+   * first frame, instead of growing words out of nothing.
+   */
+  { show: { rule: false, headline: true, support: false, footer: false }, hold: 500 },
+  { show: { rule: true, headline: true, support: false, footer: false }, hold: 450 },
   { show: { rule: true, headline: true, support: false, footer: false }, hold: 1200 },
   { show: { rule: true, headline: true, support: true, footer: false }, hold: 900 },
   { show: { rule: true, headline: true, support: true, footer: true }, hold: 3150 },
@@ -219,9 +227,30 @@ export function storyboard(input: FrameInput): Storyboard {
 
   // ── The build: rule, then headline, before any sentence arrives ──────────
   const first = composePicture({ ...input, support: scenes[0] });
-  frames.push(withVisibility(first.root, { rule: false, headline: false, support: false, footer: false }));
+  /**
+   * 🔴 THE FIRST FRAME CARRIES THE HEADLINE, AND THAT IS NOT A STYLE CHOICE.
+   *
+   * ⛔ This frame used to hide EVERYTHING for 350ms — a blank opening for the
+   * build to grow out of. In motion it reads well. But a feed does not play a
+   * video, it shows its POSTER, and the poster is frame 0: so every video post
+   * appeared in the Facebook and Instagram feeds as an empty cream rectangle
+   * with a play button over it. A reader reported it as "coming blank", and
+   * they were right — nobody presses play on a blank rectangle.
+   *
+   * ⚠️ FOUND ONLY BY LOOKING AT THE PAGE. Opening the Reel directly showed the
+   * card perfectly; the fault existed only in the feed's still
+   * ⇒ trap_a_card_sized_for_a_format_we_never_post, the same lesson a third
+   * time: the CODE was right and the PICTURE was wrong.
+   *
+   * 🔑 THE BUILD IS KEPT, only inverted: the words are there from the first
+   * frame and the rule draws itself in beneath them. ⛔ And every hold below
+   * is UNCHANGED — the scene indexes and durations are what the narration is
+   * cut against ⇒ renderAnimation, so touching them would desynchronise the
+   * voice to fix a thumbnail.
+   */
+  frames.push(withVisibility(first.root, { rule: false, headline: true, support: false, footer: false }));
   holdMs.push(350);
-  frames.push(withVisibility(first.root, { rule: true, headline: false, support: false, footer: false }));
+  frames.push(withVisibility(first.root, { rule: true, headline: true, support: false, footer: false }));
   holdMs.push(400);
   // ⚠️ The headline alone, long enough to read before anything joins it: for
   // most viewers this IS the post ⇒ "the first line is the whole post".

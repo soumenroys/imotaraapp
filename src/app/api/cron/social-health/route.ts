@@ -17,8 +17,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { tokenStorageReady } from "@/lib/social/tokenCrypto";
-import { sendChannelAlert, sendMissedSlotAlert } from "@/lib/social/alert";
-import { missedSlots, missedSummary, type QueueRow } from "@/lib/social/queueHealth";
+import { sendChannelAlert, sendMissedSlotAlert, sendUnapprovedSoonAlert } from "@/lib/social/alert";
+import {
+  missedSlots,
+  missedSummary,
+  unapprovedSoon,
+  unapprovedSoonSummary,
+  type QueueRow,
+} from "@/lib/social/queueHealth";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { loadCredentialFor } from "@/lib/social/channelCredentials";
 import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
@@ -176,8 +182,25 @@ export async function GET(req: NextRequest) {
     .gte("scheduled_for", new Date(now.getTime() - 7 * 86_400_000).toISOString())
     .order("scheduled_for");
 
-  const missed = missedSlots((queue ?? []) as QueueRow[], now);
+  const rows = (queue ?? []) as QueueRow[];
+  const missed = missedSlots(rows, now);
   const missedAlerted = missed.length > 0 ? await sendMissedSlotAlert(missed, missedSummary(missed)) : false;
+
+  /**
+   * 🔴 AND THE SAME QUEUE READ FORWARDS — added 20 Oct 2026.
+   *
+   * ⛔ `missedSlots` is a post-mortem by construction, so until now the only
+   * message about an unapproved post arrived after its hour had gone. On
+   * 20 Oct four posts sat unapproved with `auto_publish` false on every
+   * schedule; nothing would have spoken until the morning after the first
+   * one was already lost ⇒ src/lib/social/queueHealth.ts.
+   *
+   * 🔑 The query above needs no change: it is bounded below at 7 days ago and
+   * NOT bounded above, so tomorrow's rows were always being fetched and
+   * simply never looked at.
+   */
+  const soon = unapprovedSoon(rows, now);
+  const soonAlerted = soon.length > 0 ? await sendUnapprovedSoonAlert(soon, unapprovedSoonSummary(soon)) : false;
 
   return NextResponse.json({
     ran: true,
@@ -186,6 +209,8 @@ export async function GET(req: NextRequest) {
     alerted,
     missed: missed.map((m) => ({ platform: m.platform, kind: m.kind, lateMinutes: m.lateMinutes, subject: m.subject })),
     missedAlerted,
+    soon: soon.map((m) => ({ platform: m.platform, minutesAway: m.minutesAway, subject: m.subject })),
+    soonAlerted,
     note:
       "✅ Facebook is asked directly: 'ok' there means Facebook answered and returned the Page. " +
       "⚠️ Every other channel has no adapter yet, so all that is checked is the encryption key and " +

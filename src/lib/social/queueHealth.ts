@@ -142,3 +142,99 @@ export function missedSummary(missed: MissedSlot[]): string {
   }
   return `${missed.length} posts missed their slots — ${unreviewed} awaiting approval, ${stuck} stuck`;
 }
+
+/**
+ * 🔴 THE OTHER HALF OF THE SAME SILENCE — added 20 Oct 2026.
+ *
+ * ⛔ `missedSlots` ONLY LOOKS BACKWARDS. Its own guard is `if (at > cutoff)
+ * continue`, so a post is reported *after* its hour has gone. Riding the
+ * 03:30Z cron, that means the mail describes a slot that is already lost and
+ * cannot be recovered — the day is gone, then announced.
+ *
+ * 🔑 Measured on 20 Oct: three posts for 30 Oct and one for 31 Oct sat in
+ * `needs_review`, every schedule healthy, `auto_publish` false on all three.
+ * Nothing would have said a word until 03:30 on the 31st, about the 30th.
+ *
+ * ⚠️ WHY A LOOK-AHEAD IS THE WHOLE FIX AND AUTO-PUBLISH IS NOT. The gate is
+ * deliberate — its own note reads "this schedule does not publish without
+ * being read" — and reading is what caught the Bengali card that drew
+ * অভিমান as অভমিান and the storyboard whose first frame was blank. Both
+ * passed every test. ⇒ keep the gate, remove the silence.
+ *
+ * ⛔ IT CANNOT OVERLAP `missedSlots`, by construction: that one takes
+ * `at <= now − grace` and this one takes `at > now − grace`. Every row with
+ * an hour falls to exactly one of them, and the boundary is pinned by test.
+ */
+export const LOOKAHEAD_HOURS = 24;
+
+export type UpcomingUnapproved = {
+  id: string;
+  platform: string;
+  subject: string;
+  scheduledFor: string;
+  minutesAway: number;
+  why: string;
+};
+
+/**
+ * Every post that will miss its slot unless somebody approves it first.
+ *
+ * ⛔ PURE, AND IT TAKES `now` — same reason as `missedSlots`. A look-ahead
+ * that reads the clock itself can only be tested at the moment it happens
+ * to be right.
+ */
+export function unapprovedSoon(
+  rows: QueueRow[],
+  now: Date,
+  lookaheadHours = LOOKAHEAD_HOURS,
+  graceMinutes = GRACE_MINUTES,
+): UpcomingUnapproved[] {
+  const floor = now.getTime() - graceMinutes * 60_000;
+  const ceiling = now.getTime() + lookaheadHours * 3_600_000;
+  const out: UpcomingUnapproved[] = [];
+
+  for (const r of rows) {
+    /**
+     * ⛔ `approved` IS NOT WAITING FOR ANYBODY. Including it would mail the
+     * owner every single morning about the posts that are working correctly,
+     * which is the fastest way to make this alert ignored
+     * ⇒ the false QR warning that cried wolf on every post.
+     */
+    if (r.status !== "needs_review") continue;
+    // ⚠️ Null means "as soon as it is approved" — it has no hour to miss.
+    if (!r.scheduled_for) continue;
+
+    const at = new Date(r.scheduled_for).getTime();
+    if (!Number.isFinite(at)) continue;
+    if (at <= floor || at > ceiling) continue;
+
+    out.push({
+      id: r.id,
+      platform: r.platform,
+      subject: r.subject?.trim() || "(no subject)",
+      scheduledFor: r.scheduled_for,
+      minutesAway: Math.round((at - now.getTime()) / 60_000),
+      why: "Written and gated. It keeps its slot and goes out within a minute of being approved.",
+    });
+  }
+
+  // ⚠️ SOONEST FIRST — the opposite order to `missedSlots`, on purpose. There,
+  // the one waiting longest is the one most likely forgotten; here, the one
+  // about to happen is the only one you can still save.
+  return out.sort((a, b) => a.minutesAway - b.minutesAway);
+}
+
+/**
+ * 🔑 ONE LINE THAT SAYS HOW LONG THERE IS, for the subject of the mail.
+ *
+ * ⛔ Not "2 posts need review" — that reads like a backlog. The hour is the
+ * whole point: it is the difference between acting and reading a post-mortem.
+ */
+export function unapprovedSoonSummary(soon: UpcomingUnapproved[]): string {
+  if (soon.length === 0) return "";
+  const next = soon[0].minutesAway;
+  const when = next < 60 ? `${Math.max(next, 0)} minutes` : `${Math.round(next / 60)} hours`;
+  return soon.length === 1
+    ? `A post goes out in ${when} and is waiting for your approval`
+    : `${soon.length} posts are waiting for your approval — the first in ${when}`;
+}

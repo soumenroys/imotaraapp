@@ -26,11 +26,21 @@ process.env.CRON_SECRET = "test-cron-secret";
 let queueRows: Record<string, unknown>[] = [];
 /** What the alert was called with, or null if it never was. */
 let alerted: { missed: unknown[]; summary: string } | null = null;
+/**
+ * The look-ahead's own mail. ⛔ A SEPARATE capture, not a shared one: the whole
+ * point of the two alerts is that they say different things at different
+ * times, and one variable could not tell a post-mortem from a warning.
+ */
+let warned: { soon: unknown[]; summary: string } | null = null;
 
 vi.mock("@/lib/social/alert", () => ({
   sendChannelAlert: async () => false,
   sendMissedSlotAlert: async (missed: unknown[], summary: string) => {
     alerted = { missed, summary };
+    return true;
+  },
+  sendUnapprovedSoonAlert: async (soon: unknown[], summary: string) => {
+    warned = { soon, summary };
     return true;
   },
 }));
@@ -71,9 +81,12 @@ const call = () =>
 
 const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 
+const hoursAhead = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString();
+
 beforeEach(() => {
   queueRows = [];
   alerted = null;
+  warned = null;
 });
 
 describe("the health cron reads the queue, not only the channels", () => {
@@ -111,6 +124,11 @@ describe("the health cron reads the queue, not only the channels", () => {
     expect(body.missed).toEqual([]);
     expect(body.missedAlerted).toBe(false);
     expect(alerted).toBeNull();
+    // ⚠️ And the look-ahead too: `approved` is not waiting for anybody, so a
+    // correctly working queue must produce NEITHER mail.
+    expect(body.soon).toEqual([]);
+    expect(body.soonAlerted).toBe(false);
+    expect(warned).toBeNull();
   });
 
   it("⚠️ an approved post that never went out reaches the alert as OURS", async () => {
@@ -121,6 +139,48 @@ describe("the health cron reads the queue, not only the channels", () => {
     const body = await (await call()).json();
     expect(body.missed[0].kind).toBe("stuck");
     expect(alerted!.summary).toMatch(/not going out/i);
+  });
+
+  it("🔴 warns about tonight's post BEFORE its slot, not after", async () => {
+    /**
+     * ⛔ THE REACHABILITY GUARD FOR THE LOOK-AHEAD. `unapprovedSoon` is pure
+     * and separately tested; this is the only check that the route reads the
+     * queue forwards and calls it. ⇒ the same trap as `missedSlots`: a
+     * correct function nothing invokes.
+     */
+    queueRows = [
+      { id: "p3", platform: "youtube", subject: "What it is for", status: "needs_review",
+        scheduled_for: hoursAhead(9), attempts: 0 },
+    ];
+    const body = await (await call()).json();
+
+    expect(body.soon, "the route never looked at the queue forwards").toHaveLength(1);
+    expect(body.soon[0].platform).toBe("youtube");
+    expect(body.soonAlerted, "it saw tonight's post coming and told nobody").toBe(true);
+    expect(warned!.summary).toMatch(/waiting for your approval/i);
+    // 🔑 The hour is the point — a subject without it reads as a backlog.
+    expect(warned!.summary).toMatch(/\b9 hours\b/);
+
+    // ⛔ And it is NOT reported as a miss. A future slot has not been missed.
+    expect(body.missed).toEqual([]);
+    expect(alerted).toBeNull();
+  });
+
+  it("⛔ one row never produces both mails", async () => {
+    /**
+     * 🔑 The boundary, through the real route rather than the pure function:
+     * `missedSlots` takes `at <= now − grace` and `unapprovedSoon` takes
+     * `at > now − grace`. A row landing in both would mail twice about one
+     * post; a row landing in neither is the silence this all exists to end.
+     */
+    for (const scheduled_for of [hoursAgo(2), hoursAhead(2), hoursAgo(0.1)]) {
+      queueRows = [{ id: "p4", platform: "facebook", subject: "Boundary", status: "needs_review", scheduled_for, attempts: 0 }];
+      alerted = null;
+      warned = null;
+      const body = await (await call()).json();
+      const total = body.missed.length + body.soon.length;
+      expect(total, `scheduled_for ${scheduled_for} landed in ${total} lists, not exactly 1`).toBe(1);
+    }
   });
 
   it("⛔ still refuses a caller that is not the scheduler", async () => {

@@ -166,8 +166,10 @@ export async function sendQueueAlert(
  * repetition costs almost nothing and stops exactly when it is acted on.
  *
  * ⚠️ TIMED TO BE ACTIONABLE. This rides the health cron at 03:30Z, which is
- * 09:00 in Kolkata — before the 17:00 and 17:30 slots. So it reports
- * yesterday's miss while there is still a whole day to catch today's.
+ * 09:00 in Kolkata — before the 18:30, 19:00 and 19:30 IST slots. So it
+ * reports yesterday's miss while there is still a whole day to catch today's.
+ * ⛔ The slot times here were 17:00/17:30 until 19 Oct. A comment that states
+ * the world goes stale ⇒ it is the times that moved, not this reasoning.
  */
 export async function sendMissedSlotAlert(
   missed: { platform: string; subject: string; lateMinutes: number; kind: "unreviewed" | "stuck"; why: string }[],
@@ -300,4 +302,71 @@ export async function sendUpsetAlert(
     text,
   });
   return outcome.ok;
+}
+
+/**
+ * 🔵 A POST IS DUE AND NOBODY HAS APPROVED IT YET — added 20 Oct 2026.
+ *
+ * ⛔ THE SIBLING OF `sendMissedSlotAlert`, AND DELIBERATELY NOT THE SAME MAIL.
+ * That one is a post-mortem: the hour is gone. This one is the only message in
+ * the system that arrives while the slot can still be saved.
+ *
+ * 🔑 THEY CANNOT BOTH FIRE FOR ONE ROW — `missedSlots` takes `at <= now − grace`
+ * and `unapprovedSoon` takes `at > now − grace`. Two mails on one morning means
+ * two genuinely different problems, which is worth two mails.
+ *
+ * ⚠️ TIMED TO BE ACTIONABLE. It rides the health cron at 03:30Z = 09:00 in
+ * Kolkata, and the slots are 18:30, 19:00 and 19:30 IST ⇒ roughly nine and a
+ * half hours of notice on the earliest one.
+ */
+export async function sendUnapprovedSoonAlert(
+  soon: { platform: string; subject: string; minutesAway: number; why: string }[],
+  summary: string,
+): Promise<boolean> {
+  if (soon.length === 0) return false;
+
+  if (!isResendConfigured()) {
+    console.error("[social-health] a post is due unapproved and email is not configured:", soon);
+    return false;
+  }
+
+  const away = (m: number) =>
+    m < 0 ? "due now" : m < 120 ? `in ${m} minutes` : `in ${Math.round(m / 60)} hours`;
+
+  const lines = soon
+    .map((s) => `• ${s.platform} — “${s.subject}”\n  Goes out ${away(s.minutesAway)}. ${s.why}`)
+    .join("\n\n");
+
+  const text = [
+    summary + ".",
+    "",
+    lines,
+    "",
+    // 🔑 The one sentence that makes this different from the missed-slot mail,
+    // and the reason it is worth sending at all.
+    "⚠️ Nothing has gone wrong yet. These schedules do not publish without being read, so",
+    "unapproved means the slot passes in silence. There is still time.",
+    "",
+    "Approve them here:",
+    "https://www.imotara.com/admin/social",
+  ].join("\n");
+
+  const identity = envIdentities()[0];
+  const from = identity ? `${identity.name} <${identity.email}>` : `Imotara <social@${sendingDomain()}>`;
+
+  const outcome = await sendOne({
+    from,
+    to: TO,
+    subject: summary,
+    html: `<pre style="font:14px/1.6 ui-monospace,monospace;white-space:pre-wrap">${text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")}</pre>`,
+    text,
+  });
+
+  if (!outcome.ok) {
+    console.error("[social-health] the look-ahead alert itself failed to send:", outcome.code, outcome.message, soon);
+    return false;
+  }
+  return true;
 }

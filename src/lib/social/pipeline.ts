@@ -190,6 +190,29 @@ export type RejectedDraft = {
   gate?: GateResult;
 };
 
+/**
+ * 🔴 THE REFUSAL, WITH THE REASONS ATTACHED — added 20 Oct 2026.
+ *
+ * ⛔ `prepareGenerated`'s refusal says "the objections are recorded against
+ * each attempt so the brief can be fixed". **They were not.** It returned
+ * them on `rejected` and the queue cron stored only the summary, so the one
+ * sentence telling an operator where to look pointed at nothing
+ * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+ *
+ * 🔑 Found on four Instagram slots that failed three drafts out of three and
+ * left no evidence of why. Two recovered on a later retry, which makes it
+ * INTERMITTENT — the kind of failure that cannot be diagnosed afterwards
+ * unless the reason was kept at the time.
+ *
+ * ⚠️ THE SUBJECT AND BODY ARE DELIBERATELY LEFT OUT. The objection is what is
+ * actionable, and copying rejected drafts into a failure row would put
+ * ungated words somewhere nobody is expecting to find them.
+ */
+export function failureDetail(reason: string, rejected: RejectedDraft[]): string {
+  const why = rejected.map((r) => `#${r.attempt}: ${r.why}`).join(" | ");
+  return why ? `${reason} ⇒ ${why}` : reason;
+}
+
 export type PreparedPost = {
   origin: "generated" | "written";
   scheduleId: string | null;

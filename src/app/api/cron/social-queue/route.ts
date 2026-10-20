@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
-import { prepareGenerated, nextLanguage, standDownReasons } from "@/lib/social/pipeline";
+import { prepareGenerated, nextLanguage, standDownReasons, failureDetail } from "@/lib/social/pipeline";
 import {
   activeSchedules,
   writtenSlotKeys,
@@ -213,8 +213,28 @@ export async function GET(req: NextRequest) {
         scheduledFor: want.scheduledFor,
       });
       if (!prepared.ok) {
-        await failed(prepared.reason);
-        outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail: prepared.reason });
+        /**
+         * 🔴 THE OBJECTIONS, WRITTEN DOWN — added 20 Oct 2026.
+         *
+         * ⛔ The refusal says "the objections are recorded against each
+         * attempt so the brief can be fixed". **They were not.**
+         * `prepareGenerated` returns them on `rejected` and this branch threw
+         * them away, storing only the summary — so the one sentence telling
+         * an operator where to look pointed at nothing
+         * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
+         *
+         * 🔑 Found on four Instagram slots that failed 3 drafts out of 3 and
+         * left no evidence of WHY. Two later recovered on retry, which makes
+         * it intermittent — exactly the kind of failure that cannot be
+         * diagnosed after the fact unless the reason was kept.
+         *
+         * ⚠️ The subject and body are deliberately NOT stored: the reason is
+         * what is actionable, and copying rejected drafts into a failure row
+         * would put ungated words somewhere nobody is expecting them.
+         */
+        const detail = failureDetail(prepared.reason, prepared.rejected);
+        await failed(detail);
+        outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail });
         continue;
       }
       const saved = await savePreparedPost(prepared.post, { scheduledFor: want.scheduledFor });

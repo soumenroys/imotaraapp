@@ -283,3 +283,59 @@ describe("the picture suits what the post is about", () => {
     }
   });
 });
+
+/**
+ * 🔴 NOT EVERY CARD MAY BE LIGHT.
+ *
+ * Drawing all twelve and READING THE MEASUREMENTS showed every single one
+ * landing light enough to take dark ink — brightness 164 to 249, spread 3.5
+ * to 24.7. Perfectly legible, and a monotony creeping back in by the side
+ * door: several of the owner's own references are white-on-dark, and we had
+ * quietly lost that look entirely.
+ *
+ * ⛔ THE MEASUREMENT IS STILL WHAT DECIDES THE INK. `ground` is what the style
+ * INTENDED, kept so the two can be compared — a style that asks for night and
+ * renders a pale sky is a prompt that is not working, and nobody would ever
+ * find out, because the card would still be legible. It would just be the
+ * fifteenth light card in a row.
+ */
+describe("some backgrounds have to be dark", () => {
+  it("🔴 the catalogue carries dark-ground styles at all", () => {
+    const dark = ILLUSTRATION_STYLES.filter((s) => s.ground === "dark");
+    expect(dark.length, "every style is light again — white-on-dark has been lost").toBeGreaterThanOrEqual(3);
+  });
+
+  it("⚠️ and light ones, because an all-dark feed is the same mistake inverted", () => {
+    expect(ILLUSTRATION_STYLES.filter((s) => s.ground === "light").length).toBeGreaterThan(3);
+  });
+
+  it("⛔ a dark style names deep values rather than merely feeling moody", () => {
+    /**
+     * 🔑 THE PROMPT HAS TO DO THE WORK. The ink is chosen by measurement, so a
+     * style that says "night" and renders a pale blue sky takes dark ink like
+     * all the rest and this achieves nothing.
+     */
+    for (const s of ILLUSTRATION_STYLES.filter((x) => x.ground === "dark")) {
+      expect(
+        s.look.toLowerCase(),
+        `${s.id} declares a dark ground without asking for dark values`,
+      ).toMatch(/\b(dark|deep|near-black|nocturnal|shadow)\b/);
+    }
+  });
+
+  it("⚠️ every style declares a ground, so none is dark or light by accident", () => {
+    for (const s of ILLUSTRATION_STYLES) {
+      expect(["light", "dark"], `${s.id}`).toContain(s.ground);
+    }
+  });
+
+  it("🔑 a dark style still reserves its quiet area like any other", () => {
+    // ⛔ Dark does not excuse a busy frame — white type over a detailed night
+    // scene fails exactly as black type over a detailed bright one does.
+    for (const s of ILLUSTRATION_STYLES.filter((x) => x.ground === "dark")) {
+      expect(s.look.toLowerCase(), `${s.id} reserves no room for the words`).toMatch(
+        /\b(plain|almost black|nothing on it|only a faint|dark and plain)\b/,
+      );
+    }
+  });
+});

@@ -62,6 +62,19 @@ export type IllustrationStyle = {
    */
   tones: StyleTone[];
   /**
+   * 🔑 HOW DARK THIS STYLE IS MEANT TO COME OUT — and therefore which ink it
+   * expects. ⛔ A DECLARATION, NOT A DECISION: the ink is still measured from
+   * the real pixels ⇒ backgroundPlan. This exists so the two can be COMPARED.
+   *
+   * ⚠️ WHY IT EXISTS AT ALL. Drawing all twelve and reading the measurements
+   * showed every single one landing light enough for dark ink — consistent,
+   * and a monotony creeping back in by the side door, since several of the
+   * owner's own references are white-on-dark. A style that intends to be dark
+   * and measures light is a prompt that is not working, and without this field
+   * nobody would ever find out.
+   */
+  ground: "light" | "dark";
+  /**
    * 🔑 WHERE THE QUIET AREA IS. The composer needs to know which part of the
    * frame was reserved, or it will set the headline over the busy half.
    */
@@ -108,6 +121,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Autumn woods, a quiet shore. Rich, textured, hand-worked.",
     family: "painted",
     tones: ["quiet", "warm"],
+    ground: "light",
     textZone: "top",
     look:
       "An oil pastel landscape painting on textured paper — a quiet wood, a shoreline or open " +
@@ -120,6 +134,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Flowers in a jar, chalky and tender. Lots of breathing room.",
     family: "painted",
     tones: ["quiet", "warm"],
+    ground: "light",
     textZone: "top",
     look:
       "A soft chalk pastel still life — simple flowers in a glass jar on a plain surface, chalky " +
@@ -132,6 +147,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "A small drawn figure, loose and happy. The warmest of the set.",
     family: "painted",
     tones: ["warm", "bright"],
+    ground: "light",
     textZone: "top",
     look:
       "A loose watercolour illustration of a single small stylised character — simple rounded " +
@@ -145,6 +161,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Fine black line work on white — botanical, delicate, graphic.",
     family: "drawn",
     tones: ["quiet", "warm"],
+    ground: "light",
     textZone: "bottom",
     look:
       "A fine black pen and ink line drawing on white paper — botanical forms, a butterfly, " +
@@ -157,6 +174,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Bright pencil strokes on white, like a page from a sketchbook.",
     family: "drawn",
     tones: ["warm", "bright"],
+    ground: "light",
     textZone: "top",
     look:
       "A coloured pencil drawing on white sketchbook paper — one simple everyday object rendered " +
@@ -169,6 +187,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "A rainbow of waxy strokes edge to edge. Bold and childlike.",
     family: "drawn",
     tones: ["bright", "warm"],
+    ground: "light",
     textZone: "centre",
     look:
       "A field of broad waxy oil-crayon strokes covering the whole sheet in a gentle spectrum — " +
@@ -181,6 +200,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Clean modern shapes and characters. Bright, friendly, digital.",
     family: "vector",
     tones: ["bright"],
+    ground: "light",
     textZone: "left",
     look:
       "A flat vector illustration in a clean modern style — simple geometric characters and " +
@@ -194,6 +214,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Warm storybook art — animals, trees, soft sunlight.",
     family: "vector",
     tones: ["bright", "warm"],
+    ground: "light",
     textZone: "top",
     look:
       "A warm children's storybook illustration — friendly stylised animals among trees and " +
@@ -206,6 +227,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Rounded 3D shapes in one colour. Modern and playful.",
     family: "dimensional",
     tones: ["bright", "quiet"],
+    ground: "light",
     textZone: "centre",
     look:
       "A soft 3D render of simple rounded geometric objects — spheres, rings, rounded cubes — " +
@@ -218,6 +240,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "A real landscape — fields, sky, distant hills. Open and calm.",
     family: "photographic",
     tones: ["quiet", "warm"],
+    ground: "light",
     textZone: "top",
     look:
       "A calm wide photograph of open landscape — fields, meadow flowers or a distant shoreline " +
@@ -230,6 +253,7 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Torn-paper layers with soft shadows. Tactile and handmade.",
     family: "painted",
     tones: ["quiet", "warm", "bright"],
+    ground: "light",
     textZone: "centre",
     look:
       "A torn-paper collage of layered organic shapes with soft drop shadows and visible paper " +
@@ -242,11 +266,61 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
     note: "Two or three huge simple shapes. Bold, clean, very modern.",
     family: "vector",
     tones: ["warm", "quiet", "bright"],
+    ground: "light",
     textZone: "top",
     look:
       "An extremely minimal geometric composition — two or three very large simple shapes, a " +
       "circle, an arc, a soft rectangle, in warm sand clay and terracotta tones on a light " +
       "ground. Flat colour, no detail. The shapes sit low; the top is empty ground.",
+  },
+  /**
+   * 🔑 THE THREE DARK-GROUND STYLES — added 20 Oct 2026 at the owner's
+   * agreement, after the measurements showed all twelve coming out light.
+   *
+   * ⛔ THEY MUST BE GENUINELY DARK, not merely "moody". The ink is chosen by
+   * measurement, so a style that *says* night and renders a pale blue sky will
+   * simply take dark ink like all the rest and this will have achieved
+   * nothing. ⇒ each one names deep, low-key values explicitly.
+   */
+  {
+    id: "night-window",
+    label: "Night window",
+    note: "Lit windows in the dark, a far-off city. Calm, never lonely.",
+    family: "painted",
+    tones: ["quiet"],
+    ground: "dark",
+    textZone: "top",
+    look:
+      "A deep nocturnal scene in very dark navy and near-black — distant lit windows and a soft " +
+      "amber glow low on the horizon, everything else in deep shadow. Dark, low-key and restful " +
+      "rather than bleak. The upper half is almost black night sky with only a faint star or two.",
+  },
+  {
+    id: "deep-vector-ground",
+    label: "Deep colour ground",
+    note: "Bold shapes on a rich dark field. Modern, graphic, confident.",
+    family: "vector",
+    tones: ["bright", "warm"],
+    ground: "dark",
+    textZone: "top",
+    look:
+      "A flat vector illustration on a deep saturated background — rich indigo, forest green or " +
+      "aubergine, very dark overall — with simple bright geometric shapes and small friendly " +
+      "characters gathered along the bottom edge. No gradients. The whole upper half is plain " +
+      "deep colour with nothing on it.",
+  },
+  {
+    id: "dusk-landscape",
+    label: "Dusk landscape",
+    note: "Hills after sunset. Deep, warm, quiet.",
+    family: "painted",
+    tones: ["quiet", "warm"],
+    ground: "dark",
+    textZone: "top",
+    look:
+      "A painted landscape just after sunset — dark layered hills in deep blues and purples " +
+      "against a dusky sky, the last warm light sitting low behind the ridges. Deep and shadowed " +
+      "throughout, soft brushwork. The sky above is dark and plain.",
   },
 ];
 

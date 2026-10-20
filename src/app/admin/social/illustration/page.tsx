@@ -16,9 +16,9 @@ import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { SocialPage, Explain } from "@/app/admin/social/_components/ui";
 
-type Style = { id: string; label: string; note: string; family?: string; textZone?: string };
+type Style = { id: string; label: string; note: string; family?: string; textZone?: string; ground?: string };
 type Plan = { ink: "light" | "dark"; scrim: number; measured: { mean: number; sd: number } };
-type Shot = { dataUrl?: string; ms?: number; error?: string; detail?: string; plan?: Plan };
+type Shot = { dataUrl?: string; ms?: number; error?: string; detail?: string; plan?: Plan; groundAsIntended?: boolean };
 
 export default function Illustration() {
   const [authed, setAuthed] = useState<boolean | null>(null);
@@ -65,7 +65,7 @@ export default function Illustration() {
         setShots((s) => ({
           ...s,
           [styleId]: res.ok
-            ? { dataUrl: data.dataUrl, ms: data.ms, plan: data.plan }
+            ? { dataUrl: data.dataUrl, ms: data.ms, plan: data.plan, groundAsIntended: data.groundAsIntended }
             : // 🔑 The raw refusal, shown. This cannot be run locally, so the
               // first call IS the experiment and a tidy message wastes it.
               { error: data.error ?? `HTTP ${res.status}`, detail: data.detail },
@@ -185,7 +185,7 @@ export default function Illustration() {
                     <p className="mt-1 text-xs leading-relaxed text-zinc-400">{s.note}</p>
                     {s.family && (
                       <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
-                        {s.family} · words go {s.textZone}
+                        {s.family} · {s.ground} ground · words go {s.textZone}
                       </p>
                     )}
                     <button
@@ -203,6 +203,14 @@ export default function Illustration() {
                         {shot.plan.ink} ink ·{" "}
                         {shot.plan.scrim > 0 ? `veil ${shot.plan.scrim.toFixed(2)}` : "no veil"} ·
                         brightness {shot.plan.measured.mean} · spread {shot.plan.measured.sd}
+                      </p>
+                    )}
+                    {shot?.groundAsIntended === false && (
+                      /* ⛔ The style asked for one kind of ground and the model
+                         drew the other. Legible either way — but it is a prompt
+                         that is not working, and silence would hide it. */
+                      <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-amber-400">
+                        came out {shot.plan?.ink === "light" ? "dark" : "light"} — not as intended
                       </p>
                     )}
                   </figcaption>

@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       // actually choosing between ⇒ illustrationStyles.ts.
       family: s.family,
       textZone: s.textZone,
+      ground: s.ground,
     })),
     /**
      * 🔑 MEASURED, NOT ASSUMED. Vertex and the Gemini API name the same model
@@ -127,6 +128,15 @@ export async function POST(req: NextRequest) {
     mimeType: out.mimeType,
     zone: style.textZone,
     plan,
+    /**
+     * 🔑 WHAT THE STYLE INTENDED, beside what the picture actually measured.
+     * ⛔ A style that declares `dark` and comes back taking dark ink is a
+     * prompt that did not work — and without this comparison nobody would ever
+     * find out, because the card would still be perfectly legible. It would
+     * just be the fifteenth light card in a row.
+     */
+    ground: style.ground,
+    groundAsIntended: (style.ground === "dark") === (plan.ink === "light"),
     /** Inline, because nothing here is stored — it is a sample, not an asset. */
     dataUrl: `data:${out.mimeType};base64,${Buffer.from(out.bytes).toString("base64")}`,
   });

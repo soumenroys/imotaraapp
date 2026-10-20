@@ -64,11 +64,19 @@ export type PictureSource = {
   platform: string;
   language: string;
   /**
-   * 🔑 An illustration to sit behind the words, as a band ⇒ compose.ts.
-   * ⛔ A BAND, never the whole frame: the headline must land on flat colour,
-   * not on whatever the model happened to draw.
+   * 🔑 THE BACKGROUND PICTURE AND HOW TO WRITE ON IT.
+   *
+   * ⛔ `ink` and `scrim` are MEASURED from the real pixels under the real text
+   * zone ⇒ backgroundPlan.planBackground. They are never guessed here, and a
+   * caller that invents them has thrown away the only thing that makes text
+   * over a generated image safe.
    */
-  illustration?: { src: string } | null;
+  illustration?: {
+    src: string;
+    ink: "light" | "dark";
+    scrim: number;
+    zone: "top" | "bottom" | "left" | "right" | "centre";
+  } | null;
   /** 🔑 A carousel's cards after the subject ⇒ cardsForPost. */
   slides?: string[] | null;
   /**

@@ -103,8 +103,49 @@ export type ComposeInput = {
    *
    * ⚠️ Absent is the normal case and draws nothing.
    */
-  illustration?: { src: string } | null;
+  illustration?: {
+    src: string;
+    /** Measured, never guessed ⇒ backgroundPlan.planBackground. */
+    ink: "light" | "dark";
+    /** 0 when the picture needs no help. */
+    scrim: number;
+    /** Where this style reserved its quiet area ⇒ illustrationStyles.ts. */
+    zone: "top" | "bottom" | "left" | "right" | "centre";
+  } | null;
 };
+
+/**
+ * The veil's box, in the same places `backgroundPlan.zoneRect` measures.
+ *
+ * ⛔ THE TWO MUST AGREE. Measuring one part of the frame and veiling another
+ * is worse than doing neither — it would report a readable card and produce
+ * an unreadable one. ⚠️ Pinned by test against `zoneRect`.
+ */
+export function zoneBox(
+  zone: "top" | "bottom" | "left" | "right" | "centre",
+  w: number,
+  h: number,
+): Record<string, string> {
+  const band = Math.max(1, Math.round(h * 0.42));
+  const side = Math.max(1, Math.round(w * 0.55));
+  switch (zone) {
+    case "top":
+      return { top: "0px", left: "0px", width: `${w}px`, height: `${band}px` };
+    case "bottom":
+      return { top: `${h - band}px`, left: "0px", width: `${w}px`, height: `${band}px` };
+    case "left":
+      return { top: "0px", left: "0px", width: `${side}px`, height: `${h}px` };
+    case "right":
+      return { top: "0px", left: `${w - side}px`, width: `${side}px`, height: `${h}px` };
+    case "centre":
+      return {
+        top: `${Math.round((h - band) / 2)}px`,
+        left: "0px",
+        width: `${w}px`,
+        height: `${band}px`,
+      };
+  }
+}
 
 /**
  * How much of the frame the picture may take.
@@ -967,6 +1008,21 @@ function layoutFor(
 export function composePicture(input: ComposeInput): Picture {
   const { recipe, headline, support, language, platform, qrCodes, illustration } = input;
 
+  /**
+   * 🔴 THE INK THE WORDS ARE ACTUALLY DRAWN IN.
+   *
+   * ⛔ WITH A BACKGROUND PICTURE THE PALETTE'S GROUND IS NOT VISIBLE, so the
+   * palette's ink is a colour chosen against something nobody can see. The
+   * ink must come from what is ACTUALLY behind the words — measured from the
+   * real pixels of the real picture ⇒ backgroundPlan.planBackground.
+   *
+   * ⚠️ Without a picture this is the palette exactly as before, so every card
+   * that has no illustration renders byte-for-byte as it does today.
+   */
+  const overPicture = Boolean(input.illustration);
+  const OVER_INK = { light: "#ffffff", dark: "#161310" } as const;
+  const OVER_MUTED = { light: "rgba(255,255,255,0.88)", dark: "rgba(22,19,16,0.82)" } as const;
+
   const spec = platformSpec(platform);
   const { width: w, height: h } = spec.picture;
 
@@ -1034,7 +1090,7 @@ export function composePicture(input: ComposeInput): Picture {
           // upper-cased, because there is nothing to upper-case.
           letterSpacing: input.counter ? "0.12em" : "0.18em",
           textTransform: input.counter ? "none" : "uppercase",
-          color: palette.muted,
+          color: overPicture ? OVER_MUTED[input.illustration!.ink] : palette.muted,
         },
         text: labelText,
       }
@@ -1104,7 +1160,7 @@ export function composePicture(input: ComposeInput): Picture {
       lineHeight: 1.16,
       letterSpacing: type.tracking,
       fontWeight: 600,
-      color: palette.ink,
+      color: overPicture ? OVER_INK[input.illustration!.ink] : palette.ink,
       maxWidth: `${Math.round(w * 0.84)}px`,
     },
     text: headline,
@@ -1118,7 +1174,7 @@ export function composePicture(input: ComposeInput): Picture {
           display: "flex",
           fontSize: `${type.support}px`,
           lineHeight: 1.45,
-          color: palette.muted,
+          color: overPicture ? OVER_MUTED[input.illustration!.ink] : palette.muted,
           maxWidth: `${Math.round(w * 0.74)}px`,
           marginTop: `${Math.round(20 * scale)}px`,
         },
@@ -1127,8 +1183,20 @@ export function composePicture(input: ComposeInput): Picture {
     : null;
 
   const foot = footerNode({
-    ink: palette.ink,
-    muted: palette.muted,
+    /**
+     * ⛔ THE FOOTER SITS OVER THE PICTURE TOO, and it was the one place the
+     * measured ink did not reach — caught by the test asserting the palette's
+     * ink appears nowhere on a picture card. The wordmark is words; words over
+     * a picture need the ink the picture asked for.
+     */
+    ink: overPicture ? OVER_INK[input.illustration!.ink] : palette.ink,
+    muted: overPicture ? OVER_MUTED[input.illustration!.ink] : palette.muted,
+    /**
+     * ⚠️ `ground` is NOT switched, and that is deliberate. It is used to pick
+     * a contrasting ring around each QR code, and the codes sit on their own
+     * white panels — a scanner thresholds them, so they are unaffected by what
+     * is behind the card ⇒ the note in footerNode.
+     */
     ground: palette.ground,
     wordmark: wordmarkText,
     qrCodes,
@@ -1155,7 +1223,23 @@ export function composePicture(input: ComposeInput): Picture {
    * rule enforced in one place cannot be forgotten by the ninth layout
    * ⇒ trap_a_constraint_nobody_told_the_writer.
    */
-  const band = illustration ? Math.round(h * ILLUSTRATION_BAND) : 0;
+  /**
+   * 🔴 THE PICTURE IS THE WHOLE BACKGROUND — rewritten 20 Oct 2026.
+   *
+   * ⛔ IT WAS A BAND, AND THAT WAS MY CAUTION RATHER THAN THE BRIEF. The owner
+   * sent 27 references and every one puts the text STRAIGHT OVER the image.
+   * My objection — you cannot bet legibility on what the model drew — was
+   * sound and the conclusion was wrong: those posters are readable because
+   * the words sit where the picture is quiet, and because somebody looked.
+   *
+   * 🔑 SO NOTHING HERE IS A BET. The ink and the veil both arrive MEASURED,
+   * from the real pixels under the real text zone ⇒ backgroundPlan.ts. This
+   * function only draws what that measurement decided.
+   *
+   * ⚠️ THE VEIL COVERS THE TEXT ZONE ONLY, never the frame. A wash over the
+   * whole card would make twelve styles into twelve versions of one — which
+   * is the monotony this entire feature exists to end.
+   */
   const picture: Node | null = illustration
     ? {
         tag: "img",
@@ -1166,25 +1250,33 @@ export function composePicture(input: ComposeInput): Picture {
           top: 0,
           left: 0,
           width: `${w}px`,
-          height: `${band}px`,
+          height: `${h}px`,
           objectFit: "cover",
         },
       }
     : null;
 
-  const body: Node = band
-    ? {
-        tag: "div",
-        style: {
-          position: "relative",
-          display: "flex",
-          width: `${w}px`,
-          height: `${h - band}px`,
-          marginTop: `${band}px`,
-        },
-        children: [content],
-      }
-    : content;
+  const veil: Node | null =
+    illustration && illustration.scrim > 0
+      ? {
+          tag: "div",
+          style: {
+            position: "absolute",
+            display: "flex",
+            ...zoneBox(illustration.zone, w, h),
+            /**
+             * ⚠️ THE VEIL MATCHES THE GROUND THE INK NEEDS, not a fixed
+             * colour: a dark wash under dark type would bury it.
+             */
+            backgroundColor:
+              illustration.ink === "light"
+                ? `rgba(0,0,0,${illustration.scrim})`
+                : `rgba(255,255,255,${illustration.scrim})`,
+          },
+        }
+      : null;
+
+  const body: Node = content;
 
   return {
     width: w,
@@ -1208,7 +1300,13 @@ export function composePicture(input: ComposeInput): Picture {
         overflow: "hidden",
       },
       // ⚠️ Order matters: ground, then motif, then the picture, then the words.
-      children: [...(motif ? [motif] : []), ...(picture ? [picture] : []), body],
+      // ⚠️ Order: ground, motif, picture, veil, then the words on top.
+      children: [
+        ...(motif ? [motif] : []),
+        ...(picture ? [picture] : []),
+        ...(veil ? [veil] : []),
+        body,
+      ],
     },
   };
 }

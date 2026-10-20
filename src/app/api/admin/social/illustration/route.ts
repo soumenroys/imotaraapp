@@ -27,7 +27,6 @@ import {
 } from "@/lib/social/illustration";
 import { planBackground } from "@/lib/social/backgroundPlan";
 import { giveAPicture, stylesUsedOn, styleWindow } from "@/lib/social/giveAPicture";
-import { istDayWindow } from "@/lib/social/pipeline";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 export const runtime = "nodejs";

@@ -19,7 +19,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { renderPostPicture } from "@/lib/social/renderPicture";
+import { renderPostPicture, type PictureSource } from "@/lib/social/renderPicture";
 
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, topic_pool")
+    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, topic_pool, illustration")
     .eq("id", id)
     .single();
 
@@ -60,6 +60,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       media_kind: post.media_kind as string | null,
       visual_recipe: post.visual_recipe,
       topic_pool: post.topic_pool as string | null,
+      // 🔑 The stored background; the renderer fetches and inlines it.
+      illustration: post.illustration as PictureSource["illustration"],
     },
     {
       // Derived from a stored recipe and the post's body: safe to cache, and

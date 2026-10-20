@@ -71,6 +71,46 @@ export function cardPath(postId: string, slide = 0): string {
  * ⚠️ The extension follows the format, because the bucket and the browser
  * both decide what they are looking at from it.
  */
+/**
+ * Where a post's background picture lives.
+ *
+ * ⚠️ ONE PER POST, GENERATED ONCE. Re-drawing it on every render would spend
+ * money on every approval, every preview and every retry — and would give the
+ * reviewer a different picture from the one that publishes, which is the
+ * approval gate approving something nobody will see.
+ */
+export function illustrationPath(postId: string): string {
+  return `${postId}/background.jpg`;
+}
+
+/** Keep a post's background. Same upsert rule as the rest. */
+export async function putIllustration(
+  postId: string,
+  bytes: Uint8Array,
+): Promise<{ ok: true; path: string } | { ok: false; error: string }> {
+  const db = getSupabaseAdmin();
+  const path = illustrationPath(postId);
+  const { error } = await db.storage
+    .from(CARD_BUCKET)
+    .upload(path, bytes, { contentType: "image/jpeg", upsert: true });
+  if (error) return { ok: false, error: `The background could not be stored: ${error.message}` };
+  return { ok: true, path };
+}
+
+/**
+ * The stored background, or nothing.
+ *
+ * ⛔ NULL IS A PERFECTLY GOOD ANSWER and the caller composes today's card.
+ * A background is an addition; a post without one is the card this product
+ * published all week. ⚠️ A storage hiccup must never cost a slot.
+ */
+export async function getIllustration(postId: string): Promise<Uint8Array | null> {
+  const db = getSupabaseAdmin();
+  const { data, error } = await db.storage.from(CARD_BUCKET).download(illustrationPath(postId));
+  if (error || !data) return null;
+  return new Uint8Array(await data.arrayBuffer());
+}
+
 export function videoPath(postId: string, format: "mp4" | "gif"): string {
   return `${postId}/motion.${format}`;
 }

@@ -14,13 +14,14 @@
 
 import { ImageResponse } from "next/og";
 import { createElement, type ReactElement } from "react";
-import { composePicture, type Node } from "@/lib/social/compose";
+import { composePicture, type ComposeInput, type Node } from "@/lib/social/compose";
 import { platformSpec } from "@/lib/social/platforms";
 import { allQrCodes, type QrCode } from "@/lib/social/brandMarks";
 import { eyebrowFor } from "@/lib/social/topicPools";
 import { headlineFor, supportFromBody, recipeHash, type Recipe } from "@/lib/social/visualRecipe";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
 import { cardsForPost } from "@/lib/social/cardUrl";
+import { getIllustration } from "@/lib/social/cardStore";
 
 /** The tree from compose.ts, as React elements. ⚠️ Keys, because Satori
  *  renders a real React tree and an unkeyed list warns on every render. */
@@ -72,7 +73,15 @@ export type PictureSource = {
    * over a generated image safe.
    */
   illustration?: {
-    src: string;
+    /**
+     * ⚠️ EITHER a ready data URL (the preview path) OR a bucket `path` (every
+     * real post). Resolving the path HERE rather than in each of the four
+     * callers means a caller cannot forget — and a card rendered without its
+     * background, silently, is the shape of bug that left every published card
+     * with no second line for weeks.
+     */
+    src?: string;
+    path?: string;
     ink: "light" | "dark";
     scrim: number;
     zone: "top" | "bottom" | "left" | "right" | "centre";
@@ -130,6 +139,18 @@ const PICTURE_KINDS = new Set(["graphic", "carousel"]);
  * and for the publisher the difference decides whether to post the words
  * anyway or to stop.
  */
+/**
+ * The post id out of a stored background path.
+ *
+ * ⚠️ The path is `<post-id>/background.jpg` ⇒ cardStore.illustrationPath, and
+ * the downloader wants the id. ⛔ Parsed rather than passed separately, so the
+ * two cannot drift apart into a row whose ink was measured from one picture
+ * and whose path points at another.
+ */
+function postIdFromPath(path: string): string {
+  return path.split("/")[0] ?? path;
+}
+
 export async function renderPostPicture(
   post: PictureSource,
   headers?: Record<string, string>,
@@ -145,6 +166,28 @@ export async function renderPostPicture(
    */
   if (!PICTURE_KINDS.has(post.media_kind ?? "") || !post.visual_recipe) {
     return { ok: false, failure: { status: 404, error: "This post has no picture." } };
+  }
+
+  /**
+   * 🔑 THE BACKGROUND, FETCHED ONCE AND INLINED.
+   *
+   * ⛔ INLINED RATHER THAN LINKED. Satori would have to fetch a URL itself,
+   * from inside a serverless render, against a bucket that needs signing —
+   * three ways for a card to come out blank. The bytes are already ours.
+   *
+   * ⚠️ A FAILED FETCH IS NOT A FAILED CARD. Null composes exactly today's
+   * card, which is what a post without a background has always been
+   * ⇒ a missing post is worse than a plain one.
+   */
+  let illustration: ComposeInput["illustration"] = null;
+  if (post.illustration) {
+    const { ink, scrim, zone } = post.illustration;
+    let src = post.illustration.src ?? null;
+    if (!src && post.illustration.path) {
+      const bytes = await getIllustration(postIdFromPath(post.illustration.path));
+      if (bytes) src = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
+    }
+    if (src) illustration = { src, ink, scrim, zone };
   }
 
   const stored = post.visual_recipe as Partial<Recipe>;
@@ -336,7 +379,7 @@ export async function renderPostPicture(
        * ⚠️ Absent is the normal case and composes exactly today's card — which
        * is also what a failed generation must degrade to.
        */
-      illustration: post.illustration ?? null,
+      illustration,
     });
   } catch (e) {
     return { ok: false, failure: { status: 422, error: (e as Error).message } };

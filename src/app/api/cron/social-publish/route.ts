@@ -21,7 +21,7 @@ import { loadChannelCredential, loadCredentialFor } from "@/lib/social/channelCr
 import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
 import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
 import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
-import { renderPostPictureBytes } from "@/lib/social/renderPicture";
+import { renderPostPictureBytes, type PictureSource } from "@/lib/social/renderPicture";
 import { publicOrigin, videoUrlFor } from "@/lib/social/cardUrl";
 import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
 import { platformSpec } from "@/lib/social/platforms";
@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
 
   const { data: due, error } = await db
     .from("social_posts")
-    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, attempts, scheduled_for, topic_pool")
+    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, attempts, scheduled_for, topic_pool, illustration")
     .eq("status", "approved")
     // ⚠️ `scheduled_for` null means "as soon as it is approved" ⇒ the schema.
     .or(`scheduled_for.is.null,scheduled_for.lte.${now.toISOString()}`)
@@ -518,6 +518,12 @@ export async function GET(req: NextRequest) {
           media_kind: post.media_kind as string | null,
           visual_recipe: post.visual_recipe,
           topic_pool: post.topic_pool as string | null,
+          /**
+           * 🔑 THE BACKGROUND, and the comment three lines above is exactly
+           * why: a field passed in the admin and omitted here means the
+           * PUBLISHED card differs from the one somebody approved.
+           */
+          illustration: post.illustration as PictureSource["illustration"],
         });
         if (!rendered.ok) {
           /**

@@ -22,7 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { renderPostPictureJpeg } from "@/lib/social/renderPicture";
+import { renderPostPictureJpeg, type PictureSource } from "@/lib/social/renderPicture";
 import { getCard } from "@/lib/social/cardStore";
 import { cardSignatureValid, cardIsFetchable } from "@/lib/social/cardUrl";
 
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, status, topic_pool")
+    .select("id, language, platform, subject, body, slides, media_kind, visual_recipe, status, topic_pool, illustration")
     .eq("id", id)
     .maybeSingle();
 
@@ -105,6 +105,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     media_kind: post.media_kind as string | null,
     visual_recipe: post.visual_recipe,
     topic_pool: post.topic_pool as string | null,
+    // 🔑 The stored background; the renderer fetches and inlines it.
+    illustration: post.illustration as PictureSource["illustration"],
   });
 
   if (!rendered.ok) {

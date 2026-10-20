@@ -11,7 +11,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
-import { prepareGenerated, nextLanguage, standDownReasons, failureDetail } from "@/lib/social/pipeline";
+import {
+  prepareGenerated,
+  nextLanguage,
+  standDownReasons,
+  failureDetail,
+  istDayWindow,
+} from "@/lib/social/pipeline";
+import { giveAPicture, stylesUsedOn } from "@/lib/social/giveAPicture";
 import {
   activeSchedules,
   writtenSlotKeys,
@@ -245,12 +252,48 @@ export async function GET(req: NextRequest) {
       }
       // ⚠️ The slot has a post now, so its failures are history.
       await clearSlotFailure(want);
+
+      /**
+       * 🔑 THE BACKGROUND PICTURE — AFTER THE POST IS SAFELY SAVED, on purpose.
+       *
+       * ⛔ A DRAWING MUST NEVER COST A SLOT. The post exists and will publish
+       * with or without a picture; a post without one composes exactly the
+       * card this product published all week. So a model outage, a storage
+       * hiccup or a safety refusal is a note on the row, not a lost evening
+       * ⇒ the four empty Instagram slots are what this ordering prevents.
+       *
+       * ⚠️ ONCE, HERE, rather than at render: drawing per render would spend
+       * money on every approval, preview and retry — and would hand the
+       * reviewer a different picture from the one that publishes, which is an
+       * approval gate approving something nobody will see.
+       */
+      let pictureNote = "";
+      try {
+        const day = istDayWindow(want.scheduledFor);
+        const gave = await giveAPicture({
+          postId: saved.postId,
+          postsSoFar: count,
+          // 🔑 Across every channel, so three posts on one day get three
+          // different styles ⇒ the lockstep bug found this morning.
+          usedToday: await stylesUsedOn(day.from, day.to),
+          angle: prepared.post.topicPool,
+          // ⚠️ The subject as a FEELING to evoke, never as something to depict
+          // — "illustrate someone awake at 3am" lands on exactly the imagery
+          // the safety clause forbids.
+          mood: prepared.post.subject,
+        });
+        pictureNote = gave.ok ? ` · picture: ${gave.illustration.style}` : ` · no picture (${gave.reason})`;
+      } catch (e) {
+        // ⛔ Caught, never thrown. The post is already saved.
+        pictureNote = ` · no picture (${(e as Error).message})`;
+      }
+
       outcomes.push({
         schedule: schedule.name,
         platform,
         language,
         result: prepared.post.status === "approved" ? "approved" : "queued",
-        detail: `for ${want.scheduledFor} · ${prepared.post.notes.join(" ")}`,
+        detail: `for ${want.scheduledFor} · ${prepared.post.notes.join(" ")}${pictureNote}`,
       });
     } catch (e) {
       // ⛔ One slot failing must not stop the others. A thrown model call on a

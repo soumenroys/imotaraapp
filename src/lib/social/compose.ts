@@ -90,7 +90,51 @@ export type ComposeInput = {
   eyebrow?: string | null;
 };
 
+/**
+ * 🔴 ONE OPACITY FOR EVERY MOTIF WAS WHY ELEVEN MOTIFS LOOKED LIKE NONE.
+ *
+ * ⛔ Measured 20 Oct 2026 by rendering nine queued cards and LOOKING at them
+ * together: at a flat **0.13** on a flat ground, tone-on-tone line work is
+ * invisible at feed size. plum/concentric and plum/arcs are the same picture
+ * to a reader. The owner's words: *"all posts still looks very similar."*
+ * ⇒ the 25,344-recipe figure was arithmetically true and visually overstated,
+ * exactly as the 18 Oct note admitted and nobody acted on.
+ *
+ * 🔑 THE TWO FAMILIES ARE NOT THE SAME PROBLEM, which is why one number could
+ * never serve both:
+ *   • THIN LINE FIELDS (arcs, dotted-grid, bands, rule-stack, concentric) are
+ *     drawn ACROSS the frame and pass under words somebody has to read. They
+ *     may be raised, but not far ⇒ the warning further down this file about a
+ *     motif "still crossing a word somebody has to read".
+ *   • BIG SOFT SHAPES (halo, drift, wave) are large, diffuse and sit mostly in
+ *     the empty half of the frame. They can carry two to three times as much
+ *     before they compete with anything.
+ *
+ * ⚠️ `none` STAYS AT ZERO. A card that asked for no motif must get no motif —
+ * and it is also the control: if every card suddenly has a field, this table
+ * is being ignored.
+ */
+const MOTIF_OPACITY_BY_NAME: Record<string, number> = {
+  none: 0,
+  // thin line fields — raised enough to read, not enough to fight the words
+  arcs: 0.2,
+  "dotted-grid": 0.18,
+  concentric: 0.2,
+  bands: 0.17,
+  "rule-stack": 0.17,
+  // big soft shapes — these are the ones that give the frame a picture
+  halo: 0.34,
+  drift: 0.3,
+  wave: 0.3,
+};
+
+/** ⚠️ The old flat value, kept as the fallback for a motif added without a
+ *  considered opacity — visible, conservative, and never zero by accident. */
 const MOTIF_OPACITY = 0.13;
+
+export function motifOpacity(motif: string): number {
+  return MOTIF_OPACITY_BY_NAME[motif] ?? MOTIF_OPACITY;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Motifs — line and shape fields only
@@ -159,7 +203,7 @@ function motifLayer(motif: string, accent: string, w: number, h: number): Node |
   const base: Record<string, string | number> = {
     position: "absolute",
     display: "flex",
-    opacity: MOTIF_OPACITY,
+    opacity: motifOpacity(motif),
   };
   // ⚠️ Longhand, never `inset`. See the note on Node above.
   const full = { ...base, top: 0, left: 0, width: `${w}px`, height: `${h}px` };

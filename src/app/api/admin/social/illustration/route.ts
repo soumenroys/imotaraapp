@@ -26,7 +26,7 @@ import {
   generateIllustration,
 } from "@/lib/social/illustration";
 import { planBackground } from "@/lib/social/backgroundPlan";
-import { giveAPicture, stylesUsedOn } from "@/lib/social/giveAPicture";
+import { giveAPicture, stylesUsedOn, styleWindow } from "@/lib/social/giveAPicture";
 import { istDayWindow } from "@/lib/social/pipeline";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
 
     const done: string[] = [];
     for (const [i, post] of (posts ?? []).entries()) {
-      const day = istDayWindow(post.scheduled_for as string);
+      const day = styleWindow(post.scheduled_for as string);
       const given = await giveAPicture({
         postId: post.id as string,
         // ⚠️ The index within this run keeps the rotation moving; the day's

@@ -24,6 +24,7 @@ import {
   stylesForAngle,
   TONES_FOR_ANGLE,
 } from "@/lib/social/illustration";
+import { styleWindow, STYLE_WINDOW_DAYS } from "@/lib/social/giveAPicture";
 
 describe("every prompt carries the safety clause", () => {
   it("🔴 on every style, with or without a mood", () => {
@@ -393,5 +394,56 @@ describe("styles removed and narrowed by looking", () => {
     for (const angle of ["quiet-hours", "the-unsaid", "untranslatable", "privacy", "built-wrong", "ways-of-saying"]) {
       expect(stylesForAngle(angle).length, `${angle} has too little to choose from`).toBeGreaterThanOrEqual(5);
     }
+  });
+});
+
+/**
+ * 🔴 A STYLE MUST NOT COME BACK THE NEXT MORNING.
+ *
+ * Narrowing by the DAY alone stopped two channels sharing a style on one
+ * evening — and let the same style return the very next day. Six backfilled
+ * posts drew `coloured-pencil` TWICE on consecutive days, out of thirteen
+ * available. Not wrong, and not the variety that was asked for either.
+ */
+describe("the window a style may not repeat inside", () => {
+  it("🔴 spans the day before and the day after, not just the day", () => {
+    const w = styleWindow("2026-10-22T13:00:00.000Z");
+    // 21 Oct 00:00 IST → 23 Oct 00:00 IST, i.e. three whole Kolkata days.
+    expect(w.from).toBe("2026-10-20T18:30:00.000Z");
+    expect(w.to).toBe("2026-10-23T18:30:00.000Z");
+  });
+
+  it("⚠️ covers the slot it was asked about", () => {
+    // ⛔ A window that excluded its own day would let two channels on one
+    // evening share a style — the lockstep bug, back again.
+    for (const slot of ["2026-10-22T13:00:00.000Z", "2026-10-22T13:30:00.000Z", "2026-10-22T14:00:00.000Z"]) {
+      const w = styleWindow(slot);
+      expect(slot >= w.from && slot < w.to, slot).toBe(true);
+    }
+  });
+
+  it("⛔ three days, because four would make the narrowing meaningless", () => {
+    /**
+     * 🔑 At three posts a day, a three-day window spends nine of thirteen
+     * styles. Four days would spend twelve, leave one, and the never-empty
+     * fallback would fire on nearly every post — a narrowing that always falls
+     * back is not a narrowing.
+     */
+    expect(STYLE_WINDOW_DAYS).toBe(3);
+    const posts = STYLE_WINDOW_DAYS * 3;
+    expect(posts, "the window now spends more styles than exist").toBeLessThan(
+      ILLUSTRATION_STYLES.length,
+    );
+  });
+
+  it("⚠️ and a quiet subject still has somewhere to go when the window is full", () => {
+    /**
+     * ⛔ The fallback matters MORE now. `quiet-hours` can draw only the quiet
+     * styles, and a three-day window can spend most of them — a post with no
+     * picture is worse than one with a repeated style.
+     */
+    const quiet = stylesForAngle("quiet-hours").map((s) => s.id);
+    const picked = styleForPost(0, quiet, "quiet-hours");
+    expect(quiet).toContain(picked.id);
   });
 });

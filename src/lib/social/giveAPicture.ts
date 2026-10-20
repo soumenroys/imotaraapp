@@ -20,6 +20,7 @@ import { generateIllustration, styleForPost, type IllustrationStyle } from "@/li
 import { planBackground } from "@/lib/social/backgroundPlan";
 import { putIllustration } from "@/lib/social/cardStore";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { istDayWindow } from "@/lib/social/pipeline";
 
 /** What is written onto the post ⇒ docs/sql/social_illustration.sql. */
 export type StoredIllustration = {
@@ -123,7 +124,31 @@ export async function giveAPicture(args: {
 }
 
 /**
- * The styles already spent on the day this post is for, across every channel.
+ * The window a style must not repeat inside.
+ *
+ * 🔴 WIDENED FROM ONE DAY TO THREE, 20 Oct 2026. Narrowing by the day alone
+ * stopped two channels sharing a style on one evening — and let the same style
+ * come back the very next morning. Six backfilled posts drew `coloured-pencil`
+ * TWICE, on consecutive days, out of thirteen available. Not wrong, and not
+ * the variety the owner asked for either.
+ *
+ * ⚠️ THREE DAYS IS THE PRACTICAL CEILING, not a round number. At three posts a
+ * day a three-day window already spends nine of thirteen styles; four days
+ * would spend twelve, leave one, and the never-empty fallback would fire on
+ * nearly every post — a narrowing that always falls back is not a narrowing.
+ */
+export const STYLE_WINDOW_DAYS = 3;
+
+export function styleWindow(scheduledForISO: string): { from: string; to: string } {
+  const day = 86_400_000;
+  const t = new Date(scheduledForISO).getTime();
+  const back = istDayWindow(new Date(t - day).toISOString());
+  const forward = istDayWindow(new Date(t + day).toISOString());
+  return { from: back.from, to: forward.to };
+}
+
+/**
+ * The styles already spent in that window, across every channel.
  *
  * 🔑 SAME SHAPE AS THE ANGLE NARROWING, and for the same reason: the rotation
  * counter is per schedule, so two channels with the same pool march in

@@ -18,7 +18,7 @@ import {
   failureDetail,
   istDayWindow,
 } from "@/lib/social/pipeline";
-import { giveAPicture, stylesUsedOn } from "@/lib/social/giveAPicture";
+import { giveAPicture, stylesUsedOn, styleWindow } from "@/lib/social/giveAPicture";
 import {
   activeSchedules,
   writtenSlotKeys,
@@ -269,7 +269,9 @@ export async function GET(req: NextRequest) {
        */
       let pictureNote = "";
       try {
-        const day = istDayWindow(want.scheduledFor);
+        // ⚠️ Three days, not one: a style repeating the next morning is not
+        // the variety this is for ⇒ giveAPicture.styleWindow.
+        const day = styleWindow(want.scheduledFor);
         const gave = await giveAPicture({
           postId: saved.postId,
           postsSoFar: count,

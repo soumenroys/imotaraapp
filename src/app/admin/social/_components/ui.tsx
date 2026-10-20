@@ -110,6 +110,12 @@ const TABS = [
    * tab bar is a page nobody opens.
    */
   { href: "/admin/social/scripts", label: "Scripts" },
+  /**
+   * 🔑 Added 20 Oct, and added IN THE SAME CHANGE as the page itself — the
+   * note above is the reason: a page not in this bar is a page nobody opens,
+   * and the whole social feature was once unreachable for exactly that reason.
+   */
+  { href: "/admin/social/illustration", label: "Pictures" },
 ];
 
 /**

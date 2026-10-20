@@ -26,6 +26,7 @@ import {
   generateIllustration,
 } from "@/lib/social/illustration";
 import { planBackground } from "@/lib/social/backgroundPlan";
+import { giveAPicture } from "@/lib/social/giveAPicture";
 
 export const runtime = "nodejs";
 /** ⚠️ A drawing call is slow. The default would cut it off mid-request. */
@@ -60,7 +61,25 @@ export async function POST(req: NextRequest) {
   const guard = await requireSocialAdmin(req);
   if (!guard.ok) return guard.response;
 
-  let payload: { style?: string; mood?: string; model?: string; aspectRatio?: string };
+  let payload: {
+    style?: string;
+    mood?: string;
+    model?: string;
+    aspectRatio?: string;
+    /**
+     * 🔑 GIVE THIS REAL POST A PICTURE, rather than drawing a sample.
+     *
+     * ⛔ The queue cron chooses the style by rotation, which is right for
+     * normal running and useless for checking a SPECIFIC style against real
+     * words. Fourteen of the fifteen have never been composed with a real
+     * headline, and finding out across a whole backfill at once is the
+     * expensive way to learn it.
+     *
+     * ⚠️ Additive and reversible: it writes one column on one post, and the
+     * post publishes with or without it.
+     */
+    postId?: string;
+  };
   try {
     payload = await req.json();
   } catch {
@@ -87,6 +106,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Name a model. GET this route first — it lists the image models this key can use." },
       { status: 400 },
+    );
+  }
+
+  /**
+   * ⛔ A REAL POST TAKES A DIFFERENT PATH, because it must go through exactly
+   * the same code the cron uses — `giveAPicture` stores the JPEG, measures
+   * THAT, and records it. A second path that drew, measured and stored
+   * slightly differently would mean the card checked here is not the card that
+   * publishes.
+   */
+  if (payload.postId) {
+    const given = await giveAPicture({
+      postId: payload.postId.trim(),
+      postsSoFar: 0,
+      // 🔑 Forcing one style is the whole point of this branch, so the day's
+      // spend and the angle narrowing are deliberately bypassed: everything
+      // except the named style is excluded.
+      usedToday: ILLUSTRATION_STYLES.filter((x) => x.id !== style.id).map((x) => x.id),
+      angle: null,
+      mood: payload.mood ?? null,
+      model,
+    });
+    return NextResponse.json(
+      given.ok
+        ? { postId: payload.postId, illustration: given.illustration }
+        : { error: given.reason, postId: payload.postId },
+      { status: given.ok ? 200 : 502 },
     );
   }
 

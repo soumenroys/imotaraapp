@@ -36,7 +36,15 @@ export async function GET(req: NextRequest) {
 
   const models = await listImageModels();
   return NextResponse.json({
-    styles: ILLUSTRATION_STYLES.map((s) => ({ id: s.id, label: s.label, note: s.note })),
+    styles: ILLUSTRATION_STYLES.map((s) => ({
+      id: s.id,
+      label: s.label,
+      note: s.note,
+      // 🔑 The medium and where the quiet area is — both are what the owner is
+      // actually choosing between ⇒ illustrationStyles.ts.
+      family: s.family,
+      textZone: s.textZone,
+    })),
     /**
      * 🔑 MEASURED, NOT ASSUMED. Vertex and the Gemini API name the same model
      * differently, and an id invented from memory reads as a broken

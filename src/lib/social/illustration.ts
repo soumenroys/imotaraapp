@@ -18,119 +18,25 @@
 // ⇒ trap_a_card_cannot_draw_an_indic_script. Keep the two problems apart.
 
 /**
- * 🔴 THE SAFETY CLAUSE, AND IT IS NOT OPTIONAL.
- *
- * ⛔ This is a MENTAL-HEALTH brand. A generated picture that shows distress, a
- * clinical setting or a face that reads as a real person is not a bad card —
- * it is a liability and a betrayal of the reader. The same class of risk as
- * the regulated-title copy that has been caught FOUR times in material written
- * by people who knew the rules ⇒ trap_marketing_copy_claims_a_regulated_title.
- *
- * 🔑 NO LETTERS, EITHER. The renderer draws the words. A picture with its own
- * text produces two headlines on one card, in a typeface nobody chose, often
- * misspelled — and in a script the model cannot shape.
+ * ⛔ THE STYLES MOVED OUT, 20 Oct 2026 — see illustrationStyles.ts for why.
+ * Short version: the owner sent 27 reference posts, and what I had built was
+ * wrong in three ways at once. The catalogue is now long enough to deserve its
+ * own file, and this one keeps the plumbing.
  */
-export const SAFETY_CLAUSE =
-  "Absolute requirements: no people, no faces, no human figures, no hands. " +
-  "No text, letters, numbers, words or lettering of any kind anywhere in the image. " +
-  "No logos, watermarks or brand marks. " +
-  "Nothing clinical or medical: no hospitals, pills, syringes, therapy couches or doctors. " +
-  "Nothing depicting distress, crying, self-harm, violence, isolation as suffering, or illness. " +
-  "Nothing frightening, sad or bleak. Calm, quiet and gentle throughout.";
+export {
+  SAFETY_CLAUSE,
+  ILLUSTRATION_STYLES,
+  styleById,
+  illustrationPrompt,
+  type IllustrationStyle,
+  type StyleFamily,
+} from "@/lib/social/illustrationStyles";
 
-export type IllustrationStyle = {
-  id: string;
-  /** What a person would call it in the admin. */
-  label: string;
-  /** One line, so the owner can choose without reading the prompt. */
-  note: string;
-  /** The style half of the prompt. ⚠️ Never contains the subject. */
-  look: string;
-};
-
-/**
- * 🔑 FIVE LOOKS, NOT FIFTY. The point is for the owner to choose ONE house
- * style from real samples — a feed drawn in five styles at random is a
- * different kind of incoherent from a feed drawn in one.
- *
- * ⚠️ All five are deliberately NON-LITERAL. An illustration that depicts the
- * subject ("someone awake at 3am") lands on exactly the imagery the safety
- * clause forbids. These describe a MOOD and a MATERIAL, and let the words
- * carry the meaning.
- */
-export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
-  {
-    id: "soft-gouache",
-    label: "Soft gouache",
-    note: "Hand-painted abstract shapes, matte and muted. Warm, human, not digital.",
-    look:
-      "A soft gouache painting of large simple abstract shapes — gentle curves and overlapping " +
-      "fields of flat matte colour, visible brush texture, slightly uneven edges. Muted, dusty " +
-      "palette. Generous empty space. No subject, purely an abstract painted field.",
-  },
-  {
-    id: "line-botanical",
-    label: "Line botanical",
-    note: "Single-weight line drawing of leaves and stems. Quiet, airy, lots of space.",
-    look:
-      "A minimal single-weight line drawing of leaves, stems and seed heads, drawn in one " +
-      "continuous thin line on a plain ground. Sparse and airy, occupying one corner, with a " +
-      "large area of empty background. Two colours at most.",
-  },
-  {
-    id: "night-window",
-    label: "Night window",
-    note: "Quiet nocturnal light — windows, lamps, distant city. Calm, never lonely.",
-    look:
-      "A calm nocturnal scene rendered as simple flat shapes: soft lit windows in the distance, " +
-      "a gentle glow, deep blue and warm amber. Peaceful and still, restful rather than lonely " +
-      "or bleak. Simplified and graphic, not photographic.",
-  },
-  {
-    id: "paper-collage",
-    label: "Paper collage",
-    note: "Torn-paper layers with soft shadows. Tactile and handmade.",
-    look:
-      "A torn-paper collage of layered organic shapes with soft drop shadows and visible paper " +
-      "fibre at the edges. Muted recycled-paper tones with one warm accent. Flat lay, even " +
-      "lighting, plenty of uncluttered ground.",
-  },
-  {
-    id: "warm-minimal",
-    label: "Warm minimal",
-    note: "Big simple geometry in warm tones. Bold, modern, very clean.",
-    look:
-      "An extremely minimal geometric composition: two or three very large simple shapes — a " +
-      "circle, an arc, a soft rectangle — in warm sand, clay and terracotta tones on a light " +
-      "ground. Flat colour, no gradients, no detail, a great deal of empty space.",
-  },
-];
-
-export function styleById(id: string): IllustrationStyle | undefined {
-  return ILLUSTRATION_STYLES.find((s) => s.id === id);
-}
-
-/**
- * The prompt actually sent.
- *
- * ⛔ THE SAFETY CLAUSE GOES LAST, every time. A requirement buried in the
- * middle of a long prompt is one the model weighs against everything after it;
- * stated last it is the final instruction. ⚠️ And it is appended HERE rather
- * than written into each style, so a style added later cannot omit it
- * ⇒ trap_a_constraint_nobody_told_the_writer.
- */
-export function illustrationPrompt(style: IllustrationStyle, mood?: string | null): string {
-  const m = (mood ?? "").trim();
-  return [
-    style.look,
-    m ? `The feeling to evoke, abstractly and without depicting it literally: ${m}.` : "",
-    "The image will sit behind large text, so keep the composition open and uncluttered, " +
-      "with low contrast and no busy detail in the upper half.",
-    SAFETY_CLAUSE,
-  ]
-    .filter(Boolean)
-    .join(" ");
-}
+import {
+  ILLUSTRATION_STYLES,
+  illustrationPrompt,
+  type IllustrationStyle,
+} from "@/lib/social/illustrationStyles";
 
 /**
  * 🔴 WHICH STYLE THIS POST GETS — and the lesson that shaped it.

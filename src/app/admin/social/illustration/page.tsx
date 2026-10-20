@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { SocialPage, Explain } from "@/app/admin/social/_components/ui";
 
-type Style = { id: string; label: string; note: string };
+type Style = { id: string; label: string; note: string; family?: string; textZone?: string };
 type Shot = { dataUrl?: string; ms?: number; error?: string; detail?: string };
 
 export default function Illustration() {
@@ -79,7 +79,7 @@ export default function Illustration() {
   );
 
   const drawAll = useCallback(async () => {
-    // ⚠️ One at a time, deliberately. Five concurrent image calls is the
+    // ⚠️ One at a time, deliberately. A dozen concurrent image calls is the
     // shape that trips a rate limit and reads as "the feature is broken".
     for (const s of styles) await draw(s.id);
   }, [styles, draw]);
@@ -88,7 +88,7 @@ export default function Illustration() {
     <SocialPage
       here="/admin/social/illustration"
       title="A picture behind the words"
-      lede="Every card today is type on a flat colour. These are candidate house styles — draw them, look at them, pick one. Nothing here is published or saved."
+      lede="Backgrounds for the posts, varied by medium — pastel, watercolour, pen and ink, pencil, vector, 3D, photography. Draw them and look. Nothing here is published or saved."
     >
       {authed === null && <p className="text-sm text-zinc-500">Checking the admin session…</p>}
       {authed === false && <SignedOut />}
@@ -104,6 +104,10 @@ export default function Illustration() {
             <p className="mt-2">
               It does <strong>not</strong> solve Bengali or Hindi on a card. Image models cannot
               draw those scripts; the picture is the background and the words are still drawn by us.
+            </p>
+            <p className="mt-2">
+              Each style reserves a quiet area for the words — sky, bare paper, flat colour. Where
+              that area sits is printed under each one.
             </p>
           </Explain>
 
@@ -147,7 +151,7 @@ export default function Illustration() {
               disabled={!model || busy !== null}
               className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-900 disabled:opacity-40"
             >
-              {busy ? `Drawing ${busy}…` : "Draw all five"}
+              {busy ? `Drawing ${busy}…` : `Draw all ${styles.length}`}
             </button>
           </div>
 
@@ -178,6 +182,11 @@ export default function Illustration() {
                   <figcaption className="mt-3">
                     <p className="text-sm font-medium text-zinc-100">{s.label}</p>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-400">{s.note}</p>
+                    {s.family && (
+                      <p className="mt-1 text-[10px] uppercase tracking-wide text-zinc-500">
+                        {s.family} · words go {s.textZone}
+                      </p>
+                    )}
                     <button
                       onClick={() => void draw(s.id)}
                       disabled={!model || busy !== null}

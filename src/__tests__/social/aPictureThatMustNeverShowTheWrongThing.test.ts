@@ -76,12 +76,32 @@ describe("the styles themselves", () => {
     expect(styleById("no-such-style")).toBeUndefined();
   });
 
-  it("⚠️ no style asks for a person — the clause is the floor, not the only guard", () => {
+  it("⚠️ no style asks for a PHOTOREALISTIC person — corrected 20 Oct", () => {
+    /**
+     * 🔴 THIS TEST USED TO FORBID PEOPLE ENTIRELY, and that was my caution
+     * rather than the brief. The owner's 27 reference posts are full of drawn
+     * characters, and that is where their warmth comes from — a girl dancing,
+     * a child with a giraffe.
+     *
+     * ⛔ The real risk was never "a person". It is a PHOTOREALISTIC face that
+     * reads as an identifiable human being, which a mental-health brand must
+     * not appear to be photographing. So a style may ask for a character; it
+     * may not ask for a portrait.
+     */
     for (const s of ILLUSTRATION_STYLES) {
-      expect(s.look.toLowerCase(), `${s.id} describes people`).not.toMatch(
-        /\b(person|people|woman|man|child|portrait|face)\b/,
+      expect(s.look.toLowerCase(), `${s.id} asks for a photographic person`).not.toMatch(
+        /\b(portrait|photorealistic (person|face)|real person|model posing)\b/,
       );
     }
+  });
+
+  it("🔑 …and a character IS allowed, so the correction actually took", () => {
+    // ⛔ The control. If this ever finds nothing, the catalogue has drifted
+    // back to abstract-only and the warmth the owner asked for is gone.
+    const withCharacters = ILLUSTRATION_STYLES.filter((s) =>
+      /\b(character|animals?|figure)\b/.test(s.look.toLowerCase()),
+    );
+    expect(withCharacters.length, "no style draws a character any more").toBeGreaterThan(0);
   });
 
   it("each has a one-line note, so the owner can choose without reading prompts", () => {

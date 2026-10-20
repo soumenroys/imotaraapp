@@ -339,3 +339,59 @@ describe("some backgrounds have to be dark", () => {
     }
   });
 });
+
+/**
+ * 🔴 LEGIBLE IS NOT THE SAME AS RIGHT.
+ *
+ * Three decisions taken 20 Oct 2026 after rendering real posts and looking at
+ * them — none of which any measurement would ever have raised, because all
+ * three cards were perfectly readable:
+ *
+ *  • `photo-field` asked for a photograph and returned a painted illustration
+ *    BOTH times it was tried. A style that does not do what its name says
+ *    keeps producing surprises, and the surprise lands on a published post.
+ *  • `flat-vector-scene` composed cleanly and read like a SaaS landing page
+ *    rather than a quiet companion. The owner's call, and the right one.
+ *  • `childrens-book` put a cheerful fox-and-badger picnic behind "How
+ *    wanting to be alone can show up". `warm` let it reach `the-unsaid`,
+ *    which is exactly where it should never land.
+ */
+describe("styles removed and narrowed by looking", () => {
+  it("⛔ the two withdrawn styles are gone", () => {
+    const ids = ILLUSTRATION_STYLES.map((s) => s.id);
+    expect(ids, "photo-field is back — it never produced a photograph").not.toContain("photo-field");
+    expect(ids, "flat-vector-scene is back — too loud for the brand").not.toContain("flat-vector-scene");
+  });
+
+  it("🔴 the children's book can never reach an introspective subject", () => {
+    /**
+     * ⚠️ THE ASSERTION IS ON THE OUTCOME, not on the tag. Pinning
+     * `tones === ["bright"]` would pass if `the-unsaid` were later widened to
+     * include bright — and the fox would be back behind the quiet sentence.
+     */
+    for (const angle of ["quiet-hours", "the-unsaid"]) {
+      const ids = stylesForAngle(angle).map((s) => s.id);
+      expect(ids, `${angle} can draw the children's book`).not.toContain("childrens-book");
+    }
+  });
+
+  it("⚠️ but it can still be chosen for a genuinely bright subject", () => {
+    // ⛔ The control. Narrowing it to nothing would be deleting it the slow way.
+    const reachable = ["privacy", "built-wrong", "untranslatable", "ways-of-saying"].some((a) =>
+      stylesForAngle(a).some((s) => s.id === "childrens-book"),
+    );
+    expect(reachable, "the children's book can no longer be chosen at all").toBe(true);
+  });
+
+  it("⚠️ every angle still has several styles to choose from", () => {
+    /**
+     * 🔴 THE REAL RISK OF REMOVING THINGS. Dropping two styles and narrowing a
+     * third shrinks what a quiet subject can draw — and a quiet subject with
+     * one option is a channel that posts the same picture every time, which is
+     * the monotony this all started from.
+     */
+    for (const angle of ["quiet-hours", "the-unsaid", "untranslatable", "privacy", "built-wrong", "ways-of-saying"]) {
+      expect(stylesForAngle(angle).length, `${angle} has too little to choose from`).toBeGreaterThanOrEqual(5);
+    }
+  });
+});

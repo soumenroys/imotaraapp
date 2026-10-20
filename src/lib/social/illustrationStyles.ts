@@ -114,6 +114,24 @@ export const SAFETY_CLAUSE =
  * than appended globally, because WHERE the room is differs by style — a
  * landscape leaves sky at the top, a still life leaves the table below.
  */
+/**
+ * ⛔ TWO STYLES WERE REMOVED AFTER BEING RENDERED ON REAL POSTS, 20 Oct 2026 —
+ * both by looking, neither by any test.
+ *
+ * • `photo-field` asked for a photograph and returned a painted illustration
+ *   BOTH times, the second with odd pale figures standing in a meadow. ⇒ A
+ *   style that does not do what its name says will keep producing surprises,
+ *   and the surprise lands on a published post.
+ * • `flat-vector-scene` composed perfectly — hard yellow/blue split, smiling
+ *   blob character — and read like a SaaS landing page rather than a quiet
+ *   companion. ⚠️ LEGIBLE IS NOT THE SAME AS RIGHT, and only the owner can
+ *   make that call.
+ *
+ * ⚠️ `childrens-book` was narrowed to `bright` alone for the same reason. It
+ *   is a fine picture and it landed behind "How wanting to be alone can show
+ *   up" — a cheerful fox-and-badger picnic under an introspective sentence.
+ *   `warm` let it reach `the-unsaid`, which is exactly the wrong place for it.
+ */
 export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
   {
     id: "oil-pastel-landscape",
@@ -195,25 +213,11 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
       "edges. Even tone throughout, no focal object, nothing busy anywhere.",
   },
   {
-    id: "flat-vector-scene",
-    label: "Flat vector scene",
-    note: "Clean modern shapes and characters. Bright, friendly, digital.",
-    family: "vector",
-    tones: ["bright"],
-    ground: "light",
-    textZone: "left",
-    look:
-      "A flat vector illustration in a clean modern style — simple geometric characters and " +
-      "objects, bold flat colour, no gradients or outlines, a bright friendly palette on a " +
-      "strong coloured ground. The illustration sits on the right; the left half is plain " +
-      "flat colour.",
-  },
-  {
     id: "childrens-book",
     label: "Children's book",
     note: "Warm storybook art — animals, trees, soft sunlight.",
     family: "vector",
-    tones: ["bright", "warm"],
+    tones: ["bright"],
     ground: "light",
     textZone: "top",
     look:
@@ -233,19 +237,6 @@ export const ILLUSTRATION_STYLES: IllustrationStyle[] = [
       "A soft 3D render of simple rounded geometric objects — spheres, rings, rounded cubes — " +
       "floating on a single-colour studio background, matte clay-like materials, gentle shadows, " +
       "a monochrome scheme in one warm or cool hue. Objects around the edges; the middle is open.",
-  },
-  {
-    id: "photo-field",
-    label: "Photograph",
-    note: "A real landscape — fields, sky, distant hills. Open and calm.",
-    family: "photographic",
-    tones: ["quiet", "warm"],
-    ground: "light",
-    textZone: "top",
-    look:
-      "A calm wide photograph of open landscape — fields, meadow flowers or a distant shoreline " +
-      "under a big soft sky, natural daylight, gentle depth of field. The horizon " +
-      "sits low and the upper half is uncluttered sky.",
   },
   {
     id: "paper-collage",

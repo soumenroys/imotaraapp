@@ -116,7 +116,23 @@ export async function POST(req: NextRequest) {
       .from("social_posts")
       .select("id, subject, topic_pool, scheduled_for")
       .is("illustration", null)
-      .in("status", ["needs_review", "approved"])
+      /**
+       * 🔴 `needs_review` ONLY — NEVER `approved`.
+       *
+       * ⛔ AN APPROVED POST WAS READ AND APPROVED AS IT IS. Giving it a
+       * picture afterwards means it publishes differently from the thing
+       * somebody said yes to — the approved-versus-published trap that the
+       * publish cron's own comments already warn about, arrived at from a new
+       * direction.
+       *
+       * ⚠️ I SHIPPED THIS WRONG AND IT TOUCHED THREE LIVE POSTS. It was
+       * harmless only by luck: those three were short videos, and the video
+       * route serves STORED bytes and 404s rather than re-encoding, precisely
+       * so a post cannot publish something nobody approved. Had they been
+       * graphics — rendered at publish time — the published card would have
+       * differed from the approved one.
+       */
+      .eq("status", "needs_review")
       .not("scheduled_for", "is", null)
       .order("scheduled_for")
       .limit(Math.min(Math.max(payload.limit ?? 6, 1), 8));
@@ -145,7 +161,7 @@ export async function POST(req: NextRequest) {
       .from("social_posts")
       .select("id", { count: "exact", head: true })
       .is("illustration", null)
-      .in("status", ["needs_review", "approved"])
+      .eq("status", "needs_review")
       .not("scheduled_for", "is", null);
     return NextResponse.json({ drawn: done.length, results: done, stillWithout: count ?? null });
   }

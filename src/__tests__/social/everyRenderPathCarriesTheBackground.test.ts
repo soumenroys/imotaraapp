@@ -93,3 +93,50 @@ describe("every render path carries the background", () => {
     expect(after, "a drawing failure would take the whole run down").toMatch(/catch/);
   });
 });
+
+/**
+ * 🔴 A BACKFILL MUST NOT TOUCH AN APPROVED POST.
+ *
+ * ⛔ I SHIPPED THIS WRONG AND IT CHANGED THREE LIVE POSTS. The backfill
+ * selected `needs_review` AND `approved`, so three posts scheduled for that
+ * same evening — already read, already approved — were given pictures nobody
+ * had seen.
+ *
+ * 🔑 It was harmless ONLY BY LUCK. Those three happened to be short videos,
+ * and the video route serves STORED bytes and 404s rather than re-encoding,
+ * precisely so that a post cannot publish something nobody approved. Had they
+ * been graphics — which render at publish time — the published card would
+ * have differed from the approved one.
+ *
+ * ⚠️ That is the approved-versus-published trap the publish cron already warns
+ * about in its own comments, reached from a direction nobody had guarded.
+ */
+describe("the backfill leaves approved posts alone", () => {
+  const route = read("src/app/api/admin/social/illustration/route.ts");
+
+  it("🔴 selects needs_review only", () => {
+    expect(route, "the route was not read").toMatch(/backfill/);
+    expect(route).toMatch(/\.eq\("status",\s*"needs_review"\)/);
+  });
+
+  it("⛔ and never widens back to include approved", () => {
+    /**
+     * ⚠️ Named as the exact shape that was wrong, so it cannot come back as a
+     * tidy-looking refactor.
+     */
+    expect(
+      route,
+      "the backfill can reach approved posts again",
+    ).not.toMatch(/\.in\("status",\s*\[\s*"needs_review",\s*"approved"\s*\]\)/);
+  });
+
+  it("⚠️ the queue cron is a different case and still gives pictures at write time", () => {
+    /**
+     * 🔑 NOT the same rule. A post being WRITTEN has not been approved yet, so
+     * giving it a picture then is how every post should get one. The rule is
+     * about changing something after a human has said yes to it.
+     */
+    const q = read("src/app/api/cron/social-queue/route.ts");
+    expect(q).toMatch(/giveAPicture\(/);
+  });
+});

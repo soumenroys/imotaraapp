@@ -144,6 +144,15 @@ export type PipelineDeps = {
    */
   poolUsage: () => Promise<Record<string, number>>;
   /**
+   * 🔑 THE ANGLES ALREADY SPENT ON THE DAY THIS POST IS FOR, on EVERY channel.
+   *
+   * ⚠️ OPTIONAL, and omitting it changes nothing — every existing caller and
+   * every test behaves exactly as before. ⛔ Which also means the wiring must
+   * be pinned by a test that calls the real route, or this is a correct
+   * function nothing invokes ⇒ trap_text_assertions_cannot_see_reachability.
+   */
+  poolsUsedOn?: (scheduledForISO: string) => Promise<string[]>;
+  /**
    * 🔑 WHAT EACH PAST POST ACTUALLY EARNED, so the next one can be chosen with
    * that in mind ⇒ src/lib/social/learning.ts. The owner: "actions are taken
    * for the next post automatically."
@@ -418,6 +427,59 @@ export function standDownReasons(
   return out;
 }
 
+/**
+ * 🔴 THE DAY, IN KOLKATA, AS A UTC WINDOW — added 20 Oct 2026.
+ *
+ * ⛔ India has NO daylight saving, so the offset is a constant and this needs
+ * no timezone database. ⚠️ That is a fact about India, not a shortcut: the
+ * same arithmetic would be wrong for a schedule in a DST country, so the
+ * constant is named rather than inlined.
+ */
+export const IST_OFFSET_MS = 5.5 * 3_600_000;
+
+export function istDayWindow(iso: string): { from: string; to: string } {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t)) {
+    throw new Error(`social/pipeline: istDayWindow needs a real date, got ${iso}`);
+  }
+  const dayStart = Math.floor((t + IST_OFFSET_MS) / 86_400_000) * 86_400_000;
+  return {
+    from: new Date(dayStart - IST_OFFSET_MS).toISOString(),
+    to: new Date(dayStart + 86_400_000 - IST_OFFSET_MS).toISOString(),
+  };
+}
+
+/**
+ * 🔴 THE ANGLES THIS DAY HAS NOT SPENT YET, ACROSS EVERY CHANNEL.
+ *
+ * ⛔ THE DEFECT THIS CLOSES, measured 20 Oct 2026. The rotation counter is
+ * `postCountFor(schedule.id)` — **per schedule**. Facebook's and YouTube's
+ * pools are character-for-character identical, so the two walk the same cycle
+ * and land on the same angle on the same day, forever. The result went out
+ * thirty minutes apart: "No names shared, unless you switch it on" on YouTube
+ * at 18:30 and "No sync unless you choose it" on Instagram at 19:00.
+ *
+ * ⚠️ AND THE SUBJECT GUARD CANNOT SEE IT. `judgeSubject` is global, but it
+ * compares WORDS — those two share none of the meaningful ones, so the
+ * overlap is near zero and both pass. ⇒ **a lexical check cannot catch a
+ * semantic repeat**, and the writer never repeats a string; it paraphrases.
+ *
+ * 🔑 SO THE FIX IS AT THE ANGLE, NOT THE WORDING. Two posts from different
+ * angles will differ; two from the same angle on the same day will rhyme
+ * however they are phrased ⇒ trap_a_menu_handed_to_a_model_is_not_a_rotation.
+ *
+ * ⛔ IT NEVER RETURNS EMPTY. Dropping every angle would stop the channel
+ * posting altogether — trading a repeat for a silence, which is strictly
+ * worse and is exactly the failure `queueHealth` exists for. With nothing
+ * left, the day's angles are allowed again and the subject guard still stands
+ * behind it.
+ */
+export function poolsLeftForToday(available: string[], usedToday: string[]): string[] {
+  const spent = new Set(usedToday);
+  const left = available.filter((p) => !spent.has(p));
+  return left.length > 0 ? left : available;
+}
+
 export function nextPool(pools: string[], postsSoFar: number): string {
   if (!pools || pools.length === 0) {
     throw new Error(
@@ -679,7 +741,14 @@ export async function prepareGenerated(
    * language ⇒ nextPool. Passed in rather than counted here, because this
    * function does not read the database and three of its tests depend on that.
    */
-  args: { schedule: ScheduleShape; platform: string; language: string; postsSoFar: number },
+  args: {
+    schedule: ScheduleShape;
+    platform: string;
+    language: string;
+    postsSoFar: number;
+    /** When this post is FOR — the day whose angles must not be repeated. */
+    scheduledFor?: string;
+  },
 ): Promise<PrepareResult> {
   const language = assertPostableLanguage(args.language);
   const maxAttempts = deps.maxAttempts ?? 3;
@@ -731,8 +800,18 @@ export async function prepareGenerated(
 
 
   const available = usablePools(args.schedule.topicPool, await deps.poolUsage(), undefined, args.platform);
+
+  /**
+   * ⛔ NARROWED BY WHAT THE OTHER CHANNELS ALREADY SAID TODAY, before the
+   * weighting — so the weighting distributes over what is actually left
+   * rather than over angles that are about to be dropped.
+   */
+  const spentToday =
+    deps.poolsUsedOn && args.scheduledFor ? await deps.poolsUsedOn(args.scheduledFor) : [];
+  const fresh = poolsLeftForToday(available, spentToday);
+
   const scores = angleScores(await deps.measuredPosts());
-  const cycle = weightedCycle(available, turnsFor(available, scores, args.platform));
+  const cycle = weightedCycle(fresh, turnsFor(fresh, scores, args.platform));
   const pool = nextPool(cycle, args.postsSoFar);
 
   /**

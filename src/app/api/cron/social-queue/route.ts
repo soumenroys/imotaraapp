@@ -203,7 +203,15 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-      const prepared = await prepareGenerated(deps, { schedule, platform, language, postsSoFar: count });
+      const prepared = await prepareGenerated(deps, {
+        schedule,
+        platform,
+        language,
+        postsSoFar: count,
+        // 🔑 WHICH DAY this post is for, so the angle can avoid what the other
+        // channels already said that day ⇒ pipeline.poolsLeftForToday.
+        scheduledFor: want.scheduledFor,
+      });
       if (!prepared.ok) {
         await failed(prepared.reason);
         outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail: prepared.reason });

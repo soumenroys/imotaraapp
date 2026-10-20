@@ -13,7 +13,7 @@
 
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { RECENT_WINDOW } from "@/lib/social/visualRecipe";
-import { wantsPicture } from "@/lib/social/pipeline";
+import { wantsPicture, istDayWindow } from "@/lib/social/pipeline";
 import type { ContentType } from "@/lib/social/contentTypes";
 import type { GateOverlay } from "@/lib/social/voiceGate";
 import type { PipelineDeps, PreparedPost, ScheduleShape } from "@/lib/social/pipeline";
@@ -132,6 +132,30 @@ export async function recentSubjects(limit = SUBJECT_HISTORY): Promise<string[]>
 }
 
 /**
+ * 🔴 THE ANGLES ALREADY SPENT ON ONE DAY, ACROSS EVERY CHANNEL — added 20 Oct 2026.
+ *
+ * ⛔ The rotation counter is per schedule, so two channels with the same pool
+ * list march in lockstep ⇒ pipeline.poolsLeftForToday for the measurement.
+ * This is the only query that can see across them.
+ *
+ * ⚠️ `skipped` IS EXCLUDED. A retired post was never read by anybody, so the
+ * angle it used was not in fact spent — counting it would silently narrow the
+ * day for no benefit. ⛔ `needs_review` and `approved` ARE counted: they are
+ * going out, and a repeat is a repeat whether or not it has been approved yet.
+ */
+export async function poolsUsedOn(scheduledForISO: string): Promise<string[]> {
+  const { from, to } = istDayWindow(scheduledForISO);
+  const db = getSupabaseAdmin();
+  const { data } = await db
+    .from("social_posts")
+    .select("topic_pool")
+    .gte("scheduled_for", from)
+    .lt("scheduled_for", to)
+    .neq("status", "skipped");
+  return (data ?? []).map((r) => r.topic_pool as string).filter(Boolean);
+}
+
+/**
  * Every recipe hash ever used.
  *
  * ⚠️ Fetched whole rather than queried per candidate. There are 1,152 recipes
@@ -164,6 +188,9 @@ export async function liveDeps(): Promise<PipelineDeps> {
   return {
     recentSubjects: () => recentSubjects(),
     poolUsage: () => poolUsage(),
+    // 🔑 The cross-channel angle check. ⛔ Wired HERE, so every test keeps the
+    // old single-channel behaviour unless it opts in ⇒ pipeline.poolsLeftForToday.
+    poolsUsedOn: (iso: string) => poolsUsedOn(iso),
     measuredPosts: () => measuredPosts(),
     usedRecipeHashes: () => usedRecipeHashes(),
     recentPalettes: async () => recent.palettes,

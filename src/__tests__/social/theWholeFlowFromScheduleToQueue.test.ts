@@ -635,3 +635,101 @@ describe("⛔ the card shows only what the word check read", () => {
     );
   });
 });
+
+/**
+ * 🔴 ADDED 20 Oct 2026 — THE CHANNELS WERE SAYING THE SAME THING ON THE SAME DAY.
+ *
+ * ⛔ The rotation counter is `postCountFor(schedule.id)`, per SCHEDULE, and
+ * Facebook's and YouTube's pools are identical ⇒ the two walk one cycle in
+ * lockstep. 18:30 YouTube "No names shared, unless you switch it on" and
+ * 19:00 Instagram "No sync unless you choose it", half an hour apart.
+ *
+ * 🔑 THIS IS THE REACHABILITY HALF. `poolsLeftForToday` is pure and tested
+ * next door; `poolsUsedOn` is an OPTIONAL dep, which means a wiring mistake
+ * leaves everything green and the rotation unchanged
+ * ⇒ trap_text_assertions_cannot_see_reachability. These call the pipeline.
+ */
+describe("the angle avoids what the other channels already said today", () => {
+  const SLOT = "2026-10-20T13:00:00.000Z"; // 18:30 IST
+
+  /**
+   * ⚠️ THREE ANGLES, because the default fixture carries ONE — and with one
+   * angle the never-empty rule correctly hands it back, so a single-pool
+   * schedule can prove nothing about narrowing. ⛔ All three are shape-safe on
+   * Facebook and have no finite material, so `usablePools` keeps all of them
+   * and the only thing deciding the outcome is the narrowing under test.
+   */
+  const POOLED = { topicPool: ["privacy", "quiet-hours", "the-unsaid"] };
+
+  /** The angle the pipeline picks, given what the day has already spent. */
+  async function angleFor(spent: string[] | null, postsSoFar = 0): Promise<string> {
+    let seen = "";
+    await prepareGenerated(
+      deps({
+        ...(spent === null ? {} : { poolsUsedOn: async () => spent }),
+        write: async (req) => {
+          seen = req.topicPool[0];
+          return { subject: "The hours nobody staffs", body: CLEAN_BODY };
+        },
+      }),
+      {
+        schedule: schedule(POOLED),
+        platform: "facebook",
+        language: "en",
+        postsSoFar,
+        ...(spent === null ? {} : { scheduledFor: SLOT }),
+      },
+    );
+    return seen;
+  }
+
+  it("🔴 picks a different angle once another channel has used that one", async () => {
+    const first = await angleFor(null);
+    expect(first, "no angle reached the writer at all").toBeTruthy();
+
+    const second = await angleFor([first]);
+    expect(second, "the angle repeated although the day had already spent it").not.toBe(first);
+  });
+
+  it("⛔ still posts when the day has spent every angle — a silence is worse", async () => {
+    const plain = await angleFor(null);
+    const all = await angleFor([
+      "privacy",
+      "quiet-hours",
+      "untranslatable",
+      "the-unsaid",
+      "built-wrong",
+      "ways-of-saying",
+    ]);
+    expect(all, "the channel stood down rather than repeating").toBeTruthy();
+    expect(all).toBe(plain);
+  });
+
+  it("⚠️ unchanged when nothing has been spent, so the first post of the day is as before", async () => {
+    expect(await angleFor([])).toBe(await angleFor(null));
+  });
+
+  it("⛔ and the dep is not consulted without a date to scope it to", async () => {
+    /**
+     * 🔑 Both halves are needed. A `poolsUsedOn` with no `scheduledFor` has no
+     * day to ask about, and guessing one would narrow the wrong day.
+     */
+    let asked = false;
+    let seen = "";
+    await prepareGenerated(
+      deps({
+        poolsUsedOn: async () => {
+          asked = true;
+          return ["privacy"];
+        },
+        write: async (req) => {
+          seen = req.topicPool[0];
+          return { subject: "The hours nobody staffs", body: CLEAN_BODY };
+        },
+      }),
+      { schedule: schedule(POOLED), platform: "facebook", language: "en", postsSoFar: 0 },
+    );
+    expect(asked, "it asked which angles were spent without knowing the day").toBe(false);
+    expect(seen).toBeTruthy();
+  });
+});

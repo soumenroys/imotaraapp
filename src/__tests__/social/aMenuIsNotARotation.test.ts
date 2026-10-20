@@ -80,20 +80,25 @@ describe("exactly one angle reaches the writer", () => {
     // ⚠️ The angle is decided ONCE, above the retry loop, and passed as a
     // one-element list ⇒ the `pool` const.
     /**
-     * ⛔ THIS ANCHOR HAS NOW BROKEN TWICE ON CHANGES THAT KEPT THE RULE —
-     * first when usablePools gained the spend counts, then when the rotation
-     * gained a weighted cycle. ⇒ So it pins the RULE instead of the line:
-     * whatever list is built, `nextPool` is called on THAT list, and exactly
-     * one angle comes back.
+     * ⛔ THIS ANCHOR HAS NOW BROKEN THREE TIMES ON CHANGES THAT KEPT THE RULE —
+     * usablePools gaining the spend counts, the rotation gaining a weighted
+     * cycle, and (20 Oct) the cross-channel narrowing inserting a dozen lines
+     * between the two anchors.
+     *
+     * 🔑 EACH TIME THE FIX WAS TO WIDEN A BYTE WINDOW, which only sets the
+     * next break. ⇒ it now pins the ORDER of the three steps rather than how
+     * far apart they sit: the pool list is built from the schedule, it is
+     * weighted, and THEN exactly one angle is drawn from it. Anything may be
+     * inserted between them; nothing may reorder them or skip one.
      */
+    const built = pipeline.indexOf("usablePools(args.schedule.topicPool");
+    const weighted = pipeline.indexOf("weightedCycle(");
     const at = pipeline.indexOf("const pool = nextPool(");
-    expect(at).toBeGreaterThan(-1);
-
-    // The list handed to nextPool is the one that was filtered and weighted
-    // just above it — not the schedule's raw set.
-    const before = pipeline.slice(Math.max(0, at - 600), at);
-    expect(before).toContain("usablePools(args.schedule.topicPool");
-    expect(before).toContain("weightedCycle(");
+    expect(built, "the pool list is no longer built from the schedule").toBeGreaterThan(-1);
+    expect(weighted, "the rotation is no longer weighted").toBeGreaterThan(-1);
+    expect(at, "nothing draws a single angle any more").toBeGreaterThan(-1);
+    expect(built, "the list is weighted before it is built").toBeLessThan(weighted);
+    expect(weighted, "an angle is drawn before the list is weighted").toBeLessThan(at);
     expect(pipeline.slice(at, at + 120)).not.toContain("args.schedule.topicPool");
     expect(pipeline).toMatch(/topicPool: \[pool\],/);
     expect(

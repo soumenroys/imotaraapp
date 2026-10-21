@@ -15,7 +15,7 @@
 import { ImageResponse } from "next/og";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { storyboard } from "@/lib/social/frames";
+import { storyboard, wordsLayer, driftFor } from "@/lib/social/frames";
 import { toElement, loadFont, resolveIllustration, type PictureSource } from "@/lib/social/renderPicture";
 import { encode, durationMs } from "@/lib/social/animate";
 import { speak } from "@/lib/social/speech";
@@ -238,8 +238,29 @@ export async function renderAnimation(
     return { ok: false, status: 502, error: (e as Error).message };
   }
 
+  /**
+   * 🔑 THE DRIFT: in an MP4 with a picture, the frames carry only the veil and
+   * the words, and the picture is handed to the encoder to pan under them
+   * ⇒ frames.wordsLayer, animate.videoGraph.
+   *
+   * ⚠️ All or nothing. If any frame does not have the picture where compose
+   * puts it, every frame is drawn whole, as before — a still picture is fine,
+   * half a clip with no background is not.
+   */
+  const layers =
+    format === "mp4" && illustration
+      ? board.frames.map((f) => wordsLayer(f, illustration.src))
+      : null;
+  const drifting = layers !== null && layers.every((l) => l !== null);
+  let backgroundFile: string | null = null;
+  if (drifting) {
+    backgroundFile = join(tmpdir(), `imotara-bg-${randomUUID()}.jpg`);
+    await writeFile(backgroundFile, Buffer.from(illustration!.src.split(",")[1] ?? "", "base64"));
+  }
+
   const frames: Buffer[] = [];
-  for (const frame of board.frames) {
+  for (const [i, whole] of board.frames.entries()) {
+    const frame = drifting ? layers![i]! : whole;
     const image = new ImageResponse(toElement(frame), {
       width: board.width,
       height: board.height,
@@ -328,6 +349,9 @@ export async function renderAnimation(
       height: board.height,
       ...(narration.length > 0 ? { narration } : {}),
       ...(audioPath && existsSync(audioPath) ? { audioPath, audioFilter: bed?.filter } : {}),
+      ...(backgroundFile
+        ? { background: { path: backgroundFile, drift: driftFor((post.visual_recipe as Recipe | null)?.hash) } }
+        : {}),
     });
     return { ok: true, bytes: new Uint8Array(out), width: board.width, height: board.height, ms: Date.now() - started };
   } catch (e) {
@@ -341,5 +365,9 @@ export async function renderAnimation(
       status: 500,
       error: `The ${format.toUpperCase()} could not be encoded: ${(e as Error).message}`,
     };
+  } finally {
+    // ⛔ Always: /tmp is small on a serverless box and a leaked picture is
+    // the same leak the frame directory guards against in animate.ts.
+    if (backgroundFile) await rm(backgroundFile, { force: true }).catch(() => {});
   }
 }

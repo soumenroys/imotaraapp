@@ -314,3 +314,51 @@ export function storyboard(input: FrameInput): Storyboard {
 export function finalFrame(board: Storyboard): Node {
   return board.frames[board.frames.length - 1];
 }
+
+/**
+ * 🔑 THE WORDS, WITHOUT THE PICTURE — so the picture can move under them.
+ *
+ * The finished frame is ground, motif, picture, veil, words ⇒ composePicture.
+ * For the drift the picture goes to the encoder as its own input, and the
+ * frame is drawn again with everything up to and including the picture taken
+ * away: a transparent sheet carrying only the veil and the words.
+ *
+ * ⛔ THE WORDS NEVER MOVE. Only what is under them does. A drifting headline
+ * is the "demands attention" this file refuses; a drifting painting behind a
+ * still sentence is not.
+ *
+ * ⚠️ Returns null when the picture is not where compose puts it, and the
+ * caller then encodes the full frames as before — a still card, never a
+ * broken one.
+ */
+export function wordsLayer(root: Node, pictureSrc: string): Node | null {
+  const kids = root.children ?? [];
+  const at = kids.findIndex((c) => c.tag === "img" && c.src === pictureSrc);
+  if (at < 0) return null;
+  const style = Object.fromEntries(Object.entries(root.style).filter(([k]) => !k.startsWith("background")));
+  return { ...root, style, children: kids.slice(at + 1) };
+}
+
+/** Which way the picture drifts. ⚠️ A pan, never a zoom ⇒ the header above. */
+export type Drift = { dx: -1 | 0 | 1; dy: -1 | 0 | 1 };
+
+/**
+ * 🔑 THE DIRECTION FOLLOWS THE RECIPE, so the feed does not move the same way
+ * every day — the owner's ask was "movement, colours, non-monotonous posts".
+ * ⚠️ Deterministic from the hash: a re-render of an approved post must move
+ * exactly as the one that was approved.
+ */
+export const DRIFTS: Drift[] = [
+  { dx: 1, dy: 0 },
+  { dx: -1, dy: 0 },
+  { dx: 0, dy: 1 },
+  { dx: 0, dy: -1 },
+  { dx: 1, dy: 1 },
+  { dx: -1, dy: -1 },
+];
+
+export function driftFor(hash: string | undefined): Drift {
+  let n = 0;
+  for (const ch of hash ?? "") n = (n * 31 + ch.charCodeAt(0)) % 9973;
+  return DRIFTS[n % DRIFTS.length];
+}

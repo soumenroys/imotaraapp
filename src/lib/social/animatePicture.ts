@@ -79,7 +79,10 @@ export async function animatePicture(
           { type: "text", text: opts.prompt ?? animationPrompt() },
         ],
         generation_config: { video_config: { task: "image_to_video" } },
-        response_format: { aspect_ratio: opts.aspect, resolution: "720p", delivery: "uri" },
+        // ⚠️ `type: "video"` is REQUIRED by the API, though the docs' examples
+        // mark it "optional" — the first trial was refused with "The 'type'
+        // parameter is required at 'response_format'" (400, nothing charged).
+        response_format: { type: "video", aspect_ratio: opts.aspect, resolution: "720p", delivery: "uri" },
         // ⚠️ Synchronous, unstored ⇒ docs: "faster, synchronous unary generation".
         background: false,
         store: false,

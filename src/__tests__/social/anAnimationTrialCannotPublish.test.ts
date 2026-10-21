@@ -70,3 +70,22 @@ describe("failures are answers, not crashes", () => {
     }
   });
 });
+
+describe("the request the API actually accepts", () => {
+  it("🔴 response_format carries type: video — refused with a 400 without it", async () => {
+    const saved = process.env.GEMINI_API_KEY;
+    process.env.GEMINI_API_KEY = "test";
+    let sent: Record<string, unknown> = {};
+    try {
+      const capture = (async (_u: string, init: RequestInit) => {
+        sent = JSON.parse(String(init.body));
+        return { ok: false, status: 418, text: async () => "stop" };
+      }) as unknown as typeof fetch;
+      await animatePicture(new Uint8Array([1]), { aspect: "9:16", fetchImpl: capture });
+      expect((sent.response_format as Record<string, unknown>).type).toBe("video");
+      expect((sent.response_format as Record<string, unknown>).aspect_ratio).toBe("9:16");
+    } finally {
+      process.env.GEMINI_API_KEY = saved;
+    }
+  });
+});

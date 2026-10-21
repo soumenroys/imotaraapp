@@ -17,7 +17,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { storyboard, wordsLayer } from "@/lib/social/frames";
 import { toElement, loadFont, resolveIllustration, type PictureSource } from "@/lib/social/renderPicture";
-import { encode, durationMs, pingPong } from "@/lib/social/animate";
+import { encode, durationMs, pingPong, motionBehindWords, MAX_MOTION_BEHIND_WORDS } from "@/lib/social/animate";
 import { speak } from "@/lib/social/speech";
 import { writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -276,6 +276,20 @@ export async function renderAnimation(
     clipFiles.push(clip, loopFile);
     await writeFile(clip, Buffer.from(opts.animatedBackground!));
     try {
+      /**
+       * 🔴 TOO MUCH MOVEMENT BEHIND THE LETTERS ⇒ the still picture.
+       * ⚠️ Measured under THIS post's words, after layout, because the clip is
+       * made before anybody knows where the words will land ⇒ MAX_MOTION_BEHIND_WORDS.
+       */
+      const motion = await motionBehindWords(frames, clip, board.width, board.height);
+      if (motion > MAX_MOTION_BEHIND_WORDS) {
+        console.warn("[renderAnimation] the animated picture moves too much behind the words; using the still", {
+          motion: Number(motion.toFixed(2)),
+          limit: MAX_MOTION_BEHIND_WORDS,
+        });
+        for (const f of clipFiles) await rm(f, { force: true }).catch(() => {});
+        return renderAnimation(post, format);
+      }
       await pingPong(clip, loopFile);
     } catch (e) {
       // ⚠️ A clip that cannot be prepared is not a failed post. Words over

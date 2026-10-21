@@ -43,6 +43,9 @@ export function animationPrompt(seconds = 8): string {
     "Bring the existing characters and objects to life with small, natural movements:",
     "characters breathe, blink, turn slightly or gesture softly; lights flicker or twinkle;",
     "leaves, water, clouds or fabric move a little in a light breeze.",
+    // 🔴 21 Oct: four of ten queued clips moved shapes and flowers across the
+    // empty space where the post's words are set ⇒ motionBehindWords.
+    "Keep every plain or empty area of the background calm and still: movement stays on the characters and objects themselves, and nothing drifts, floats or travels across open space.",
     "Do not add any new people, characters, text, letters, numbers, logos or signs.",
     "No camera cuts, no zoom, no fast motion, no flashing. Slow, soothing pacing throughout.",
   ].join(" ");

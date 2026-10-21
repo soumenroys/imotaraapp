@@ -93,3 +93,32 @@ describe("the approval passes it on", () => {
     expect(route).toMatch(/export const maxDuration = 300;/);
   });
 });
+
+describe("🔴 too much movement behind the letters ⇒ the still picture", () => {
+  const render = readFileSync(join(process.cwd(), "src/lib/social/renderAnimation.ts"), "utf8");
+  const anim = readFileSync(join(process.cwd(), "src/lib/social/animate.ts"), "utf8");
+  it("the limit is the measured 2.5", () => {
+    expect(anim).toMatch(/export const MAX_MOTION_BEHIND_WORDS = 2\.5;/);
+  });
+  it("is checked before the clip is used, and falls back to the still", () => {
+    const at = render.indexOf("await motionBehindWords(");
+    expect(at).toBeGreaterThan(-1);
+    const after = render.slice(at, at + 900);
+    expect(after).toMatch(/motion > MAX_MOTION_BEHIND_WORDS/);
+    expect(after).toMatch(/return renderAnimation\(post, format\)/);
+    expect(at).toBeLessThan(render.indexOf("await pingPong("));
+  });
+  it("⛔ uses only filters production's 2018 ffmpeg has", () => {
+    const body = anim.slice(anim.indexOf("export async function motionBehindWords"));
+    for (const f of body.match(/"-vf", `([^`]*)`/g) ?? []) {
+      expect(f).not.toMatch(/zoompan|normalize|scale2ref|xfade|maskedmerge/);
+    }
+  });
+});
+
+describe("the instruction keeps open space still", () => {
+  it("names it", async () => {
+    const { animationPrompt } = await vi.importActual<typeof import("@/lib/social/animatePicture")>("@/lib/social/animatePicture");
+    expect(animationPrompt()).toMatch(/nothing drifts, floats or travels across open space/);
+  });
+});

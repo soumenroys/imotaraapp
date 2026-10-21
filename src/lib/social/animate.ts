@@ -532,3 +532,96 @@ import type { AnimationFormat as Fmt } from "@/lib/social/animationFacts";
 export async function encode(format: Fmt, input: EncodeInput): Promise<Buffer> {
   return format === "gif" ? encodeGif(input) : encodeMp4(input);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Is the animated picture quiet where the words are?
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 🔑 THE MOST MOVEMENT ALLOWED BEHIND THE LETTERS, on a 0–255 scale: the mean
+ * change per pixel between frames sampled 6 times a second, measured only
+ * under the post's own letters.
+ *
+ * ⚠️ MEASURED, not chosen. 21 Oct, ten queued YouTube clips, four of which the
+ * owner and I judged too busy to read over:
+ *   busy  — 4.25, 3.31, 2.97, 1.35
+ *   clean — 2.19, 1.50, 1.29, 1.21, 1.06, 0.10
+ * 2.5 catches three of the four and flags none of the clean six. ⛔ The fourth
+ * (orange clay behind orange-toned text) is busy by COLOUR, not movement — ten
+ * samples are not enough to set a colour rule, so it is not pretended here.
+ *
+ * ⛔ Measuring the veiled ZONE instead was tried first and does not separate
+ * them: the words are not always inside the zone the picture was measured for.
+ */
+export const MAX_MOTION_BEHIND_WORDS = 2.5;
+
+const GRID_W = 96;
+
+function capture(bin: string, args: string[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const out: Buffer[] = [];
+    child.stdout.on("data", (d: Buffer) => out.push(d));
+    child.on("error", reject);
+    child.on("close", (code) => (code === 0 ? resolve(Buffer.concat(out)) : reject(new Error(`ffmpeg exited ${code}`))));
+  });
+}
+
+/**
+ * 🔑 HOW MUCH THE PICTURE MOVES DIRECTLY BEHIND THE WORDS.
+ *
+ * `layers` are the transparent word sheets ⇒ frames.wordsLayer. Their opaque
+ * pixels — letters, not the faint veil — are unioned across every scene into a
+ * mask, and the clip is sampled under that mask only.
+ *
+ * ⛔ Filters used: alphaextract, scale, crop, fps, format — all long before
+ * production's 2018 ffmpeg.
+ */
+export async function motionBehindWords(
+  layers: Buffer[],
+  clip: string,
+  width: number,
+  height: number,
+): Promise<number> {
+  const bin = await ffmpegPath();
+  const gh = Math.max(2, Math.round((height / width) * GRID_W));
+  const n = GRID_W * gh;
+  const mask = new Uint8Array(n);
+  const dir = await mkdtemp(path.join(tmpdir(), "imotara-mask-"));
+  try {
+    for (const [i, png] of layers.entries()) {
+      const file = path.join(dir, `l${i}.png`);
+      await writeFile(file, png);
+      const a = await capture(bin, [
+        "-loglevel", "error", "-i", file,
+        "-vf", `alphaextract,scale=${GRID_W}:${gh}:flags=area,format=gray`,
+        "-f", "rawvideo", "-",
+      ]);
+      // ⚠️ > 90: the letters are opaque, the veil is a faint wash and must
+      // not turn the whole zone into "words".
+      for (let k = 0; k < Math.min(n, a.length); k++) if (a[k] > 90) mask[k] = 1;
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+  let count = 0;
+  for (const v of mask) count += v;
+  if (count === 0) return 0;
+
+  const raw = await capture(bin, [
+    "-loglevel", "error", "-i", clip,
+    "-vf", `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height},fps=6,scale=${GRID_W}:${gh},format=gray`,
+    "-f", "rawvideo", "-",
+  ]);
+  const frames = Math.floor(raw.length / n);
+  if (frames < 2) return 0;
+  let total = 0;
+  for (let f = 1; f < frames; f++) {
+    const a = raw.subarray(f * n, (f + 1) * n);
+    const b = raw.subarray((f - 1) * n, f * n);
+    let d = 0;
+    for (let i = 0; i < n; i++) if (mask[i]) d += Math.abs(a[i] - b[i]);
+    total += d / count;
+  }
+  return total / (frames - 1);
+}

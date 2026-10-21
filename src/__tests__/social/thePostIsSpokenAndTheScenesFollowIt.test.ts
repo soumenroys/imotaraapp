@@ -21,7 +21,7 @@
 import { describe, it, expect } from "vitest";
 process.env.SOCIAL_TOKEN_KEY ??= Buffer.alloc(32, 9).toString("base64");
 
-import { speak } from "@/lib/social/speech";
+import { speak, RETRIES_ON_429 } from "@/lib/social/speech";
 import { storyboard } from "@/lib/social/frames";
 import type { Recipe } from "@/lib/social/visualRecipe";
 
@@ -105,10 +105,39 @@ describe("⛔ narration fails to SILENT, never to a failed post", () => {
   });
 
   it("an error status is a refusal", async () => {
-    const r = await withAzure(() => speak("Hello.", "en", azureSaying(500, 429)));
+    const r = await withAzure(() => speak("Hello.", "en", azureSaying(500, 500)));
+    expect(r.ok).toBe(false);
+    if (r.ok) throw new Error("unreachable");
+    expect(r.error).toMatch(/500/);
+  });
+
+  it("🔴 a 429 is waited out, line by line — one busy second must not silence the whole video", async () => {
+    /**
+     * Found 21 Oct re-rendering the queue: one speak() alone succeeded, the
+     * same call inside a five-line render failed three renders running, and
+     * ONE failed line drops the narration for every line.
+     */
+    let calls = 0;
+    const flaky = (async () => {
+      calls++;
+      const status = calls < 3 ? 429 : 200;
+      return { ok: status === 200, status, headers: new Headers(), arrayBuffer: async () => new Uint8Array(500).buffer };
+    }) as unknown as typeof fetch;
+    const waits: number[] = [];
+    const r = await withAzure(() => speak("Hello.", "en", flaky, async (ms) => { waits.push(ms); }));
+    expect(r.ok).toBe(true);
+    expect(calls).toBe(3);
+    expect(waits.length).toBe(2);
+  });
+
+  it("⚠️ but a 429 that never clears still fails to silent, after a bounded number of waits", async () => {
+    const waits: number[] = [];
+    const r = await withAzure(() => speak("Hello.", "en", azureSaying(500, 429), async (ms) => { waits.push(ms); }));
     expect(r.ok).toBe(false);
     if (r.ok) throw new Error("unreachable");
     expect(r.error).toMatch(/429/);
+    expect(waits.length).toBe(RETRIES_ON_429);
+    for (const w of waits) expect(w).toBeLessThanOrEqual(8_000);
   });
 
   it("⛔ refuses empty text rather than asking Azure to say nothing", async () => {

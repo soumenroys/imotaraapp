@@ -56,10 +56,17 @@ function escapeSsml(text: string): string {
  * ⚠️ RETURNS A FAILURE RATHER THAN THROWING. A video with no narration is a
  * video; a failed approval because a speech service was busy is not.
  */
+/** How many times a 429 is waited out before the line gives up ⇒ speak. */
+export const RETRIES_ON_429 = 3;
+
+const realSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 export async function speak(
   text: string,
   language: string,
   fetchImpl: typeof fetch = fetch,
+  /** ⚠️ Injectable so a test of the retry does not sit through real waits. */
+  sleep: (ms: number) => Promise<void> = realSleep,
 ): Promise<Spoken> {
   const trimmed = text.trim();
   if (!trimmed) return { ok: false, error: "Nothing to say." };
@@ -97,9 +104,8 @@ export async function speak(
     `${escapeSsml(trimmed)}</voice></speak>`;
 
   try {
-    const res = await fetchImpl(
-      `https://${config.region}.tts.speech.microsoft.com/cognitiveservices/v1`,
-      {
+    const ask = () =>
+      fetchImpl(`https://${config.region}.tts.speech.microsoft.com/cognitiveservices/v1`, {
         method: "POST",
         headers: {
           "Ocp-Apim-Subscription-Key": config.key,
@@ -111,8 +117,27 @@ export async function speak(
         },
         body: ssml,
         signal: AbortSignal.timeout(30_000),
-      },
-    );
+      });
+
+    /**
+     * 🔴 A 429 IS A WAIT, NOT A REFUSAL — and it used to cost the whole voice.
+     *
+     * A post is spoken line by line, and ONE failed line drops the narration
+     * for every line ⇒ renderAnimation. Azure answers 429 to a few calls in a
+     * row, so a single busy second turned an approval into a silent video.
+     * Found 21 Oct re-rendering the queue: one speak() alone succeeded, the
+     * same call inside a five-line render failed three renders running.
+     *
+     * ⚠️ Bounded: three waits, honouring Retry-After when Azure sends one,
+     * capped so an approval never hangs on it. Anything else still fails at
+     * once, exactly as before.
+     */
+    let res = await ask();
+    for (let wait = 1; res.status === 429 && wait <= RETRIES_ON_429; wait++) {
+      const after = Number(res.headers?.get?.("retry-after"));
+      await sleep(Math.min(Number.isFinite(after) && after > 0 ? after * 1000 : wait * 1_500, 8_000));
+      res = await ask();
+    }
 
     if (!res.ok) {
       return { ok: false, error: `Azure answered ${res.status} when asked to speak the post.` };

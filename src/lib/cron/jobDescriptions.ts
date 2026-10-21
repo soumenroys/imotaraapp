@@ -43,6 +43,8 @@ export const CRON_DESCRIPTIONS: Record<string, string> = {
     "Captures each channel's followers and each recent post's figures, once a day after the posting hour.",
   "/api/cron/social-health":
     "Checks every social channel's token, and the queue: alerts if a token is dying or a slot passed unpublished.",
+  "/api/cron/voice-dispatch":
+    "Places queued voice calls from the Call Directory sheet as lines free up, and catches results that never arrived. Calls due contacts by itself only when the sheet's Settings switch it on.",
 };
 
 /**

@@ -147,4 +147,15 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     ],
     footnote: "🔑 No message text is stored or shown here, ever. That is a deliberate limit, not a gap.",
   },
+
+  voice: {
+    title: "Calling contacts from the sheet",
+    steps: [
+      { do: "Add or fix contacts in the Call Directory sheet, then press Refresh.", then: "The sheet is the list. This screen only reads it." },
+      { do: "Read the Check column; only a green OK can be ticked.", then: "Anything else says what to fix in the sheet — a missing consent note, a language not started, a do-not-call number." },
+      { do: "Tick the people to call and press Call selected.", then: "They are queued and rung two at a time, inside 10:00–18:00 their time." },
+      { do: "Watch the results arrive in the sheet's status and summary columns.", then: "A safety concern or a booked meeting is also emailed to the team at once." },
+    ],
+    footnote: "⛔ Nothing rings until the sheet's Settings tab says calling_enabled yes. auto_dispatch yes lets the schedule call due contacts by itself.",
+  },
 };

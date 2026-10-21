@@ -94,6 +94,21 @@ const PROCESSOR_HOSTS: Record<string, string> = {
 };
 
 /**
+ * Hosts that DO carry personal data but are not yet named in the policy, by the
+ * owner's explicit decision ("do not change any privacy policy", 21 Oct 2026).
+ *
+ * ⚠️ NOT benign. Each one is a disclosure still owed; when the owner approves
+ * the wording, move it into PROCESSOR_HOSTS and name it in the policy.
+ */
+const PROCESSORS_NOT_YET_DISCLOSED: Record<string, string> = {
+    // Voice calls to warm contacts ⇒ src/lib/voice. Names, phone numbers and
+    // the call itself (recorded for notes) reach Bolna and its telephony
+    // partner Vobiz; the contact list and call outcomes live in a Google Sheet.
+    "api.bolna.ai": "Bolna",
+    "sheets.googleapis.com": "Google Sheets",
+};
+
+/**
  * Hosts that are NOT processors: our own domains, outbound links we render,
  * documentation examples, test fixtures, and services that receive no personal
  * data. Analytics is disclosed in its own paragraph rather than this list.
@@ -111,6 +126,9 @@ const BENIGN_HOSTS = new Set([
     // The Wikidata item, named in schema markup so assistants can resolve what
     // Imotara is. Outbound link only — nothing is sent to it at runtime.
     "www.wikidata.org",
+    // A link to the Call Directory sheet on the staff-only /admin/voice page.
+    // A link only — the browser of a signed-in admin opens it; nothing is sent.
+    "docs.google.com",
     /**
      * The font CDN the picture composer fetches from, SERVER-SIDE, at render
      * time ⇒ src/lib/social/fonts.ts.
@@ -293,7 +311,7 @@ describe("every processor the code talks to is named in the privacy policy", () 
 describe("a new outbound host cannot be added without a disclosure decision", () => {
     it("every host in src/ is either a declared processor or explicitly benign", () => {
         const unknown = hostsInSource().filter(
-            (h) => !(h in PROCESSOR_HOSTS) && !BENIGN_HOSTS.has(h),
+            (h) => !(h in PROCESSOR_HOSTS) && !(h in PROCESSORS_NOT_YET_DISCLOSED) && !BENIGN_HOSTS.has(h),
         );
         expect(
             unknown,

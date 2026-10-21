@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/social-health",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/voice-dispatch",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

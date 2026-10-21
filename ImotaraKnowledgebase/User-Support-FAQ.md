@@ -84,12 +84,12 @@
 
 Three things worth knowing (all v1.4.1+): the reminder is titled in the **companion's name**, and renaming re-issues it; switching the reminder **off also cancels a queued inactivity nudge**; and on Android delivery is **inexact by design** — a 17:00 reminder can arrive around 17:07. ⚠️ On Android builds **older than v1.4.1** the reminder could not be scheduled at all and the app misreported it as "Permission needed" — the fix is to update.
 
-**Q: A Free user says they can't turn reminders off. Is that a bug?** *(v1.5.8+)*
+**Q: A Free user says they can't turn reminders off. Is that a bug?** *(web v1.5.8+, mobile v1.5.9+)*
 **A:** No, it is the intended behaviour. **Free** users can **pause** the daily reminder for **3 or 5 days**, as often as they like; **Plus and above** can switch it off entirely. Pausing and resuming are never restricted by plan, and a paused reminder **re-arms itself** when the pause ends — the user does not have to remember to turn it back on. They can also **Resume** early.
 
 If a Free user wants reminders gone permanently rather than paused, tell them they can turn Imotara's notifications off at the **operating-system level** (phone or browser notification settings). Nothing from Imotara reaches them after that. We do not trap anyone in notifications they do not want.
 
-**Q: Why does the reminder say "Tuesday" instead of quoting what I wrote?** *(v1.5.8+)*
+**Q: Why does the reminder say "Tuesday" instead of quoting what I wrote?** *(web v1.5.8+, mobile v1.5.9+)*
 **A:** Deliberate. The reminder names **the day the person last wrote**, never the words they used. A lock screen is read by whoever picks the phone up, and a notification quoting a message about someone's marriage, diagnosis or family could disclose something they never chose to share. The weekday is unmistakable to them and meaningless to a bystander.
 
 **Q: The reminder arrives at an odd hour.**
@@ -97,7 +97,7 @@ If a Free user wants reminders gone permanently rather than paused, tell them th
 
 ## The welcome screen and age rules
 
-**Q: What is the screen people see the first time they open Imotara?** *(v1.5.8+)*
+**Q: What is the screen people see the first time they open Imotara?** *(web v1.5.8+, mobile v1.5.9+)*
 **A:** A short first-use welcome screen, shown on **web, iOS and Android** before anything else. It states what Imotara is, says plainly what it is **not**, shows the **emergency numbers for the user's country**, and asks them to accept the **Terms** and **Privacy Policy**. It appears in **all 22 languages**, not only English. The acceptance box is **pre-ticked** — people read it and press Continue, or untick it.
 
 It is shown **once**. It returns only if the Terms themselves change, and then only so the new version can be accepted.

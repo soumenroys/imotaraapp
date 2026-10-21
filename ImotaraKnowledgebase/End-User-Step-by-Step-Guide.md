@@ -10,7 +10,7 @@
 
 ## 1. Getting started
 
-### 1·0. The welcome screen, the first time *(v1.5.8+)*
+### 1·0. The welcome screen, the first time *(web v1.5.8+, iOS and Android v1.5.9+)*
 
 The very first time Imotara opens — on the web, on iOS or on Android — a short welcome screen
 appears before anything else:
@@ -242,7 +242,7 @@ On mobile all four live together under **Settings → Experience → Voice input
 1. **On web:** **Settings → Browser notifications → Enable notifications** (allow the browser prompt). Then set **Preferred reminder time** (a time picker) — "Daily check-in reminder fires around this time".
 2. **On mobile:** **Settings → Experience → Daily check-in reminder** — flip the switch on (allow the OS permission), then set the time with the **Hour** and **Minute** steppers (minutes step by 15). Optionally enable **Play sound** and **Show badge**. The notification is titled in the **companion's name** ("Maya is here for you 💙"), and renaming the companion re-issues it.
 
-#### Taking a break from the reminder *(v1.5.8+)*
+#### Taking a break from the reminder *(web v1.5.8+, iOS and Android v1.5.9+)*
 
 You do not have to choose between a daily reminder and none at all.
 

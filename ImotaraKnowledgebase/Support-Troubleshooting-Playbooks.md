@@ -28,7 +28,7 @@
 | "The app crashed" | 14 |
 | "My voice wasn't sent / it typed words I never said" | 15 |
 | "Reminder says 'Permission needed' but notifications are allowed" | 10 (step 0 — Android below v1.4.1) |
-| "Reminders stopped for a few days" | 10 (step −1 — probably PAUSED, v1.5.8+) |
+| "Reminders stopped for a few days" | 10 (step −1 — probably PAUSED, web v1.5.8+, mobile v1.5.9+) |
 | "I can't turn reminders off" | 10 (step −1 — Free pauses, Plus disables; OS settings always work) |
 | "The welcome / consent screen came back" | 16 — the Terms changed; accepting the new version is the whole point |
 
@@ -359,7 +359,7 @@
 5. Expo module unavailable (Expo Go dev builds).
 6. 🔴 **Android app older than v1.4.1** — the reminder could never be scheduled at all (see step 0 below).
 7. Not actually missing: the reminder is an **inexact** alarm and can arrive up to ~8 minutes late.
-8. 🆕 **The user PAUSED it** (v1.5.8+). Pausing is silent by design — nothing arrives for 3 or 5
+8. 🆕 **The user PAUSED it** (web v1.5.8+, mobile v1.5.9+). Pausing is silent by design — nothing arrives for 3 or 5
    days. The Settings card shows the date it resumes. Ask them to look there before anything else;
    this is now the most common benign cause.
 9. 🆕 **No timezone on file** — the daily check-in fires at the person's **local** hour (default
@@ -367,7 +367,7 @@
    which can land at an odd time rather than not at all. Fixed by opening **Settings** once while
    signed in.
 
-**Step −1 — check whether it is simply PAUSED (v1.5.8+).** Settings → Daily check-in reminder. If
+**Step −1 — check whether it is simply PAUSED (web v1.5.8+, mobile v1.5.9+).** Settings → Daily check-in reminder. If
 the card reads "Paused — reminders resume on …", nothing is broken. **Resume** ends it early.
 
 ⚠️ **A Free user cannot turn reminders OFF, only pause them** (3 or 5 days). Plus and above can
@@ -566,12 +566,12 @@ adb shell dumpsys audio | grep "rec start\|rec stop"    # timestamped turn bound
 
 ---
 
-## Runbook 16 — "A welcome / consent screen appeared" (v1.5.8+)
+## Runbook 16 — "A welcome / consent screen appeared" (web v1.5.8+, mobile v1.5.9+)
 
 **Symptom:** A full-screen welcome appears before the app can be used, asking the user to accept
 the Terms and Privacy Policy.
 
-**This is not a fault.** Since v1.5.8 every first use — web, iOS and Android — shows it once. It
+**This is not a fault.** Every first use shows it once — on the web since v1.5.8, on iOS and Android since v1.5.9. It
 states what Imotara is and is not, shows the **emergency numbers for the user's country**, and
 carries a **pre-ticked** acceptance box. It renders in **all 22 languages**.
 

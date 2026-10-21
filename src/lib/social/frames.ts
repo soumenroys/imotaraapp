@@ -314,3 +314,27 @@ export function storyboard(input: FrameInput): Storyboard {
 export function finalFrame(board: Storyboard): Node {
   return board.frames[board.frames.length - 1];
 }
+
+/**
+ * 🔑 THE WORDS, WITHOUT THE PICTURE — so an ANIMATED picture can play under them.
+ *
+ * The finished frame is ground, motif, picture, veil, words ⇒ composePicture.
+ * When the post has an animated clip of its picture ⇒ animatePicture, the
+ * clip goes to the encoder as its own input and each frame is drawn again with
+ * everything up to and including the still picture taken away: a transparent
+ * sheet carrying only the veil and the words.
+ *
+ * ⛔ THE WORDS NEVER MOVE. The characters in the picture do; the sentence a
+ * reader is reading stays exactly where it is.
+ *
+ * ⚠️ Returns null when the picture is not where compose puts it, and the
+ * caller then encodes the full still frames as before — a still card, never a
+ * broken one.
+ */
+export function wordsLayer(root: Node, pictureSrc: string): Node | null {
+  const kids = root.children ?? [];
+  const at = kids.findIndex((c) => c.tag === "img" && c.src === pictureSrc);
+  if (at < 0) return null;
+  const style = Object.fromEntries(Object.entries(root.style).filter(([k]) => !k.startsWith("background")));
+  return { ...root, style, children: kids.slice(at + 1) };
+}

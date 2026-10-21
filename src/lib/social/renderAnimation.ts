@@ -15,9 +15,9 @@
 import { ImageResponse } from "next/og";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { storyboard } from "@/lib/social/frames";
+import { storyboard, wordsLayer } from "@/lib/social/frames";
 import { toElement, loadFont, resolveIllustration, type PictureSource } from "@/lib/social/renderPicture";
-import { encode, durationMs } from "@/lib/social/animate";
+import { encode, durationMs, pingPong } from "@/lib/social/animate";
 import { speak } from "@/lib/social/speech";
 import { writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -162,6 +162,11 @@ export function formatForChannel(platform: string, mediaKind: string | null): An
 export async function renderAnimation(
   post: AnimationSource,
   format: AnimationFormat,
+  /**
+   * 🔑 The post's picture, ANIMATED ⇒ animatePicture. ⚠️ Optional and
+   * additive: without it the video is exactly the still-picture video.
+   */
+  opts: { animatedBackground?: Uint8Array } = {},
 ): Promise<AnimationResult> {
   const started = Date.now();
 
@@ -238,14 +243,47 @@ export async function renderAnimation(
     return { ok: false, status: 502, error: (e as Error).message };
   }
 
+  /**
+   * 🔑 THE ANIMATED PICTURE: the frames carry only the veil and the words, and
+   * the clip plays under them ⇒ frames.wordsLayer, animate.videoGraph.
+   *
+   * ⚠️ All or nothing. If any frame lacks the picture where compose puts it,
+   * every frame is drawn whole, as before — a still card, never half a clip
+   * with words over nothing.
+   */
+  const layers =
+    format === "mp4" && illustration && opts.animatedBackground
+      ? board.frames.map((f) => wordsLayer(f, illustration.src))
+      : null;
+  const animated = layers !== null && layers.every((l) => l !== null);
+  const clipFiles: string[] = [];
+  let loopFile: string | null = null;
+
   const frames: Buffer[] = [];
-  for (const frame of board.frames) {
+  for (const [i, whole] of board.frames.entries()) {
+    const frame = animated ? layers![i]! : whole;
     const image = new ImageResponse(toElement(frame), {
       width: board.width,
       height: board.height,
       fonts: [{ name: board.wordmark.font.family, data: fontData, weight: 600, style: "normal" }],
     });
     frames.push(Buffer.from(await image.arrayBuffer()));
+  }
+
+  if (animated) {
+    const clip = join(tmpdir(), `imotara-clip-${randomUUID()}.mp4`);
+    loopFile = join(tmpdir(), `imotara-loop-${randomUUID()}.mp4`);
+    clipFiles.push(clip, loopFile);
+    await writeFile(clip, Buffer.from(opts.animatedBackground!));
+    try {
+      await pingPong(clip, loopFile);
+    } catch (e) {
+      // ⚠️ A clip that cannot be prepared is not a failed post. Words over
+      // nothing would be wrong, so the video falls back to the still picture.
+      console.error("[renderAnimation] the animated picture could not be looped", (e as Error).message);
+      for (const f of clipFiles) await rm(f, { force: true }).catch(() => {});
+      return renderAnimation(post, format);
+    }
   }
 
   try {
@@ -328,6 +366,7 @@ export async function renderAnimation(
       height: board.height,
       ...(narration.length > 0 ? { narration } : {}),
       ...(audioPath && existsSync(audioPath) ? { audioPath, audioFilter: bed?.filter } : {}),
+      ...(loopFile ? { backgroundVideo: loopFile } : {}),
     });
     return { ok: true, bytes: new Uint8Array(out), width: board.width, height: board.height, ms: Date.now() - started };
   } catch (e) {
@@ -341,5 +380,8 @@ export async function renderAnimation(
       status: 500,
       error: `The ${format.toUpperCase()} could not be encoded: ${(e as Error).message}`,
     };
+  } finally {
+    // ⛔ Always: /tmp is small on a serverless box.
+    for (const f of clipFiles) await rm(f, { force: true }).catch(() => {});
   }
 }

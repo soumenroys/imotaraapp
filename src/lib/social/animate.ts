@@ -42,7 +42,58 @@ export type EncodeInput = {
    * is a mix, and mixing is a different job from laying a track.
    */
   narration?: { mp3: Uint8Array; startMs: number }[];
+  /**
+   * 🔑 AN ANIMATED PICTURE, PLAYING UNDER THE WORDS ⇒ animatePicture,
+   * frames.wordsLayer.
+   *
+   * ⚠️ When set, `frames` are TRANSPARENT sheets of veil and words, and this
+   * clip (already made seamless ⇒ pingPong) loops under them for as long as
+   * the words need. ⛔ Its own soundtrack is never used: the narration is the
+   * post's voice. MP4 only.
+   */
+  backgroundVideo?: string;
 };
+
+/**
+ * 🔑 THE VIDEO HALF OF THE FILTER GRAPH, labelled [v].
+ *
+ * ⛔ PRODUCTION'S FFMPEG IS A 2018 BUILD ⇒ trap_production_ffmpeg_is_older_than_local.
+ * scale with force_original_aspect_ratio, crop, fps, setsar and overlay all
+ * predate it by years; a test pins the list.
+ */
+export function videoGraph(input: { width: number; height: number; backgroundIndex?: number }): string {
+  const chain = "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p";
+  if (input.backgroundIndex === undefined) return `[0:v]${chain}[v]`;
+  const { width: w, height: h } = input;
+  return (
+    `[${input.backgroundIndex}:v]scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=25,setsar=1[bg];` +
+    `[bg][0:v]overlay=0:0:shortest=1,${chain}[v]`
+  );
+}
+
+/**
+ * 🔑 A CLIP THAT CAN LOOP WITHOUT A JUMP: forwards, then backwards.
+ *
+ * The model makes 8 seconds and a post is spoken for ~15, so the clip must
+ * repeat — and a plain loop snaps from the last frame to the first, a visible
+ * cut in a clip that is otherwise all slow, small movement. Played forward then
+ * reversed, every repeat starts where the last one ended.
+ * ⚠️ `reverse` buffers the whole clip in memory: fine for 8 s of 720p, which
+ * is all this is ever given. Its sound is dropped here.
+ */
+export async function pingPong(clip: string, out: string): Promise<void> {
+  await run(await ffmpegPath(), [
+    "-y",
+    "-i", clip,
+    "-filter_complex", "[0:v]split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0[v]",
+    "-map", "[v]",
+    "-an",
+    "-c:v", "libx264",
+    "-preset", "veryfast",
+    "-crf", "18",
+    out,
+  ]);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GIF
@@ -362,15 +413,25 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
      * The one branch I could not exercise is the one that was wrong.
      */
     const VIDEO_CHAIN = "scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=25,format=yuv420p";
+    // ⚠️ The clip is input 1 when present: ffmpeg applies options to the NEXT
+    // file, so it must come before any output option — and every other input
+    // moves along by one.
+    const off = input.backgroundVideo ? 1 : 0;
+    const graph = videoGraph({
+      width: input.width,
+      height: input.height,
+      ...(input.backgroundVideo ? { backgroundIndex: 1 } : {}),
+    });
+    const bgInput = input.backgroundVideo ? ["-stream_loop", "-1", "-i", input.backgroundVideo] : [];
 
     const spoken =
       narration.length > 0
         ? [
             ...narration.flatMap((_, i) => ["-i", `${dir}/say${i}.mp3`]),
             "-filter_complex",
-            `[0:v]${VIDEO_CHAIN}[v];` +
+            `${graph};` +
               narration
-                .map((n, i) => `[${i + 1}:a]adelay=${n.startMs}|${n.startMs}[s${i}]`)
+                .map((n, i) => `[${i + 1 + off}:a]adelay=${n.startMs}|${n.startMs}[s${i}]`)
                 .join(";") +
               /**
                * ⛔ NO `normalize` OPTION, AND THE REASON IS VERSION SKEW.
@@ -416,7 +477,7 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
           "-filter_complex",
           // ⛔ Same clash as above: with a complex graph the VIDEO must come
           // through it too, never through -vf.
-          `[0:v]${VIDEO_CHAIN}[v];[1:a]${input.audioFilter ? `${input.audioFilter},` : ""}afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
+          `${graph};[${1 + off}:a]${input.audioFilter ? `${input.audioFilter},` : ""}afade=t=in:st=0:d=1.2,afade=t=out:st=${Math.max(0, seconds - 1.5).toFixed(2)}:d=1.5[a]`,
           "-map", "[v]",
           "-map", "[a]",
           "-c:a", "aac",
@@ -430,10 +491,15 @@ export async function encodeMp4(input: EncodeInput): Promise<Buffer> {
       "-f", "concat",
       "-safe", "0",
       "-i", list,
+      ...bgInput,
       ...spoken,
       ...audio,
       // ⚠️ ONLY when nothing else filters the video ⇒ see VIDEO_CHAIN above.
-      ...(spoken.length === 0 && audio.length === 0 ? ["-vf", VIDEO_CHAIN] : []),
+      ...(spoken.length === 0 && audio.length === 0
+        ? input.backgroundVideo
+          ? ["-filter_complex", graph, "-map", "[v]"]
+          : ["-vf", VIDEO_CHAIN]
+        : []),
       "-c:v", "libx264",
       "-preset", "veryfast",
       "-crf", "20",

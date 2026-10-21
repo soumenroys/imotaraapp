@@ -11,6 +11,7 @@ import { renderShapedCard } from "@/lib/social/shapedRenderer";
 import { putCard, putVideo } from "@/lib/social/cardStore";
 import { cardPlan, shapedFaces } from "@/lib/social/needsShaping";
 import { renderAnimation, formatForChannel } from "@/lib/social/renderAnimation";
+import type { PictureSource } from "@/lib/social/renderPicture";
 import { cardsForPost } from "@/lib/social/cards";
 import { allQrCodes, QR_COUNT } from "@/lib/social/brandMarks";
 import { headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
@@ -36,7 +37,7 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, topic_pool")
+    .select("id, platform, language, subject, body, slides, media_kind, visual_recipe, topic_pool, illustration")
     .eq("id", postId)
     .single();
 
@@ -63,6 +64,7 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
         media_kind: post.media_kind as string | null,
         visual_recipe: post.visual_recipe,
         topic_pool: post.topic_pool as string | null,
+        illustration: post.illustration as PictureSource["illustration"],
       },
       format,
     );

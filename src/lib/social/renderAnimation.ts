@@ -16,7 +16,7 @@ import { ImageResponse } from "next/og";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { storyboard } from "@/lib/social/frames";
-import { toElement, loadFont } from "@/lib/social/renderPicture";
+import { toElement, loadFont, resolveIllustration, type PictureSource } from "@/lib/social/renderPicture";
 import { encode, durationMs } from "@/lib/social/animate";
 import { speak } from "@/lib/social/speech";
 import { writeFile, rm } from "node:fs/promises";
@@ -127,6 +127,16 @@ export type AnimationSource = {
    * Required means the compiler names any path that forgets.
    */
   topic_pool: string | null;
+  /**
+   * 🔑 THE BACKGROUND, as stored on the row ⇒ PictureSource.illustration.
+   *
+   * ⛔ REQUIRED for the same reason as topic_pool, and with a worse history:
+   * when every queued post gained a picture on 20 Oct, both video callers
+   * selected a column list without it, so every video kept the bare palette
+   * card while its background.jpg sat beside it in the bucket. Optional is how
+   * that stayed invisible; required makes the compiler name the caller.
+   */
+  illustration: PictureSource["illustration"];
 };
 
 export type AnimationResult =
@@ -175,6 +185,8 @@ export async function renderAnimation(
 
   const spec = platformSpec(post.platform);
   const qrCodes = spec.qr ? await allQrCodes(post.platform) : undefined;
+  // ⚠️ Same resolver as the still ⇒ a failed fetch draws today's plain card.
+  const illustration = await resolveIllustration(post.illustration);
 
   let board;
   try {
@@ -213,6 +225,7 @@ export async function renderAnimation(
       language: post.language,
       platform: post.platform,
       qrCodes,
+      illustration,
     });
   } catch (e) {
     return { ok: false, status: 422, error: (e as Error).message };

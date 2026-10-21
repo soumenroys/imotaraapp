@@ -30,10 +30,20 @@ const read = (p: string) =>
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .replace(/^\s*\/\/.*$/gm, " ");
 
+/**
+ * 🔴 THE HEADER ABOVE NAMED FOUR PATHS, "and the video renderer", AND THIS
+ * LIST HELD THREE. The video path was named and never checked — and that is
+ * exactly where the background went missing: from 20 Oct every video post kept
+ * the bare palette card while its background.jpg sat beside it in the bucket.
+ * Found 21 Oct by grabbing a queued video's last frame. Both video callers are
+ * listed now.
+ */
 const ROUTES = [
   "src/app/api/admin/social/picture/[id]/route.ts",
   "src/app/api/social/card/[id]/route.ts",
   "src/app/api/cron/social-publish/route.ts",
+  "src/lib/social/ensureCard.ts",
+  "src/app/api/admin/social/animation/[id]/route.ts",
 ];
 
 describe("every render path carries the background", () => {
@@ -68,8 +78,14 @@ describe("every render path carries the background", () => {
   it("⛔ a background that cannot be fetched does not fail the card", () => {
     // 🔴 A missing post is worse than a plain one. Null must compose today's
     // card, not throw.
+    // ⚠️ Lives in resolveIllustration now, shared by the still and the video.
     const r = read("src/lib/social/renderPicture.ts");
-    expect(r).toMatch(/if \(src\) illustration = \{/);
+    expect(r).toMatch(/return src \? \{ src, ink, scrim, zone \} : null;/);
+  });
+
+  it("🔑 the still and the video resolve it through the SAME function", () => {
+    expect(read("src/lib/social/renderPicture.ts")).toMatch(/await resolveIllustration\(post\.illustration\)/);
+    expect(read("src/lib/social/renderAnimation.ts")).toMatch(/await resolveIllustration\(post\.illustration\)/);
   });
 
   it("⚠️ the queue gives a picture only AFTER the post is saved", () => {

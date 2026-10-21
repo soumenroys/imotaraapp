@@ -17,7 +17,7 @@
 // showing. A frame cannot introduce a word the gate has not read, because no
 // frame introduces words at all — it only stops hiding them.
 
-import { composePicture, type Picture, type Node } from "@/lib/social/compose";
+import { composePicture, type ComposeInput, type Picture, type Node } from "@/lib/social/compose";
 import type { Recipe } from "@/lib/social/visualRecipe";
 import type { QrCode } from "@/lib/social/brandMarks";
 
@@ -30,6 +30,13 @@ export type FrameInput = {
   qrCodes?: QrCode[];
   /** ⚠️ Rides through to every frame's composePicture ⇒ ComposeInput.eyebrow. */
   eyebrow?: string | null;
+  /**
+   * 🔑 The background, already resolved to a data URL ⇒ resolveIllustration.
+   * ⚠️ Rides through to every frame like the eyebrow. The picture has no role,
+   * so withVisibility never hides it: it is there from the poster frame on,
+   * and only the words build over it.
+   */
+  illustration?: ComposeInput["illustration"];
 };
 
 export type Storyboard = {

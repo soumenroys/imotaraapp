@@ -31,6 +31,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { renderAnimation } from "@/lib/social/renderAnimation";
+import type { PictureSource } from "@/lib/social/renderPicture";
 import { MIME, type AnimationFormat } from "@/lib/social/animate";
 
 // ⚠️ Encoding is the slow part, not rendering — and speaking the post adds a
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   const db = getSupabaseAdmin();
   const { data: post, error } = await db
     .from("social_posts")
-    .select("id, language, platform, subject, body, media_kind, visual_recipe, topic_pool")
+    .select("id, language, platform, subject, body, media_kind, visual_recipe, topic_pool, illustration")
     .eq("id", id)
     .single();
 
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
       media_kind: post.media_kind as string | null,
       visual_recipe: post.visual_recipe,
       topic_pool: post.topic_pool as string | null,
+      illustration: post.illustration as PictureSource["illustration"],
     },
     format,
   );

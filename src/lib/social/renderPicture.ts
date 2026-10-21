@@ -151,6 +151,36 @@ function postIdFromPath(path: string): string {
   return path.split("/")[0] ?? path;
 }
 
+/**
+ * 🔑 THE BACKGROUND, FETCHED ONCE AND INLINED — for the still AND the video.
+ *
+ * ⛔ INLINED RATHER THAN LINKED. Satori would have to fetch a URL itself,
+ * from inside a serverless render, against a bucket that needs signing —
+ * three ways for a card to come out blank. The bytes are already ours.
+ *
+ * ⚠️ A FAILED FETCH IS NOT A FAILED CARD. Null composes exactly today's
+ * card, which is what a post without a background has always been
+ * ⇒ a missing post is worse than a plain one.
+ *
+ * 🔴 ONE FUNCTION, BECAUSE THE VIDEO HAD NONE. This lived inline in
+ * renderPostPicture, so when every queued post gained a picture on 20 Oct the
+ * stills drew it and the videos — a second caller that never knew — kept
+ * rendering the bare palette card beside a background.jpg sitting in the same
+ * folder. Found 21 Oct by grabbing the last frame of a queued video.
+ */
+export async function resolveIllustration(
+  stored: PictureSource["illustration"],
+): Promise<ComposeInput["illustration"]> {
+  if (!stored) return null;
+  const { ink, scrim, zone } = stored;
+  let src = stored.src ?? null;
+  if (!src && stored.path) {
+    const bytes = await getIllustration(postIdFromPath(stored.path));
+    if (bytes) src = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
+  }
+  return src ? { src, ink, scrim, zone } : null;
+}
+
 export async function renderPostPicture(
   post: PictureSource,
   headers?: Record<string, string>,
@@ -168,27 +198,7 @@ export async function renderPostPicture(
     return { ok: false, failure: { status: 404, error: "This post has no picture." } };
   }
 
-  /**
-   * 🔑 THE BACKGROUND, FETCHED ONCE AND INLINED.
-   *
-   * ⛔ INLINED RATHER THAN LINKED. Satori would have to fetch a URL itself,
-   * from inside a serverless render, against a bucket that needs signing —
-   * three ways for a card to come out blank. The bytes are already ours.
-   *
-   * ⚠️ A FAILED FETCH IS NOT A FAILED CARD. Null composes exactly today's
-   * card, which is what a post without a background has always been
-   * ⇒ a missing post is worse than a plain one.
-   */
-  let illustration: ComposeInput["illustration"] = null;
-  if (post.illustration) {
-    const { ink, scrim, zone } = post.illustration;
-    let src = post.illustration.src ?? null;
-    if (!src && post.illustration.path) {
-      const bytes = await getIllustration(postIdFromPath(post.illustration.path));
-      if (bytes) src = `data:image/jpeg;base64,${Buffer.from(bytes).toString("base64")}`;
-    }
-    if (src) illustration = { src, ink, scrim, zone };
-  }
+  const illustration = await resolveIllustration(post.illustration);
 
   const stored = post.visual_recipe as Partial<Recipe>;
   if (!stored.layout || !stored.palette || !stored.typeTreatment || !stored.motif || !stored.script) {

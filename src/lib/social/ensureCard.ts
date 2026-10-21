@@ -12,6 +12,7 @@ import { putCard, putVideo } from "@/lib/social/cardStore";
 import { cardPlan, shapedFaces } from "@/lib/social/needsShaping";
 import { renderAnimation, formatForChannel } from "@/lib/social/renderAnimation";
 import type { PictureSource } from "@/lib/social/renderPicture";
+import { ensureAnimatedPicture } from "@/lib/social/ensureAnimatedPicture";
 import { cardsForPost } from "@/lib/social/cards";
 import { allQrCodes, QR_COUNT } from "@/lib/social/brandMarks";
 import { headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
@@ -55,6 +56,15 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
   if (post.media_kind === "animated_gif" || post.media_kind === "short_video") {
     const format = formatForChannel(post.platform as string, post.media_kind as string);
     const started = Date.now();
+    /**
+     * 🔑 THE ANIMATED PICTURE, for the channels the owner has switched on
+     * ⇒ ensureAnimatedPicture. ⚠️ undefined on any failure, and the video is
+     * then today's still-picture video — never a failed approval.
+     */
+    const animatedBackground =
+      format === "mp4" && post.illustration
+        ? await ensureAnimatedPicture(postId, post.platform as string)
+        : undefined;
     const made = await renderAnimation(
       {
         platform: post.platform as string,
@@ -67,6 +77,7 @@ export async function ensureCard(postId: string): Promise<EnsureResult> {
         illustration: post.illustration as PictureSource["illustration"],
       },
       format,
+      { animatedBackground },
     );
     if (!made.ok) {
       // ⚠️ Logged as well as returned. The 422 body reaches the admin's

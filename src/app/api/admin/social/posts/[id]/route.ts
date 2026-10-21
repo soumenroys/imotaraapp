@@ -26,8 +26,13 @@ const APPROVABLE = ["needs_review"];
  *
  * ⛔ Deliberately on the APPROVAL, where a person is waiting and watching,
  * rather than on the request Meta makes ⇒ docs/sql/social_card_store.sql.
+ *
+ * ⚠️ 300 since 21 Oct: a YouTube approval now also makes the animated picture
+ * (~25 s, capped at 150 s ⇒ animatePicture) before the ~20 s render. At 120 a
+ * slow model would have failed the whole approval instead of falling back to
+ * the still picture.
  */
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;

@@ -1,0 +1,95 @@
+/**
+ * 🔑 ANIMATED PICTURES — YOUTUBE FIRST, AND NEVER AT THE COST OF A POST.
+ *
+ * Owner, 21 Oct: "its perfect now", option A — YouTube first, Facebook and
+ * Instagram after one test. Each clip costs money, so it is made once, at
+ * approval, and kept; and a failure anywhere means the still-picture video,
+ * never a failed approval.
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const storage = { kept: null as Blob | null, uploads: [] as string[] };
+const animate = vi.fn();
+const picture = vi.fn();
+
+vi.mock("@/lib/supabaseServer", () => ({
+  getSupabaseAdmin: () => ({
+    storage: {
+      from: () => ({
+        download: async () => (storage.kept ? { data: storage.kept, error: null } : { data: null, error: { message: "nf" } }),
+        upload: async (path: string) => {
+          storage.uploads.push(path);
+          return { error: null };
+        },
+      }),
+    },
+  }),
+}));
+vi.mock("@/lib/social/cardStore", () => ({ CARD_BUCKET: "social-cards", getIllustration: (id: string) => picture(id) }));
+vi.mock("@/lib/social/animatePicture", () => ({ animatePicture: (...a: unknown[]) => animate(...a) }));
+
+import { ensureAnimatedPicture, ANIMATED_PLATFORMS } from "@/lib/social/ensureAnimatedPicture";
+
+beforeEach(() => {
+  storage.kept = null;
+  storage.uploads = [];
+  animate.mockReset();
+  picture.mockReset();
+  picture.mockResolvedValue(new Uint8Array([1, 2, 3]));
+});
+
+describe("which channels", () => {
+  it("YouTube only, in its own 9:16 shape — until the Facebook test is seen", () => {
+    expect(ANIMATED_PLATFORMS).toEqual({ youtube: "9:16" });
+  });
+
+  it("⛔ a Facebook or Instagram post never pays for a clip", async () => {
+    expect(await ensureAnimatedPicture("p", "facebook")).toBeUndefined();
+    expect(await ensureAnimatedPicture("p", "instagram")).toBeUndefined();
+    expect(animate).not.toHaveBeenCalled();
+  });
+});
+
+describe("made once, kept", () => {
+  it("reuses a kept clip — a re-render never pays twice", async () => {
+    storage.kept = new Blob([new Uint8Array([9, 9])]);
+    const r = await ensureAnimatedPicture("p", "youtube");
+    expect(r).toEqual(new Uint8Array([9, 9]));
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("makes and keeps one when there is none", async () => {
+    animate.mockResolvedValue({ ok: true, mp4: new Uint8Array([7]), ms: 1 });
+    const r = await ensureAnimatedPicture("p", "youtube");
+    expect(r).toEqual(new Uint8Array([7]));
+    expect(storage.uploads).toEqual(["p/animation.mp4"]);
+  });
+});
+
+describe("⛔ failure is the still picture, never a failed post", () => {
+  it("the model fails ⇒ undefined", async () => {
+    animate.mockResolvedValue({ ok: false, error: "busy" });
+    expect(await ensureAnimatedPicture("p", "youtube")).toBeUndefined();
+  });
+
+  it("no picture ⇒ undefined, and nothing is paid for", async () => {
+    picture.mockResolvedValue(null);
+    expect(await ensureAnimatedPicture("p", "youtube")).toBeUndefined();
+    expect(animate).not.toHaveBeenCalled();
+  });
+});
+
+describe("the approval passes it on", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/social/ensureCard.ts"), "utf8");
+  it("ensureCard asks for the clip and hands it to the renderer", () => {
+    expect(src).toMatch(/await ensureAnimatedPicture\(postId, post\.platform as string\)/);
+    expect(src).toMatch(/\{ animatedBackground \}/);
+  });
+  it("and the approval route has time for it", () => {
+    const route = readFileSync(join(process.cwd(), "src/app/api/admin/social/posts/[id]/route.ts"), "utf8");
+    expect(route).toMatch(/export const maxDuration = 300;/);
+  });
+});

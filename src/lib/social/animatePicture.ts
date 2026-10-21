@@ -91,7 +91,9 @@ export async function animatePicture(
         store: false,
         stream: false,
       }),
-      signal: AbortSignal.timeout(280_000),
+      // ⚠️ Capped so an approval that waits on this still has time to fall
+      // back to the still picture ⇒ posts/[id] maxDuration.
+      signal: AbortSignal.timeout(150_000),
     });
   } catch (e) {
     return { ok: false, error: `The video model could not be reached (${(e as Error).message}).` };

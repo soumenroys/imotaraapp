@@ -3,8 +3,8 @@
 //
 // 🔑 OWNER'S DECISION, 21 Oct: "its perfect now" after watching the trial
 // with words and narration on it, and option A — YOUTUBE FIRST, then Facebook
-// and Instagram after one test. ⇒ ANIMATED_PLATFORMS is the switch, and it
-// holds YouTube only until that test has been seen.
+// and Instagram after one test. ⇒ ANIMATED_PLATFORMS is the switch. The
+// Facebook test was seen the same day and both were switched on.
 //
 // ⚠️ MADE AT APPROVAL, NOT AT QUEUE TIME, so only an approved post costs
 // money (~$0.10 per second at 720p) — a rejected draft never pays for a clip.
@@ -23,12 +23,18 @@ import { animatePicture, type AnimationAspect } from "@/lib/social/animatePictur
 
 /**
  * 🔑 Which channels get an animated picture, and in which of the model's two
- * shapes. ⛔ Facebook (4:5) and Instagram (1:1) are NOT here yet: the model
- * makes only 9:16 and 16:9, and how it treats a squarer picture has not been
- * looked at. One test clip first, then the owner decides.
+ * shapes.
+ *
+ * ⚠️ The model makes only 9:16 and 16:9. Facebook (4:5) and Instagram (1:1)
+ * take the 9:16 clip trimmed to their shape — the Facebook test of 21 Oct
+ * showed the drawing slightly zoomed with its top edge cut, and the owner
+ * accepted that and switched both on the same day. 9:16 rather than 16:9
+ * because both shapes are nearer portrait, so less of the picture is lost.
  */
 export const ANIMATED_PLATFORMS: Record<string, AnimationAspect> = {
   youtube: "9:16",
+  facebook: "9:16",
+  instagram: "9:16",
 };
 
 export const animationPath = (postId: string) => `${postId}/animation.mp4`;

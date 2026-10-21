@@ -42,13 +42,13 @@ beforeEach(() => {
 });
 
 describe("which channels", () => {
-  it("YouTube only, in its own 9:16 shape — until the Facebook test is seen", () => {
-    expect(ANIMATED_PLATFORMS).toEqual({ youtube: "9:16" });
+  it("YouTube, Facebook and Instagram — all in the model's 9:16 shape", () => {
+    expect(ANIMATED_PLATFORMS).toEqual({ youtube: "9:16", facebook: "9:16", instagram: "9:16" });
   });
 
-  it("⛔ a Facebook or Instagram post never pays for a clip", async () => {
-    expect(await ensureAnimatedPicture("p", "facebook")).toBeUndefined();
-    expect(await ensureAnimatedPicture("p", "instagram")).toBeUndefined();
+  it("⛔ a channel not switched on never pays for a clip", async () => {
+    expect(await ensureAnimatedPicture("p", "x")).toBeUndefined();
+    expect(await ensureAnimatedPicture("p", "linkedin")).toBeUndefined();
     expect(animate).not.toHaveBeenCalled();
   });
 });

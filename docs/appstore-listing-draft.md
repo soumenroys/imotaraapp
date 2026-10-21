@@ -1,7 +1,11 @@
 # App Store listing — draft for review
 
-**Status: DRAFT. Nothing submitted.** The Play half of this work went live after the 16 Oct
-submission (`docs/play-listing-draft.md`); this is the App Store half.
+**Status: SUBMITTED with iOS 1.5.9 on 21 Oct 2026, waiting for App Review.** Owner chose the
+full draft. Name, subtitle, keywords, promotional text and description (sections 1–5) were
+entered in App Store Connect and verified after a reload. The description went in with each
+paragraph on one line, not wrapped at 72 characters as below. The Play half went live after the
+16 Oct submission (`docs/play-listing-draft.md`). Section 6 (the "Languages" line) is still
+open.
 
 What can change when, on the App Store:
 

@@ -82,7 +82,10 @@ export async function animatePicture(
         // ⚠️ `type: "video"` is REQUIRED by the API, though the docs' examples
         // mark it "optional" — the first trial was refused with "The 'type'
         // parameter is required at 'response_format'" (400, nothing charged).
-        response_format: { type: "video", aspect_ratio: opts.aspect, resolution: "720p", delivery: "uri" },
+        // ⛔ NO `delivery: "uri"`: the API refuses it unless `store` is true
+        // ("store=true is required when response format has video delivery set
+        // to URI", 400, nothing charged). Inline base64 keeps nothing at Google.
+        response_format: { type: "video", aspect_ratio: opts.aspect, resolution: "720p" },
         // ⚠️ Synchronous, unstored ⇒ docs: "faster, synchronous unary generation".
         background: false,
         store: false,

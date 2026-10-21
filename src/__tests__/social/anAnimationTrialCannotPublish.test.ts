@@ -84,6 +84,9 @@ describe("the request the API actually accepts", () => {
       await animatePicture(new Uint8Array([1]), { aspect: "9:16", fetchImpl: capture });
       expect((sent.response_format as Record<string, unknown>).type).toBe("video");
       expect((sent.response_format as Record<string, unknown>).aspect_ratio).toBe("9:16");
+      // ⛔ uri delivery is refused unless store is true — and nothing is stored.
+      expect((sent.response_format as Record<string, unknown>).delivery).toBeUndefined();
+      expect(sent.store).toBe(false);
     } finally {
       process.env.GEMINI_API_KEY = saved;
     }

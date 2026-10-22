@@ -20,9 +20,17 @@ type CulturePool = Record<MythSignal, readonly string[]>;
 // ─────────────────────────────────────────────────────────────────────────────
 // INDIAN  (Mahabharata, Ramayana, Gita, Puranas, Jataka, Panchatantra, Upanishads)
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 23 Oct 2026, story by story. Removed: 8 that are not in the texts
+// they name (a "mother crow", "two oxen" and "turtle" Jataka; a Panchatantra
+// "deer and its reflection"; Rama sleepless before Lanka; Yashodhara bowing;
+// Vikramaditya's vanishing gifts; Viswamitra and "a woman's food"). Corrected
+// 10 wrong details (Vikarna DID speak for Draupadi; Gandhari kept her
+// blindfold; Dasharatha's "three days"; Dhruva met Narada and saw Vishnu…).
+// ⛔ These are now handed to the cloud as the ONLY stories it may tell
+// (verifiedStoriesFor) — a line added here is a line every user may hear.
 const INDIAN: CulturePool = {
     sad: [
-        "In the Mahabharata, Karna was born with divine armor fused to his skin — a gift of the sun god — yet abandoned by his mother at birth and raised by a charioteer. He was denied his place among warriors his whole life despite being their equal in every measure. He kept showing up anyway — loyal, generous, and whole — not because the world was fair, but because that was who he chose to be.",
+        "In the Mahabharata, Karna was born with divine armor fused to his skin — a gift of the sun god — yet abandoned by his mother at birth and raised by a charioteer. He was mocked again and again for his birth, though he was the equal of any warrior there. He kept showing up anyway — loyal, generous, and whole — not because the world was fair, but because that was who he chose to be.",
 
         "There is the story of Savitri in the ancient texts, who followed Death itself into the forest when it came for her husband. She did not beg for miracles — she simply refused to stop walking, and answered Death's questions so wisely that it eventually relented. Her love did not need permission to be powerful.",
 
@@ -30,22 +38,19 @@ const INDIAN: CulturePool = {
 
         "In the Ramayana, Sita was exiled into the forest by the very person she had stood beside through every trial. She raised her sons alone, in silence, and when she was finally asked to prove herself again — she chose the earth instead. Her dignity was never contingent on being believed.",
 
-        "In the Ramayana, King Dasharatha sent his beloved son Rama into exile, bound by a promise made years before, and died of grief just three days later. He had the power of a king, but not the power to undo a single word — a reminder that love and control are not the same thing.",
+        "In the Ramayana, King Dasharatha sent his beloved son Rama into exile, bound by a promise made years before, and died of grief soon after. He had the power of a king, but not the power to undo a single word — a reminder that love and control are not the same thing.",
 
-        "In the Puranas, Radha's devotion to Krishna was marked as much by his absence as his presence. The longing itself was considered sacred — not a wound to be healed, but a form of connection that does not require the other person to be in the room.",
-
-        "When Siddhartha left in the night to begin his path, his wife Yashodhara woke to find him gone. She raised their son alone, and when she finally met him again years later, she chose neither anger nor collapse — she bowed, not because he was right, but because she had found her own completeness in the meantime.",
+        "In the devotional tradition, Radha's devotion to Krishna was marked as much by his absence as his presence. The longing itself was considered sacred — not a wound to be healed, but a form of connection that does not require the other person to be in the room.",
 
         "In the Bhagavata Purana, King Bharata gave up his kingdom for the forest — and then became deeply attached to an orphaned deer he had raised. When he died, his last thought was of the deer. The story is not a punishment; it is an acknowledgment that what we carry with us stays, and that tenderness is never wasted even when misplaced.",
 
         "In the Upanishads, young Nachiketa sat at the door of Yama for three days — no food, no shelter, no assurance the door would ever open. When Death returned and offered riches to abandon his question, Nachiketa refused. Grief, he understood, could become a doorway to something real.",
 
-        "In the Mahabharata, Draupadi was dragged to the court and humiliated before her husbands, her elders, and the whole assembly. Not one person rose. She did not collapse — she asked one sharp question that no one in that hall could answer, and that silence became her proof. Her dignity did not depend on their response.",
+        "In the Mahabharata, Draupadi was dragged to the court and humiliated before her husbands, her elders, and the whole assembly. Her elders sat silent; only young Vikarna spoke up for her, and he was shouted down. She did not collapse — she asked one sharp question that no one in that hall could answer, and that silence became her proof. Her dignity did not depend on their response.",
 
-        "In the Mahabharata, Kunti carried for her entire life the knowledge that Karna — the great warrior on the opposing side — was her firstborn son. She had abandoned him as a young woman and could never claim him. On the eve of war, she finally told him. He listened, wept, and refused to switch sides. They both bore the weight of it. Some things cannot be undone — only held.",
+        "In the Mahabharata, Kunti carried for her entire life the knowledge that Karna — the great warrior on the opposing side — was her firstborn son. She had abandoned him as a young woman and could never claim him. On the eve of war, she finally told him. He listened, and still refused to switch sides. They both bore the weight of it. Some things cannot be undone — only held.",
 
-        "A Jataka tale describes a mother crow who lost her young in a storm and spent days calling into the silence. A sage watching her thought: there is no comfort I can offer that will change what happened. What matters now is whether she keeps living. She did.",
-    ],
+        ],
 
     anxious: [
         "In the Bhagavad Gita, Arjuna — the finest warrior in the world — sat down in the middle of the battlefield and could not lift his bow. He was not afraid of dying; he was overwhelmed by everything that could go wrong, everyone he might hurt. Krishna sat with him in that moment. What followed was not a battle cry — it was a careful, honest conversation about fear and action.",
@@ -54,15 +59,11 @@ const INDIAN: CulturePool = {
 
         "In the Puranas, young Prahlada refused to stop his devotion even as his own father threatened him with fire, serpents, and war elephants. He was not brave because he knew nothing could harm him. He was brave because he had decided that fear of consequences would not govern his choices.",
 
-        "A young boy named Dhruva, hurt by his stepmother's cruelty, walked alone into the forest to seek the divine — at five years old, with no map and no certainty. When he returned, he had not found what he expected. He had found himself. The forest had not changed. He had.",
+        "A young boy named Dhruva, hurt by his stepmother's words, walked alone into the forest to seek Vishnu — at five years old, with no map and no certainty. The sage Narada met him on the way and taught him to meditate, and Dhruva stayed with it until Vishnu appeared before him. His courage was not certainty. It was simply not turning back.",
 
         "In the Puranas, the gods and demons churned the cosmic ocean in search of the nectar of immortality. Before the nectar came, the ocean released a terrible poison that threatened everything. Shiva drank it and held it in his throat, turning blue. What you fear emerging from the depths may not be the end — it may be calling for a different kind of courage.",
 
-        "In the Ramayana, the night before the great battle at Lanka, even Rama could not sleep. The stakes were enormous, the outcome unknown. He did not pretend the doubt away — he acknowledged it, said his prayers, and rose in the morning. Not certainty. Just continuation.",
-
         "A Jataka tale tells of a hare who heard the sound of a falling fruit and ran, convinced the world was ending. Hundreds of animals heard him and ran too — a stampede of borrowed fear. The Bodhisattva came down from a hill and asked the hare to trace where it started. It ended at a single fallen fruit.",
-
-        "In the Panchatantra, a deer stood for hours outside a pond, afraid to drink because he saw his reflection and thought it was another animal. He nearly died of thirst waiting for the 'threat' to leave. His friends watched patiently until he finally walked forward — and the reflection dissolved into ripples.",
 
         "In the Mahabharata, Yudhishthira reached a lake to drink and was stopped by a Yaksha who asked: what is the greatest wonder in the world? Yudhishthira answered — every day, people die, and yet those who remain live as if they will not. Not denial. Just presence, in the face of the unknown.",
 
@@ -82,27 +83,24 @@ const INDIAN: CulturePool = {
 
         "In the Puranas, the goddess Kali was summoned from Durga's wrath to destroy a demon that multiplied from every drop of blood. She consumed everything in her fury — until Shiva lay down beneath her feet. Feeling him there, she stopped. Even in divine anger, there is a moment when something beneath it calls it back.",
 
-        "In the Mahabharata, Bhima swore terrible oaths after Draupadi's humiliation — oaths that took twelve years of exile to fulfill. His anger was real and just. But the years between the oath and the fulfillment cost him, cost everyone. The anger was not wrong. The question was: what does it do while it waits?",
+        "In the Mahabharata, Bhima swore terrible oaths after Draupadi's humiliation — oaths that took thirteen years of exile to fulfill. His anger was real and just. But the years between the oath and the fulfillment cost him, cost everyone. The anger was not wrong. The question was: what does it do while it waits?",
 
-        "After the war at Kurukshetra, Gandhari — who had worn a blindfold for decades to share her husband's blindness — finally looked at Krishna with uncovered eyes and cursed him. Her grief was vast, her anger completely understandable. Krishna accepted the curse without argument. Even when anger is entirely justified, it can outlast its original purpose.",
+        "After the war at Kurukshetra, Gandhari — who had worn a blindfold for decades to share her husband's blindness — turned to Krishna and cursed him. Her grief was vast, her anger completely understandable. Krishna accepted the curse without argument. Even when anger is entirely justified, it can outlast its original purpose.",
 
         "In the Mahabharata, Drona was struck with grief when he was told — falsely — that his son had died. He dropped his weapons. He was killed in that unguarded moment. What looked like defeat was actually grief so large it had nowhere to go but down. Anger and grief are close neighbors.",
 
         "In the Puranas, Indra insulted his own teacher, Brihaspati, out of pride — and found himself stripped of his kingdom. He wandered in shame for years before he earned it back through devotion. The humbling was not punishment. It was the only way his pride could dissolve enough for him to grow.",
 
-        "In a Jataka tale, two oxen — one fierce, one gentle — were harnessed to the same cart. The fierce one kicked and struggled and made the whole journey difficult. The gentle one walked steady. The merchant gave the better load to the gentle ox — not because gentleness is weakness, but because it requires more strength.",
-
         "In the Puranas, when Sati died and Shiva carried her body across the world in grief and rage, the universe trembled. It was Vishnu who quietly cut the body away piece by piece so Shiva could eventually set it down. Some griefs are so vast they look like anger — and they need the world to patiently take pieces until breathing becomes possible again.",
 
         "In the Katha Upanishad, Nachiketa was given to Yama by his own father in a burst of rage. Nachiketa stood at Death's gate without bitterness — and when Yama returned, he asked not for revenge but for wisdom. He had every right to anger. He chose something else.",
 
-        "In the tales of King Vikramaditya, a spirit would offer him great gifts in exchange for justice, and whenever he let vanity or anger govern him — even slightly — the gift would vanish. He learned that the moment ego entered his anger, he lost the very thing the anger was trying to protect.",
-    ],
+        ],
 
     tired: [
         "In the Ramayana, Rama lived fourteen years in the forest — not as punishment, but because he chose his father's honor over his own comfort. He did not count the days. He tended to the days that were actually there, one at a time, and eventually those days became a kingdom.",
 
-        "In the Puranas, the gods and demons churned the great ocean for thousands of years before anything of value emerged. The churning required everyone to keep pulling, even when nothing was visible. The nectar of immortality could not have appeared earlier. Some things only come after enormous, sustained effort.",
+        "In the Puranas, the gods and demons churned the great ocean for a very long time before anything of value emerged. The churning required everyone to keep pulling, even when nothing was visible. The nectar of immortality could not have appeared earlier. Some things only come after enormous, sustained effort.",
 
         "In the Mahabharata, Ekalavya was turned away by Drona as a student. So he built a clay statue of Drona in the forest and taught himself — practicing every day, with no teacher, no encouragement, no witness. He became a master. Not because someone showed up for him. Because he kept showing up for himself.",
 
@@ -112,18 +110,15 @@ const INDIAN: CulturePool = {
 
         "In the Ramayana, when Hanuman could not identify which herb would heal Lakshmana, he lifted the entire mountain and carried it. He had been awake, in battle, in danger — but none of that stopped him from doing what needed to be done. He did not do it with ease. He did it.",
 
-        "Siddhartha sat under the Bodhi tree for weeks, facing every storm of the mind — doubt, desire, fear, despair. He did not get up and try again later. He stayed until the sitting itself became something different. Exhaustion was part of the path, not a sign that the path was wrong.",
+        "Siddhartha sat under the Bodhi tree resolved not to rise, facing every storm of the mind — doubt, desire, fear, despair. He did not get up and try again later. He stayed until the sitting itself became something different. Exhaustion was part of the path, not a sign that the path was wrong.",
 
         "In the old texts, Shravan Kumar carried his elderly, blind parents on a pilgrimage across India in a bamboo pole, stopping at every sacred site so they could fulfill their wishes. He did not make it a hardship to speak of. He made it something to complete. Sometimes devotion is just that — doing the thing, day after day.",
 
         "Drona, before he became the greatest weapons teacher of his age, lived in such poverty that his young son once cried because there was no milk. He mixed flour in water and gave it to the boy as milk. From that moment, he decided he would learn what he needed to learn — not for fame, but to give his son something real. Exhaustion was not the end of the story.",
 
-        "Viswamitra sat in tapas for so many years that his body thinned and the world moved on around him. At one point, a woman offered him food that would have broken his vow — but to survive and continue, he accepted it. He found his way by bending without breaking.",
-
         "In the Mahabharata, Vidura — the wisest man in Hastinapura — spent his entire life advising a court that did not listen. He knew what would happen. He said it clearly, again and again. He was ignored. He served anyway. There is a tiredness that comes not from effort but from caring deeply in a place that does not care back. He kept caring anyway.",
 
-        "A Jataka tale describes a turtle crossing an enormous distance — slowly, consistently, without hurry. Birds laughed at how long it was taking. The turtle did not change its pace. It arrived. Not first. But it arrived.",
-    ],
+        ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -492,4 +487,43 @@ export function buildMythologyStory(
     }
 
     return pool[seed % pool.length]!;
+}
+
+const SIGNAL_THEME: Record<MythSignal, string> = {
+    sad: "sadness, grief, loss, loneliness",
+    anxious: "worry, fear, overwhelm, doubt",
+    angry: "anger, unfairness, resentment",
+    tired: "tiredness, burnout, long effort, feeling not enough",
+};
+
+/**
+ * 🔑 THE ONLY STORIES THE CLOUD MAY TELL, for English and the Indian languages.
+ *
+ * 🔴 22 Oct 2026: told to use mythology "generously" from memory, the model
+ * invented episodes and sayings in most emotional replies — and a sentence
+ * telling it to be accurate did not help (measured: 15 of 15 replies still
+ * told a story, most with invented detail). It cannot tell what it remembers
+ * from what it makes up. So it now CHOOSES from checked text instead.
+ *
+ * One story per feeling, rotated by seed, so the model picks the one that fits
+ * (or none) without us guessing the feeling from words in 22 languages.
+ * Stories whose figure was already used this session are skipped.
+ *
+ * Returns null for languages whose own collections are not checked yet —
+ * those keep the older free behaviour until they are.
+ */
+export function verifiedStoriesFor(
+    lang: string,
+    seed: number,
+    alreadyUsed: readonly string[] = [],
+): { theme: string; text: string }[] | null {
+    if ((LANG_PRIMARY[lang] ?? "indian") !== "indian") return null;
+    const used = alreadyUsed.map((u) => u.toLowerCase());
+    const out: { theme: string; text: string }[] = [];
+    (Object.keys(INDIAN) as MythSignal[]).forEach((signal, k) => {
+        const pool = INDIAN[signal].filter((t) => !used.some((u) => u && t.toLowerCase().includes(u)));
+        if (pool.length === 0) return;
+        out.push({ theme: SIGNAL_THEME[signal], text: pool[(seed + k * 7) % pool.length]! });
+    });
+    return out;
 }

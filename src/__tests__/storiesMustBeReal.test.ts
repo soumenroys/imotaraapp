@@ -33,3 +33,38 @@ describe("stories from epics and scripture must be real", () => {
     expect(block).toMatch(/a reply without a story is always better than a reply with a wrong one/);
   });
 });
+
+describe("🔑 English + Indian languages tell only CHECKED stories", () => {
+  it("the cloud is handed checked stories and told to add nothing", () => {
+    expect(src).toContain("verifiedStoriesFor(");
+    expect(src).toMatch(/The ONLY stories you may tell are the checked ones below/);
+    expect(src).toMatch(/never project the user's situation onto the character/);
+  });
+});
+
+describe("the checked collection", () => {
+  it("removed stories stay removed", async () => {
+    const eng = readFileSync(join(process.cwd(), "src/lib/ai/orchestrator/mythologyEngine.ts"), "utf8")
+      .split("\n").filter((l) => !l.trim().startsWith("//")).join("\n"); // the header names what was removed
+    for (const gone of ["mother crow", "two oxen", "a turtle crossing", "deer stood for hours", "even Rama could not sleep", "tales of King Vikramaditya", "a woman offered him food", "Yashodhara woke"])
+      expect(eng, gone).not.toContain(gone);
+    expect(eng).toContain("only young Vikarna spoke up");
+  });
+  it("hands one story per feeling for Bengali, none for unchecked languages", async () => {
+    const { verifiedStoriesFor } = await import("@/lib/ai/orchestrator/mythologyEngine");
+    expect(verifiedStoriesFor("bn", 7)).toHaveLength(4);
+    expect(verifiedStoriesFor("en", 7)).toHaveLength(4);
+    expect(verifiedStoriesFor("ar", 7)).toBeNull();
+  });
+  it("skips a figure already used in the conversation", async () => {
+    const { verifiedStoriesFor } = await import("@/lib/ai/orchestrator/mythologyEngine");
+    for (let seed = 0; seed < 40; seed++)
+      for (const v of verifiedStoriesFor("en", seed, ["Karna"])!) expect(v.text).not.toMatch(/Karna/);
+  });
+});
+
+describe("Bengali address form", () => {
+  it("⛔ তুই only when the user used it first or is a teen", () => {
+    expect(src).toMatch(/Never use তুই with someone who has not used it first/);
+  });
+});

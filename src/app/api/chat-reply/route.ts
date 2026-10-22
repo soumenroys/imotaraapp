@@ -19,6 +19,7 @@ import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import { isRomanizedInput } from "@/lib/imotara/scriptDetection";
 import { CRISIS_HINT_REGEX, LONELY_WANTS_COMPANY_REGEX } from "@/lib/emotion/keywordMaps";
+import { verifiedStoriesFor } from "@/lib/ai/orchestrator/mythologyEngine";
 import { deriveAnalyticsEmotion } from "@/lib/emotion/analyticsEmotion";
 
 // This route had no rate limiting of any kind before — see
@@ -310,6 +311,9 @@ export async function POST(req: Request) {
         for (const m of matches) usedMyths.add(m[0]);
     }
     const uniqueMyths = [...usedMyths];
+    // Figures already named in this session, so a checked story is not retold.
+    const STORY_FIGURES = /\b(Karna|Kunti|Savitri|Kisagotami|Sita|Dasharatha|Radha|Bharata|Nachiketa|Draupadi|Arjuna|Hanuman|Jambavan|Prahlada|Dhruva|Shiva|Yudhishthira|Vi[sś]w?amitra|Vishwamitra|Ananda|Parashurama|Duryodhana|Kali|Bhima|Gandhari|Drona|Indra|Sati|Rama|Ekalavya|Pandavas|Siddhartha|Shravan|Vidura)\b/gi;
+    const usedFigures = [...new Set(assistantTexts.flatMap((t) => [...t.matchAll(STORY_FIGURES)].map((m) => m[0])))];
 
     // Allow single-text payloads without breaking existing behaviour
     let rawMessages = Array.isArray(body?.messages) ? body!.messages : [];
@@ -900,7 +904,7 @@ export async function POST(req: Request) {
     // This overrides conversation history so switching from Bengali to Hindi mid-chat works.
     const langInstructionMap: Record<string, string> = {
       hi: "The user is writing in Hindi. Mirror their exact script — if they used Devanagari, respond in Devanagari; if they used Roman/Latin script (Hinglish), respond in Roman Hindi. FORMALITY: Match the user's register — if they write casually (using 'tum', 'yaar', informal words), respond with 'tum' form. Use 'aap' only if they write formally.",
-      bn: "The user is writing in Bengali. Mirror their script: if they used Bengali script, reply in Bengali script; if they used romanized Bengali (e.g. 'ami valo achi', 'tumi kemon acho'), reply in romanized Bengali; if they switched to English mid-conversation, reply in English or romanized Bengali — whichever feels most natural while maintaining full emotional depth. FORMALITY: Default to 'tumi' form for casual Bengali. Use 'apni/aapnar' only if the user writes formally. CRITICAL: Use only Bengali words — do NOT mix in Hindi or Marathi words (use 'Haa'/'Hyaan' not 'Hain'; use 'Ami' not 'Main'; do NOT use Marathi words like 'tumhala', 'sagla', 'khara', 'aahe'). CALM COMPANION BENGALI PHRASES: When using calm/patient tone, use phrases like 'কোনো তাড়া নেই', 'সময় নাও', 'ধীরে ধীরে', 'যখন মন চায় বলো', 'এখনই কিছু করতে হবে না' to signal unhurriedness in Bengali.",
+      bn: "The user is writing in Bengali. Mirror their script: if they used Bengali script, reply in Bengali script; if they used romanized Bengali (e.g. 'ami valo achi', 'tumi kemon acho'), reply in romanized Bengali; if they switched to English mid-conversation, reply in English or romanized Bengali — whichever feels most natural while maintaining full emotional depth. FORMALITY — CRITICAL: Address the user as তুমি / তোমার / তোমাকে by default — this holds in EVERY companion role, including friend and sibling. Use তুই / তোর ONLY if the user has written তুই/তোর to you themselves, or the user is a teenager. Never use তুই with someone who has not used it first — to most Bengali adults it reads as over-familiar or rude from a stranger. Use আপনি / আপনার only if the user writes formally or is an elder. CRITICAL: Use only Bengali words — do NOT mix in Hindi or Marathi words (use 'Haa'/'Hyaan' not 'Hain'; use 'Ami' not 'Main'; do NOT use Marathi words like 'tumhala', 'sagla', 'khara', 'aahe'). CALM COMPANION BENGALI PHRASES: When using calm/patient tone, use phrases like 'কোনো তাড়া নেই', 'সময় নাও', 'ধীরে ধীরে', 'যখন মন চায় বলো', 'এখনই কিছু করতে হবে না' to signal unhurriedness in Bengali.",
       mr: "The user is writing in Marathi. Respond in Marathi (not Hindi, not English). Use Marathi words: खूप, नाही, आहे, वाटतं, आणि, पण — not Hindi equivalents. Mirror their script: Devanagari → Devanagari Marathi; Roman → Roman Marathi.",
       ta: "The user is writing in Tamil. Mirror their exact script — native Tamil script or Roman Tamil as they used. CRITICAL: Do NOT insert English words or phrases mid-reply (e.g. do NOT say 'there's no hurry' — say 'அவசரமில்ல' or 'parachayam illai'). FORMALITY: Use informal 'நீ/உன்னோட' for close friends; use 'நீங்கள்/உங்களுக்கு' only when the user writes formally or is elderly.",
       te: "The user is writing in Telugu. Mirror their exact script — native Telugu script or Roman Telugu as they used. CRITICAL: Do NOT insert English phrases mid-reply (e.g. do NOT say 'Take all the time you need' — say 'మీకు సమయం తీసుకోండి' or 'నువ్వు తీసుకో'). FORMALITY: Use informal 'నువ్వు/నీకు' for close friends; use 'మీరు/మీకు' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
@@ -922,6 +926,10 @@ export async function POST(req: Request) {
       id: "The user is writing in Indonesian. Mirror their exact register — Indonesian uses Latin script. CRITICAL: Do NOT insert English phrases mid-reply unless the user used them. FORMALITY: Use informal 'kamu' for close friends and teens; use formal 'Anda' or respectful 'Bapak/Ibu' for elderly users. COACH TONE: When tone is coach, acknowledge briefly then ask one practical question — do not only soothe.",
     };
     const resolvedLang = typeof body?.lang === "string" ? body.lang.slice(0, 5).split("-")[0] : "";
+    // ⚠️ Seeded by the conversation, so the same chat gets the same four stories
+    // turn to turn (stable), while different chats see different ones.
+    const lastUserText = [...allMessages].reverse().find((m) => m?.role === "user")?.content ?? "";
+    const verifiedStories = verifiedStoriesFor(resolvedLang || "en", String(lastUserText).length * 31 + allMessages.length, usedFigures);
 
     if (isCrisisAdjacent) {
       const isMobile = (req.headers.get("Authorization") ?? "").startsWith("Bearer ");
@@ -3596,19 +3604,31 @@ export async function POST(req: Request) {
         "HUMOR EXCEPTION: A witty parable, a gently ironic story, or a funny historical anecdote can be used to inject levity when someone has been dealing with something difficult across multiple turns. Laughter is also medicine.",
         "Skip mythology only when: user is in active crisis, asking a pure factual question, the very first greeting, or if you already used a story in the previous turn.",
         "",
-        "CULTURAL PRIORITY RULES (important — follow these):",
-        "1. Match mythology to the user's language and cultural background first:",
-        "   - Hindi / Bengali / Tamil / Telugu / Kannada / Malayalam / Gujarati / Punjabi / Marathi / Odia / Indonesian → PRIMARILY Indian mythology (Mahabharata, Ramayana, Bhagavad Gita, Puranas, Jataka tales, Panchatantra, Upanishads). Occasionally reference other world mythologies.",
-        "   - Arabic / Urdu → PRIMARILY Islamic/Sufi stories (Rumi, Hafez, Quranic parables, Sufi tales, 1001 Nights). Occasionally Indian.",
-        "   - Chinese → PRIMARILY Chinese mythology and Taoist philosophy (Zhuangzi, Laozi, Journey to the West, Chinese folk tales). Occasionally Indian.",
-        "   - Spanish / Portuguese / French / German → PRIMARILY Greco-Roman mythology (Odyssey, Iliad, Greek/Roman gods and heroes). Occasionally Indian.",
-        "   - Russian → PRIMARILY Norse/Slavic mythology (Baba Yaga, Slavic heroes, Norse myths). Occasionally Indian.",
-        "   - Japanese → PRIMARILY Japanese/Zen/Buddhist stories (Zen koans, Shinto mythology, Japanese folk tales). Occasionally Indian.",
-        "   - Hebrew → PRIMARILY Jewish/Talmudic parables (Torah stories, Talmudic wisdom, Hasidic tales). Occasionally Indian.",
-        "   - English → Indian mythology primarily (Imotara is an Indian product), with occasional world mythology.",
-        "2. Promote Indian mythological stories overall — reference them more than any other single tradition across all users.",
-        "3. Occasionally cross-reference: share a Rumi verse with a Hindi-speaking user, or a Jataka tale with a Spanish-speaking user — when it genuinely fits better.",
-        "",
+        ...(verifiedStories
+          ? [
+              // 🔑 English + the Indian languages: choose from CHECKED text only
+              // (mythologyEngine.verifiedStoriesFor). See storiesMustBeReal.test.ts.
+              "STORY SOURCE — CRITICAL: The ONLY stories you may tell are the checked ones below. Do NOT tell any other story, episode, saying, or parable from any tradition, and do NOT add details to these.",
+              "Pick the ONE whose theme genuinely fits what the user is going through, or use none. If none fits naturally, tell no story — a reply without a story is always better than a forced or wrong one.",
+              "When you use one: retell it in your own words, shorter if you like, and translate it naturally into the user's language. Keep every fact as written — the same people, the same events, the same outcome. NEVER claim a character felt or said something the text does not say, and never project the user's situation onto the character ('X also felt not enough…'). Draw the connection to the user in YOUR voice, after the story.",
+              ...verifiedStories.map((v, i) => `CHECKED STORY ${i + 1} (fits: ${v.theme}): ${v.text}`),
+              "",
+            ]
+          : [
+          "CULTURAL PRIORITY RULES (important — follow these):",
+          "1. Match mythology to the user's language and cultural background first:",
+          "   - Hindi / Bengali / Tamil / Telugu / Kannada / Malayalam / Gujarati / Punjabi / Marathi / Odia / Indonesian → PRIMARILY Indian mythology (Mahabharata, Ramayana, Bhagavad Gita, Puranas, Jataka tales, Panchatantra, Upanishads). Occasionally reference other world mythologies.",
+          "   - Arabic / Urdu → PRIMARILY Islamic/Sufi stories (Rumi, Hafez, Quranic parables, Sufi tales, 1001 Nights). Occasionally Indian.",
+          "   - Chinese → PRIMARILY Chinese mythology and Taoist philosophy (Zhuangzi, Laozi, Journey to the West, Chinese folk tales). Occasionally Indian.",
+          "   - Spanish / Portuguese / French / German → PRIMARILY Greco-Roman mythology (Odyssey, Iliad, Greek/Roman gods and heroes). Occasionally Indian.",
+          "   - Russian → PRIMARILY Norse/Slavic mythology (Baba Yaga, Slavic heroes, Norse myths). Occasionally Indian.",
+          "   - Japanese → PRIMARILY Japanese/Zen/Buddhist stories (Zen koans, Shinto mythology, Japanese folk tales). Occasionally Indian.",
+          "   - Hebrew → PRIMARILY Jewish/Talmudic parables (Torah stories, Talmudic wisdom, Hasidic tales). Occasionally Indian.",
+          "   - English → Indian mythology primarily (Imotara is an Indian product), with occasional world mythology.",
+          "2. Promote Indian mythological stories overall — reference them more than any other single tradition across all users.",
+          "3. Occasionally cross-reference: share a Rumi verse with a Hindi-speaking user, or a Jataka tale with a Spanish-speaking user — when it genuinely fits better.",
+          "",
+            ]),
         "HOW: Introduce it naturally — 'There's a story from the Mahabharata that comes to mind...' / 'Rumi wrote something that feels true here...' / 'A Zen story I keep thinking about...' / 'In Greek mythology...'",
         "KEEP IT BRIEF: 1–2 sentences max — the essence of the story and why it connects to their situation.",
         "LANGUAGE: Always share in the user's language. If the original story is from another language, translate naturally.",

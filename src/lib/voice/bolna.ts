@@ -81,21 +81,65 @@ export type ExecutionView = {
 /** ⚠️ Only "completed" is final; "call-disconnected" is NOT ⇒ spec §7.3. */
 export const FINAL_STATUSES = new Set(["completed", "no-answer", "busy", "failed", "canceled", "cancelled"]);
 
-export function readExecution(body: Record<string, unknown>): ExecutionView {
-  const status = String(find(body, ["status"]) ?? "").toLowerCase();
-  const rawExtraction = find(body, ["extracted_data", "extractions", "custom_extractions"]);
-  const extraction: Record<string, string> = {};
-  if (rawExtraction && typeof rawExtraction === "object") {
-    for (const [k, v] of Object.entries(rawExtraction as Record<string, unknown>)) {
-      extraction[k] = typeof v === "object" && v !== null ? String((v as Record<string, unknown>).value ?? JSON.stringify(v)) : String(v ?? "");
+/**
+ * One extraction field as Bolna sends it. 🔑 Measured on the 21 Oct test call:
+ * every field is an object, and the answer sits in ONE of two places —
+ * `objective` for a choice field (outcome: "send_info"), `subjective` for a
+ * free-text one (summary). The other is null.
+ */
+function answerOf(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  if (typeof v !== "object") return String(v);
+  const o = v as Record<string, unknown>;
+  for (const k of ["objective", "subjective", "value"]) {
+    const a = o[k];
+    if (a !== null && a !== undefined && String(a).trim() !== "") return String(a).trim();
+  }
+  return "";
+}
+
+const isField = (v: unknown) =>
+  !!v && typeof v === "object" && ["objective", "subjective", "value"].some((k) => k in (v as object));
+
+/**
+ * 🔴 `extracted_data` is NESTED BY CATEGORY — {"Call Notes": {"outcome": {...}}}
+ * ⇒ bolna.ai/docs/post-call/execution-payload. The first parser read it as
+ * flat, so the category name became the only key and every call came back
+ * with no outcome. Flat shapes are still accepted.
+ */
+export function flattenExtraction(raw: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v && typeof v === "object" && !isField(v)) {
+      for (const [field, inner] of Object.entries(v as Record<string, unknown>)) {
+        const a = answerOf(inner);
+        if (a && !out[field.toLowerCase()]) out[field.toLowerCase()] = a;
+      }
+    } else {
+      const a = answerOf(v);
+      if (a) out[k.toLowerCase()] = a;
     }
   }
+  return out;
+}
+
+export function readExecution(body: Record<string, unknown>): ExecutionView {
+  const status = String(find(body, ["status"]) ?? "").toLowerCase();
+  const extraction = flattenExtraction(find(body, ["extracted_data", "extractions", "custom_extractions"]));
+  const ended = FINAL_STATUSES.has(status);
   return {
     executionId: String(find(body, ["execution_id", "id"]) ?? ""),
     status,
-    final: FINAL_STATUSES.has(status),
+    /**
+     * ⚠️ A "completed" call whose extraction has not arrived yet is NOT final:
+     * Bolna fills `extracted_data` in post-processing, after the call ends.
+     * Treating it as final wrote "No answer" — and put a person who had just
+     * talked to us back in the retry queue. The reconcile pass fetches it later.
+     */
+    final: ended && !(status === "completed" && !extraction.outcome),
     extraction,
-    summary: String(find(body, ["summary"]) ?? extraction.summary ?? ""),
+    summary: String(find(body, ["summary"]) ?? "") || extraction.summary || "",
     tab: String(find(body, ["imotara_tab"]) ?? ""),
     phone: String(find(body, ["imotara_phone"]) ?? ""),
   };

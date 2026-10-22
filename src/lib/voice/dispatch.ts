@@ -112,8 +112,18 @@ async function reconcile(d: Directory, now: Date): Promise<number> {
     if (view?.final) {
       if ((await applyResult({ ...view, executionId: c.v.bolna_execution_id }, d, now)) === "applied") n++;
     } else if (now.getTime() - t > 3 * 3600_000) {
-      // ⚠️ Three hours with no answer from Bolna: free the line, retry later.
-      await writeRow(c, { status: STATUS.noAnswer, next_action: "No result from the call service; will retry" });
+      if (view?.status === "completed") {
+        // ⛔ They DID talk to us — the outcome just never arrived. Calling
+        // them again would be the worst reading of an empty field.
+        await writeRow(c, {
+          status: STATUS.review,
+          call_summary: view.summary,
+          next_action: "Call completed but no outcome came back - listen to the recording in Bolna",
+        });
+      } else {
+        // ⚠️ Three hours with no answer from Bolna: free the line, retry later.
+        await writeRow(c, { status: STATUS.noAnswer, next_action: "No result from the call service; will retry" });
+      }
       n++;
     }
   }

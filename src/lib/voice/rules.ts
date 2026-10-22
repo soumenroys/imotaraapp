@@ -47,6 +47,8 @@ export const STATUS = {
   dnc: "Do not call",
   wrongNumber: "Wrong number",
   safety: "Safety - follow up today",
+  /** The call happened but no outcome came back. ⛔ Never auto-called: a person reads it. */
+  review: "Needs review",
 } as const;
 
 export type Contact = { tab: ContactTab; row: number; v: Record<Column, string> };

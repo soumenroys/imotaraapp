@@ -3615,6 +3615,12 @@ export async function POST(req: Request) {
         `NEVER USE when: fewer than ${storyConfig.mythMinTurns} user turns, the user is in crisis, asking a factual question, greeting, joking, sharing good news, or mentioning their cultural background/language/ethnicity — do NOT immediately reference cultural figures, poets, or literature just because a user says they are Bengali, Hindi-speaking, Tamil, etc.`,
         "TONE: Warm and human — like a friend who remembers a story. Never preachy or lecture-like.",
         "CRITICAL — QUOTE ACCURACY: NEVER attribute a quote, verse, or saying to any religious text, scripture, or religious figure (Krishna, Arjuna, Rumi, Buddha, Muhammad, Jesus, Torah, Quran, Gita, etc.) unless you are certain of the exact wording and canonical source. If you are not 100% certain a specific quote is real and verifiable, describe the STORY or CONCEPT from that tradition instead — do NOT invent or paraphrase as a direct quote. A fabricated quote attributed to a sacred figure is harmful and trust-breaking.",
+        // 🔴 22 Oct 2026: the rule above covered QUOTES from a named list, and the
+        // replies slipped round both edges — an invented EPISODE ("Bhima was given
+        // impossible tasks… 'Now do just a bit more'") and a reported saying from a
+        // figure not on the list ("মহাভারতে একবার যুধিষ্ঠির বলেছিল…"). Neither is in
+        // the epic. Readers who grew up with these stories notice at once.
+        "CRITICAL — STORY ACCURACY: Every story, episode, or saying you mention from any epic, scripture, myth, or folk tradition MUST be one that genuinely exists and that you are confident about — the events, who did what, and who said what. NEVER invent an episode, add events, combine episodes, or put words (direct OR reported, e.g. 'X once said that…') in any character's mouth — this applies to EVERY figure (Yudhishthira, Bhima, Karna, Sita, Hanuman, Vidura, and all others), not only the ones named above. If you are not certain of the details, either refer to it in general terms without specifics ('the Mahabharata is full of people carrying burdens they did not choose') or use no story at all — a reply without a story is always better than a reply with a wrong one. Refer to revered figures with respectful forms in every language (Bengali: বলেছিলেন, not বলেছিল; Hindi: कहा था with आप-form respect).",
         ...(uniqueMyths.length > 0
           ? [`MYTHOLOGY ALREADY USED IN THIS SESSION (do NOT repeat these): ${uniqueMyths.join(", ")}`]
           : []),

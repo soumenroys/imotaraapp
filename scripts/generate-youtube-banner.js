@@ -42,6 +42,8 @@
  *            docs/brand/imotara-x-header.png         (1500 x 500)
  *            docs/brand/imotara-facebook-cover.png   (1640 x 624)
  *            docs/brand/imotara-producthunt-gallery.png (1270 x 760)
+ *            docs/brand/imotara-linkedin-banner.png  (1584 x 396)
+ *         node scripts/generate-youtube-banner.js linkedin   — one canvas only
  *
  * 📐 Product Hunt gallery: 1270 x 760 — nearly 5:3, much squarer than every
  *    other canvas here, so the lockup stacks instead of sitting side by side.
@@ -61,6 +63,7 @@ const OUT_PNG = path.join(OUT_DIR, "imotara-youtube-banner.png");
 const OUT_X = path.join(OUT_DIR, "imotara-x-header.png");
 const OUT_FB = path.join(OUT_DIR, "imotara-facebook-cover.png");
 const OUT_PH = path.join(OUT_DIR, "imotara-producthunt-gallery.png");
+const OUT_LI = path.join(OUT_DIR, "imotara-linkedin-banner.png");
 const LOGO = path.join(ROOT, "public", "icon-512.png");
 
 const CHROME =
@@ -140,6 +143,24 @@ const SPECS = {
         logo: 160, gap: 42, head: 44, sub: 29, subGap: 11,
         pillGap: 22, pillSpace: 11, pillText: 16, pillPadY: 10, pillPadX: 18, pillDot: 8,
         out: OUT_FB, maxMb: 5,
+    },
+    linkedin: {
+        w: 1584, h: 396,
+        /**
+         * 🔴 ADDED 2026-10-22: the live LinkedIn profile banner still read
+         * "talk, HEAL and grow" and "Connect with expert COUNSELORS" — the
+         * same two claims already removed from YouTube and Facebook, on the
+         * profile whose headline says "Not therapy, and we say so".
+         *
+         * 📐 Personal-profile background, 4:1. The round profile photo sits
+         * over the BOTTOM-LEFT, roughly x 40..360 on this canvas, so the
+         * lockup is pushed RIGHT to clear it. At 396 px tall there is no
+         * vertical slack, so everything is smaller than on Facebook.
+         */
+        safeW: 1120, safeH: 340, safeShift: "transform:translateX(150px);",
+        logo: 150, gap: 38, head: 40, sub: 26, subGap: 9,
+        pillGap: 18, pillSpace: 10, pillText: 15, pillPadY: 9, pillPadX: 16, pillDot: 7,
+        out: OUT_LI, maxMb: 8,
     },
 };
 
@@ -232,10 +253,16 @@ function main() {
     }
     fs.mkdirSync(OUT_DIR, { recursive: true });
     const logoB64 = fs.readFileSync(LOGO).toString("base64");
-    render(SPECS.youtube, logoB64, "youtube");
-    render(SPECS.x, logoB64, "x");
-    render(SPECS.facebook, logoB64, "facebook");
-    render(SPECS.producthunt, logoB64, "producthunt");
+    // ⚠️ One name renders one canvas, so adding a size does not re-render
+    // (and churn) every banner that is already live.
+    const only = process.argv[2];
+    for (const label of only ? [only] : Object.keys(SPECS)) {
+        if (!SPECS[label]) {
+            console.error(`Unknown canvas "${label}". Known: ${Object.keys(SPECS).join(", ")}`);
+            process.exit(1);
+        }
+        render(SPECS[label], logoB64, label);
+    }
 }
 
 main();

@@ -505,7 +505,7 @@ const SIGNAL_THEME: Record<MythSignal, string> = {
  * told a story, most with invented detail). It cannot tell what it remembers
  * from what it makes up. So it now CHOOSES from checked text instead.
  *
- * One story per feeling, rotated by seed, so the model picks the one that fits
+ * Two stories per feeling, rotated by seed, so the model picks the one that fits
  * (or none) without us guessing the feeling from words in 22 languages.
  * Stories whose figure was already used this session are skipped.
  *
@@ -522,8 +522,10 @@ export function verifiedStoriesFor(
     const out: { theme: string; text: string }[] = [];
     (Object.keys(INDIAN) as MythSignal[]).forEach((signal, k) => {
         const pool = INDIAN[signal].filter((t) => !used.some((u) => u && t.toLowerCase().includes(u)));
-        if (pool.length === 0) return;
-        out.push({ theme: SIGNAL_THEME[signal], text: pool[(seed + k * 7) % pool.length]! });
+        // ⚠️ TWO per feeling: with one, grief over a father was handed King
+        // Bharata's deer as its only "sad" story — true, but a poor fit.
+        for (let j = 0; j < Math.min(2, pool.length); j++)
+            out.push({ theme: SIGNAL_THEME[signal], text: pool[(seed + k * 7 + j * 5) % pool.length]! });
     });
     return out;
 }

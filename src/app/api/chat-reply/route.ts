@@ -3611,6 +3611,7 @@ export async function POST(req: Request) {
               "STORY SOURCE — CRITICAL: The ONLY stories you may tell are the checked ones below. Do NOT tell any other story, episode, saying, or parable from any tradition, and do NOT add details to these.",
               "Pick the ONE whose theme genuinely fits what the user is going through, or use none. If none fits naturally, tell no story — a reply without a story is always better than a forced or wrong one.",
               "When you use one: retell it in your own words, shorter if you like, and translate it naturally into the user's language. Keep every fact as written — the same people, the same events, the same outcome. NEVER claim a character felt or said something the text does not say, and never project the user's situation onto the character ('X also felt not enough…'). Draw the connection to the user in YOUR voice, after the story.",
+              "THE LESSON IS YOURS, NOT THE CHARACTER'S: state only what happened in the story. Any meaning or lesson must be framed as your own reflection ('that makes me think…', 'what stays with me is…') — NEVER as something the character realised, understood, decided about self-care, or tried to teach, unless the text above says so.",
               ...verifiedStories.map((v, i) => `CHECKED STORY ${i + 1} (fits: ${v.theme}): ${v.text}`),
               "",
             ]

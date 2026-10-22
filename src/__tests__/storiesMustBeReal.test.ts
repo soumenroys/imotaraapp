@@ -39,6 +39,7 @@ describe("🔑 English + Indian languages tell only CHECKED stories", () => {
     expect(src).toContain("verifiedStoriesFor(");
     expect(src).toMatch(/The ONLY stories you may tell are the checked ones below/);
     expect(src).toMatch(/never project the user's situation onto the character/);
+    expect(src).toMatch(/THE LESSON IS YOURS, NOT THE CHARACTER'S/);
   });
 });
 
@@ -50,10 +51,10 @@ describe("the checked collection", () => {
       expect(eng, gone).not.toContain(gone);
     expect(eng).toContain("only young Vikarna spoke up");
   });
-  it("hands one story per feeling for Bengali, none for unchecked languages", async () => {
+  it("hands two stories per feeling for Bengali, none for unchecked languages", async () => {
     const { verifiedStoriesFor } = await import("@/lib/ai/orchestrator/mythologyEngine");
-    expect(verifiedStoriesFor("bn", 7)).toHaveLength(4);
-    expect(verifiedStoriesFor("en", 7)).toHaveLength(4);
+    expect(verifiedStoriesFor("bn", 7)).toHaveLength(8);
+    expect(verifiedStoriesFor("en", 7)).toHaveLength(8);
     expect(verifiedStoriesFor("ar", 7)).toBeNull();
   });
   it("skips a figure already used in the conversation", async () => {

@@ -157,9 +157,19 @@ const SPECS = {
          * lockup is pushed RIGHT to clear it. At 396 px tall there is no
          * vertical slack, so everything is smaller than on Facebook.
          */
-        safeW: 1120, safeH: 340, safeShift: "transform:translateX(150px);",
-        logo: 150, gap: 38, head: 40, sub: 26, subGap: 9,
-        pillGap: 18, pillSpace: 10, pillText: 15, pillPadY: 9, pillPadX: 16, pillDot: 7,
+        /**
+         * ⚠️ LinkedIn shows this at about HALF size on a laptop (≈790 px wide)
+         * and smaller on a phone. The first render used Facebook-like sizes
+         * and its pills came out ~7 px tall on screen — unreadable. Text is
+         * sized for the half-size view.
+         *
+         * ⛔ NO LOGO CARD. The profile photo directly below IS the logo, so
+         * the card printed it twice, a few centimetres apart.
+         */
+        noLogo: true,
+        safeW: 1100, safeH: 360, safeShift: "transform:translateX(190px);",
+        logo: 0, gap: 0, head: 58, sub: 34, subGap: 10,
+        pillGap: 20, pillSpace: 12, pillText: 22, pillPadY: 11, pillPadX: 20, pillDot: 9,
         out: OUT_LI, maxMb: 8,
     },
 };
@@ -199,7 +209,7 @@ function buildHtml(logoB64, spec) {
 </style></head>
 <body>
   <div class="safe">
-    <img class="logo" src="data:image/png;base64,${logoB64}" alt="">
+    ${spec.noLogo ? "" : `<img class="logo" src="data:image/png;base64,${logoB64}" alt="">`}
     <div class="copy">
       <div class="head">${HEAD}</div>
       <div class="sub">${SUB}</div>

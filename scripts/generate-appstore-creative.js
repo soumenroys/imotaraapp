@@ -13,9 +13,9 @@
  * the claims cannot drift: no regulated titles, "peers, not clinicians".
  * ⛔ Apple also forbids prices, URLs and other platforms' logos in assets.
  *
- * The screen is docs/brand/appstore/source-01-chat.png, the App Store's own
- * approved screenshot, cropped to its top (header + first exchange); the
- * status bar is cut off because its clock renders dark-on-dark.
+ * The screen is the REAL chat captured 22 Oct on a clean 1.5.9 install
+ * (raw-2026-10-22/c-chat.png). ⛔ The first draft used the old App Store
+ * screenshot, which showed test chat — replaced.
  *
  * ▶️ Run:  node scripts/generate-appstore-creative.js
  *    Output: docs/brand/appstore/imotara-appstore-search.png (2880 x 1920)
@@ -28,7 +28,7 @@ const { execFileSync } = require("child_process");
 const ROOT = path.join(__dirname, "..");
 const DIR = path.join(ROOT, "docs", "brand", "appstore");
 const OUT = path.join(DIR, "imotara-appstore-search.png");
-const SHOT = path.join(DIR, "source-01-chat.png");
+const SHOT = path.join(DIR, "raw-2026-10-22", "c-chat.png");
 const LOGO = path.join(ROOT, "public", "icon-512.png");
 const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
@@ -64,7 +64,7 @@ body{font-family:Inter,-apple-system,sans-serif;display:flex;align-items:center;
   box-shadow:0 60px 140px rgba(30,41,59,.35),0 0 0 6px #1f2230 inset}
 .screen{width:100%;height:100%;border-radius:96px;overflow:hidden;background:#13121a;
   background-image:url(data:image/png;base64,${shot});background-size:100% auto;
-  background-position:0 -80px;background-repeat:no-repeat}
+  background-position:0 -118px;background-repeat:no-repeat}
 </style></head><body>
 <div class="copy">
   <img class="logo" src="data:image/png;base64,${logo}" alt="">

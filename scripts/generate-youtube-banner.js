@@ -64,6 +64,7 @@ const OUT_X = path.join(OUT_DIR, "imotara-x-header.png");
 const OUT_FB = path.join(OUT_DIR, "imotara-facebook-cover.png");
 const OUT_PH = path.join(OUT_DIR, "imotara-producthunt-gallery.png");
 const OUT_LI = path.join(OUT_DIR, "imotara-linkedin-banner.png");
+const OUT_AS = path.join(OUT_DIR, "appstore", "imotara-appstore-header.png");
 const LOGO = path.join(ROOT, "public", "icon-512.png");
 
 const CHROME =
@@ -172,6 +173,21 @@ const SPECS = {
         pillGap: 20, pillSpace: 12, pillText: 22, pillPadY: 11, pillPadX: 20, pillDot: 9,
         out: OUT_LI, maxMb: 8,
     },
+    appstore: {
+        w: 3840, h: 1646,
+        /**
+         * 📐 App Store product-page HEADER (creative asset): 21:9, 3840 x 1646,
+         * no alpha (creative-assets-specifications, read 22 Oct 2026). Apple
+         * gives no safe area, so the lockup stays centred and well inside.
+         * The app icon and name sit right below the header on the product
+         * page, so — like LinkedIn — no logo card here.
+         */
+        noLogo: true, center: true,
+        safeW: 2600, safeH: 1100, safeShift: "",
+        logo: 0, gap: 0, head: 150, sub: 86, subGap: 24,
+        pillGap: 56, pillSpace: 28, pillText: 54, pillPadY: 26, pillPadX: 48, pillDot: 20,
+        out: OUT_AS, maxMb: 20,
+    },
 };
 
 function buildHtml(logoB64, spec) {
@@ -195,7 +211,7 @@ function buildHtml(logoB64, spec) {
         ${spec.stack ? "flex-direction:column;" : ""}}
   .logo{width:${spec.logo}px;height:${spec.logo}px;flex:0 0 ${spec.logo}px;border-radius:${Math.round(spec.logo*0.224)}px;
         box-shadow:0 20px 56px rgba(79,70,229,.22), 0 2px 8px rgba(0,0,0,.05)}
-  .copy{display:flex;flex-direction:column;align-items:${spec.stack ? "center" : "flex-start"};text-align:${spec.stack ? "center" : "left"}}
+  .copy{display:flex;flex-direction:column;align-items:${spec.stack || spec.center ? "center" : "flex-start"};text-align:${spec.stack || spec.center ? "center" : "left"}}
   .head{font-size:${spec.head}px;font-weight:700;letter-spacing:-2px;line-height:1.1;color:#0f172a}
   .sub{margin-top:${spec.subGap}px;font-size:${spec.sub}px;font-weight:700;letter-spacing:-1.1px;line-height:1.1;
        background:linear-gradient(100deg,#4f46e5 0%,#0284c7 46%,#059669 100%);

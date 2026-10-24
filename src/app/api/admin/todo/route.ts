@@ -48,6 +48,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await requireSuperAdmin(req);
   if (!auth.ok) return auth.response;
+  // ⛔ Only items a reviewer cannot see are manual, so a reviewer has nothing to mark —
+  // and must not be able to hide one (e.g. a safety callback) by guessing its id (review, 24 Oct).
+  if (auth.admin.role === "connect_reviewer") return NextResponse.json({ error: "Not available for your role." }, { status: 403 });
   const b = (await req.json().catch(() => null)) as { id?: string; title?: string; done?: boolean } | null;
   if (!b?.id || typeof b.id !== "string" || b.id.length > 500) return NextResponse.json({ error: "Which item?" }, { status: 400 });
   try {

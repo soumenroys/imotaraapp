@@ -3470,6 +3470,8 @@ const SECTION_TITLES: Record<Section, string> = {
 };
 
 const SECTION_KEYS = Object.keys(SECTION_TITLES) as Section[];
+/** ⚠️ A reviewer opened from a To do link (?section=connect) stays there; only a section they cannot see sends them to To do (review, 24 Oct). */
+const REVIEWER_SECTIONS: Section[] = ["todo", "comments", "connect"];
 
 function isSection(v: string | null): v is Section {
   return v !== null && (SECTION_KEYS as string[]).includes(v);
@@ -3523,7 +3525,7 @@ export default function AdminPage() {
           setToken(restored);
           if (who.role) {
             setMyRole(who.role);
-            if (who.role === "connect_reviewer") setSection("todo");
+            if (who.role === "connect_reviewer") setSection((cur) => (REVIEWER_SECTIONS.includes(cur) ? cur : "todo"));
           }
         }
       })
@@ -3569,7 +3571,7 @@ export default function AdminPage() {
         const role = d.admin?.role as string | undefined;
         if (role) {
           setMyRole(role);
-          if (role === "connect_reviewer") setSection("todo");
+          if (role === "connect_reviewer") setSection((cur) => (REVIEWER_SECTIONS.includes(cur) ? cur : "todo"));
         }
       })
       .catch(() => {});

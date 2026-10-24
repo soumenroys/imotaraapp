@@ -7,7 +7,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { readDirectory, writeMany } from "@/lib/voice/sheets";
-import type { Column, Contact } from "@/lib/voice/rules";
+import { SYSTEM_STATE, type Column, type Contact } from "@/lib/voice/rules";
 import { progressFor } from "@/lib/outreach/progress";
 import { readOutreach } from "@/lib/outreach/store";
 import { suppressedEmails } from "@/lib/outreach/send";
@@ -22,7 +22,7 @@ export async function syncProgress(supabase: SupabaseClient, now = new Date()): 
     })
     .filter((u) => Object.keys(u.cells).length > 0);
   // Rows emptied of a person but still showing a status are blanked.
-  for (const r of d.staleStatus ?? []) updates.push({ c: r, cells: { call_progress: "", mail_progress: "", what_to_do: "" } });
+  for (const r of d.staleStatus ?? []) updates.push({ c: r, cells: Object.fromEntries(SYSTEM_STATE.map((k) => [k, ""])) });
   const cells = updates.length ? await writeMany(updates) : 0;
   return { rows: updates.length, cells };
 }

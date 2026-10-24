@@ -24,8 +24,11 @@ type Row = {
   followUp: string; nextAction: string; voice: string; country: string; timeZone: string; teamMember: string; type: string;
   /** A Scheduled row whose time passed by more than the grace period — it will not be called. */
   missed?: boolean;
-  /** Safety, Needs review, Dial failed, Meeting booked, Send info — a person acts on these. */
+  /** Safety, Needs review, Dial failed, Meeting booked, Send info, Wrong number — a person acts on these. */
   needsPerson?: boolean;
+  /** The To do record for this event, and whether a person already marked it handled. */
+  todoId?: string | null;
+  handled?: boolean;
 };
 type Settings = { callingEnabled: boolean; autoDispatch: boolean; maxConcurrency: number; dailyCap: number; alertEmails: string[]; allowIndividuals?: boolean };
 type Preview = {
@@ -201,7 +204,8 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
   const callable = shown.filter((c) => c.check === "OK");
   const rowsOf = (keys: Set<string>) => contacts.filter((c) => keys.has(key(c))).map(ref);
   const callingOn = !!data.settings?.callingEnabled;
-  const attention = contacts.filter((c) => c.needsPerson || c.missed);
+  // ⚠️ Handled ones leave the list — it used to grow for ever, the status column being locked (review, 24 Oct).
+  const attention = contacts.filter((c) => (c.needsPerson && !c.handled) || c.missed);
 
   const callNow = async (rows: Ref[]) => {
     if (rows.length === 0) return;
@@ -237,6 +241,11 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
           retry={async (c) => {
             const { ok, json } = await post("/api/admin/voice/schedule", { rows: [ref(c)] }, "DELETE");
             say(ok ? (json.cancelled ? `${c.name} is back to Pending.` : "Nothing changed — press Refresh.") : json.error);
+            void reload();
+          }}
+          handled={async (c) => {
+            const { ok, json } = await post("/api/admin/todo", { id: c.todoId, title: `${c.status}: ${c.name}` });
+            say(ok ? `Marked handled. It is gone from here and from To do.` : json.error);
             void reload();
           }}
         />
@@ -336,7 +345,7 @@ function CallingOffNote() {
 }
 
 /** 🔴 What a PERSON must do next — safety first. These were only visible by scanning the sheet. */
-function NeedsAPerson({ rows, retry }: { rows: Row[]; retry: (r: Row) => void }) {
+function NeedsAPerson({ rows, retry, handled }: { rows: Row[]; retry: (r: Row) => void; handled: (r: Row) => void }) {
   const order = (r: Row) => (r.status.startsWith("Safety") ? 0 : r.missed ? 3 : 1);
   return (
     <div className="rounded-2xl border border-amber-400/40 p-3">
@@ -349,9 +358,14 @@ function NeedsAPerson({ rows, retry }: { rows: Row[]; retry: (r: Row) => void })
           <span className="font-semibold">{c.name}</span>
           <span className="text-zinc-400">{c.organisation || c.tab} · {c.phone}</span>
           <span className="text-zinc-400">{c.missed ? "Its time passed while calling was off — schedule it again or cancel it." : c.nextAction}</span>
-          {(c.status === "Dial failed" || c.missed) && (
+          {(c.status === "Dial failed" || c.status === "Wrong number" || c.missed) && (
             <button className="ml-auto underline" onClick={() => retry(c)} title="Back to Pending, so it can be called or scheduled again">
               {c.missed ? "Clear" : "Retry"}
+            </button>
+          )}
+          {c.todoId && !c.missed && (
+            <button className="ml-auto underline" onClick={() => handled(c)} title="Done by a person — remove it from this list and from To do">
+              ✓ Handled
             </button>
           )}
         </div>

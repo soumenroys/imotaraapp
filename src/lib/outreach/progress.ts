@@ -45,8 +45,10 @@ const MAIL_FIX: [RegExp, string][] = [
 const fixFor = (reason: string, table: [RegExp, string][]) => table.find(([re]) => re.test(reason))?.[1] ?? "";
 
 export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" | "settings">, now: Date): { text: string; fix: string } {
-  if (stoppedByAdmin(c)) return { text: "⛔ Stopped by admin", fix: "" };
   const s = c.v.status || STATUS.pending;
+  // 🔴 Safety first, even on a stopped row — "call them yourself today" must never be hidden (review, 24 Oct).
+  if (s === STATUS.safety) return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
+  if (stoppedByAdmin(c)) return { text: "⛔ Stopped by admin", fix: "" };
   const tries = Number(c.v.call_attempts) || 0;
   switch (s) {
     case STATUS.safety: return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
@@ -56,7 +58,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
     case STATUS.queued: return { text: "⏳ In queue — next free line", fix: "" };
     case STATUS.scheduled:
       return missedSchedule(c, now)
-        ? { text: `⛔ Missed — was scheduled for ${day(c.v.follow_up_datetime)}`, fix: "Schedule it again in Voice calls, or Cancel it." }
+        ? { text: `⛔ Missed — was scheduled for ${day(c.v.follow_up_datetime)}`, fix: "It could not be placed at that time (calling off, or outside their hours). Schedule it again, or Clear it." }
         : { text: `⏳ Scheduled — ${day(c.v.follow_up_datetime)}`, fix: "" };
     case STATUS.noAnswer:
       return tries >= MAX_ATTEMPTS
@@ -68,7 +70,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
     case STATUS.meeting: return { text: "✅ Done — meeting booked", fix: "Ambassador: hold the meeting." };
     case STATUS.notInterested: return { text: "✅ Done — not interested (never called again)", fix: "" };
     case STATUS.dnc: return { text: "✅ Done — asked not to be called (never again)", fix: "" };
-    case STATUS.wrongNumber: return { text: "⛔ Wrong number", fix: "Correct the phone in column A, or delete the row." };
+    case STATUS.wrongNumber: return { text: "⛔ Wrong number", fix: "Correct the phone in column A, then press Retry in Voice calls → Needs a person. (Or type yes in do_not_contact.)" };
   }
   const check = checkContact(c, d);
   if (check !== "OK") return { text: `⛔ Not callable — ${check}`, fix: fixFor(check, CALL_FIX) };

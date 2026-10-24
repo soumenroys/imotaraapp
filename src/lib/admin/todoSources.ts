@@ -18,6 +18,21 @@ import { readAuto } from "@/lib/broadcast/autoBroadcast";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/**
+ * ⚠️ The id carries the call's own time: a NEW event for the same person comes
+ * back even after an old one was marked done. Shared with the Voice calls page,
+ * so "Handled" there and "Mark done" here are the same record.
+ */
+export function voiceTodoId(c: { tab: string; v: Record<string, string> }, kind: string): string {
+  return `voice:${kind}:${c.tab}:${phoneOf(c as never)}:${c.v.last_call_date || c.v.follow_up_datetime}`;
+}
+
+/** Status ⇒ the kind of To do item it raises (only the ones a person marks done). */
+export const MANUAL_KIND: Record<string, string> = {
+  [STATUS.safety]: "safety", [STATUS.review]: "review", [STATUS.meeting]: "meeting", [STATUS.interested]: "interested",
+  [STATUS.sendInfo]: "sendinfo",
+};
+
 /** Calls: the "Needs a person" list, as the Voice calls screen shows it. */
 export function voiceSource(): TodoSource {
   return {
@@ -30,8 +45,7 @@ export function voiceSource(): TodoSource {
       const out: TodoItem[] = [];
       for (const c of d.contacts) {
         const who = `${c.v.name || phoneOf(c)}${c.v.organisation ? ` (${c.v.organisation})` : ""}`;
-        // ⚠️ The id carries the call's own time: a NEW event for the same person comes back even after an old one was marked done.
-        const id = (kind: string) => `voice:${kind}:${c.tab}:${phoneOf(c)}:${c.v.last_call_date || c.v.follow_up_datetime}`;
+        const id = (kind: string) => voiceTodoId(c, kind);
         const base = { area: "Calls", href: "/admin/voice" };
         switch (c.v.status) {
           case STATUS.safety:
@@ -46,12 +60,19 @@ export function voiceSource(): TodoSource {
           case STATUS.meeting:
             out.push({ ...base, id: id("meeting"), urgency: "today", manual: true, title: `Meeting booked with ${who}`, detail: `${c.v.team_member ? `${c.v.team_member}: ` : ""}hold the meeting${c.v.follow_up_datetime ? ` (${c.v.follow_up_datetime})` : ""}.`, action: "Mark done once held" });
             break;
+          case STATUS.sendInfo:
+            // With an email, the outreach mailer sends the details by itself; without one, a person must.
+            if (!(c.v.email ?? "").trim()) out.push({ ...base, id: id("sendinfo"), urgency: "today", manual: true, title: `Send ${who} the details they asked for`, detail: "They asked on a call. There is no email in the sheet, so this is by hand (or add their email).", action: "Mark done once sent" });
+            break;
+          case STATUS.wrongNumber:
+            out.push({ ...base, id: id("wrongnumber"), urgency: "soon", title: `Wrong number for ${who}`, detail: "Correct the phone in the sheet (column A), then press Retry — or type yes in do_not_contact.", action: "Open Needs a person" });
+            break;
           case STATUS.interested:
             out.push({ ...base, id: id("interested"), urgency: "soon", manual: true, title: `${who} is interested — follow up personally`, detail: c.v.call_summary, action: "Mark done once followed up" });
             break;
         }
         if (missedSchedule(c, now)) {
-          out.push({ ...base, id: id("missed"), urgency: "soon", title: `A scheduled call to ${who} was missed`, detail: "Its time passed while calling was off.", action: "Schedule it again or clear it" });
+          out.push({ ...base, id: id("missed"), urgency: "soon", title: `A scheduled call to ${who} was missed`, detail: "It could not be placed at its time (calling off, or outside their hours).", action: "Schedule it again or clear it" });
         }
       }
       return out;

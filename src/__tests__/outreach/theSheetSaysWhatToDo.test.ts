@@ -81,3 +81,24 @@ describe("a row emptied of its person loses its status too", () => {
     expect(staleStatusRows("NGOs", [header, stale, live, empty])).toEqual([{ tab: "NGOs", row: 2 }]);
   });
 });
+
+import { writebackFor, NO_MORE_CALLS } from "@/lib/voice/rules";
+describe("review fixes, 24 Oct", () => {
+  it("⛔ a call that ended (safety, not interested, wrong number…) cannot be called again by hand", () => {
+    for (const st of NO_MORE_CALLS) expect(checkContact(contact({ status: st }), dir)).toMatch(/Call ended/);
+    expect(checkContact(contact({ status: STATUS.noAnswer }), dir)).toBe("OK");
+  });
+  it("🔴 safety is shown even on a row marked do-not-contact", () => {
+    expect(progressFor(contact({ status: STATUS.safety, do_not_contact: "yes" }), dir, none, state, TUE_11_IST).call_progress).toMatch(/^🔴 SAFETY/);
+  });
+  it("a callback time the agent said in words still gets a callback", () => {
+    const w = writebackFor({ outcome: "callback_requested", callback_time: "tomorrow 4pm" }, TUE_11_IST);
+    expect(Number.isFinite(Date.parse(w.cells.follow_up_datetime!))).toBe(true);
+    expect(w.cells.next_action).toMatch(/tomorrow 4pm/);
+  });
+  it("a cleared row is wiped of ALL system state, not just the status text", () => {
+    const header = [...COLUMNS] as string[];
+    const leftover = COLUMNS.map(() => ""); leftover[COLUMNS.indexOf("status")] = "Safety - follow up today";
+    expect(staleStatusRows("NGOs", [header, leftover])).toEqual([{ tab: "NGOs", row: 2 }]);
+  });
+});

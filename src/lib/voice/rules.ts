@@ -95,8 +95,18 @@ export const STATUS = {
   dialFailed: "Dial failed",
 } as const;
 
+/**
+ * ⛔ A call that ENDED here is not called again — not by the dispatcher, not by
+ * a person pressing 📞, not by a schedule (review, 24 Oct: "Call now" ignored
+ * these and the console showed them as a green OK). Safety and meetings belong
+ * to a person; "Wrong number" can be Retried once the number is corrected.
+ */
+export const NO_MORE_CALLS: readonly string[] = [
+  STATUS.safety, STATUS.notInterested, STATUS.dnc, STATUS.wrongNumber, STATUS.review, STATUS.meeting,
+];
+
 /** Statuses a person must act on — the console lists them first. */
-export const NEEDS_A_PERSON: readonly string[] = [STATUS.safety, STATUS.review, STATUS.dialFailed, STATUS.meeting, STATUS.sendInfo];
+export const NEEDS_A_PERSON: readonly string[] = [STATUS.safety, STATUS.review, STATUS.dialFailed, STATUS.meeting, STATUS.sendInfo, STATUS.wrongNumber];
 
 /**
  * A scheduled call this late is not placed: the admin chose THAT time, and a
@@ -162,13 +172,26 @@ export function normalisePhone(raw: string): string {
  * cells. The status sync blanks them, so the sheet never shows a status for
  * nobody. ⇒ outreach/syncSheet.
  */
+/** The cells the SYSTEM writes on a contact row — everything that is neither an admin column nor a formula. */
+export const SYSTEM_STATE: readonly Column[] = [
+  "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action", "follow_up_datetime", "call_id",
+  "mail_status", "mail_step", "mail_last_sent", "call_progress", "mail_progress", "what_to_do",
+];
+
+/**
+ * Rows that are no longer a contact (no phone, number or name) but still hold
+ * system state. ⚠️ ALL of it is wiped, not just the status text: with the sheet
+ * locked, clearing a row and typing a new person in is the only way to replace
+ * someone — and the new person used to inherit "Safety", three spent attempts
+ * and a half-finished email sequence (review, 24 Oct). ⇒ outreach/syncSheet.
+ */
 export function staleStatusRows(tab: ContactTab, rows: string[][]): { tab: ContactTab; row: number }[] {
   const at = (c: Column) => COLUMNS.indexOf(c);
   const out: { tab: ContactTab; row: number }[] = [];
   rows.slice(1).forEach((r, i) => {
     const cell = (c: Column) => String(r[at(c)] ?? "").trim();
     if (cell("phone") || cell("contact_number") || cell("name")) return;
-    if (cell("call_progress") || cell("mail_progress") || cell("what_to_do")) out.push({ tab, row: i + 2 });
+    if (SYSTEM_STATE.some((c) => cell(c))) out.push({ tab, row: i + 2 });
   });
   return out;
 }
@@ -237,6 +260,7 @@ export function checkContact(
   if (!c.v.name) return "Missing name";
   if (/^sample\b/i.test(c.v.name)) return "Sample row - delete it";
   if (d.dnc.has(phone)) return "On do-not-call list - never call";
+  if (NO_MORE_CALLS.includes(c.v.status)) return `Call ended: ${c.v.status}`;
   if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
   // ⛔ Permanent, owner's instruction ⇒ spec §5.1.
   if (/open ?lm/i.test(c.v.organisation) || /openlm\.com/i.test(c.v.consent_note + c.v.context)) {
@@ -480,8 +504,14 @@ export function writebackFor(x: Extraction, now: Date, timeZone = "Asia/Kolkata"
       cells.status = STATUS.safety; w.safety = true; break;
     case "meeting_booked":
       cells.status = STATUS.meeting; cells.follow_up_datetime = x.meeting_time ?? ""; w.meeting = true; break;
-    case "callback_requested":
-      cells.status = STATUS.callback; cells.follow_up_datetime = x.callback_time || elevenLocal(now, 1, timeZone); break;
+    case "callback_requested": {
+      // ⚠️ The agent may say "tomorrow 4pm"; a time that cannot be read used to mean a callback that never came.
+      const readable = x.callback_time && Number.isFinite(Date.parse(x.callback_time));
+      cells.status = STATUS.callback;
+      cells.follow_up_datetime = readable ? x.callback_time! : elevenLocal(now, 1, timeZone);
+      if (x.callback_time && !readable) cells.next_action = `${x.next_action ? `${x.next_action} · ` : ""}They asked for: “${x.callback_time}” — set for 11:00 tomorrow their time; adjust if needed.`;
+      break;
+    }
     case "send_info":
       cells.status = STATUS.sendInfo; cells.follow_up_datetime = elevenLocal(now, 3, timeZone); w.sendInfo = true;
       // 🔑 The call asked for details ⇒ the outreach mailer sends the info email next ⇒ lib/outreach.

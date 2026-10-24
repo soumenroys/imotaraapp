@@ -12,7 +12,7 @@
 import { sendOne, fromAddress, isResendConfigured } from "@/lib/broadcast/resendClient";
 import { agentFor } from "@/lib/voice/agents";
 import { placeCall, getExecution, readExecution, type ExecutionView } from "@/lib/voice/bolna";
-import { readDirectory, writeRow, appendDnc } from "@/lib/voice/sheets";
+import { readDirectory, writeRow, appendDnc, readCell } from "@/lib/voice/sheets";
 import {
   ACTIVE_CALL_MINUTES, STATUS, checkContact, inCallingWindow, phoneOf, sameContact, selectDue, userData, writebackFor, normalisePhone,
   type Contact, type Directory, type Selection,
@@ -89,6 +89,8 @@ export async function callNow(rows: RowRef[], by: string, now = new Date()): Pro
 
   const base = selectDue(d, now, { auto: false });
   let slots = Math.max(0, Math.min(d.settings.maxConcurrency - base.activeCalls, d.settings.dailyCap - base.placedToday));
+  // ⛔ One number, one call at a time — across tabs, and never while it is already ringing (review, 24 Oct).
+  const busy = new Set(d.contacts.filter((c) => c.v.status === STATUS.calling).map(phoneOf));
   for (const r of rows) {
     const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
     if (!c || !sameContact(c, r.phone)) { report.skipped.push({ tab: r.tab, name: `row ${r.row}`, reason: SHEET_CHANGED }); continue; }
@@ -96,6 +98,7 @@ export async function callNow(rows: RowRef[], by: string, now = new Date()): Pro
     if (c.v.status === STATUS.calling) { report.skipped.push({ ...who, reason: "Already being called" }); continue; }
     const check = checkContact(c, d);
     if (check !== "OK") { report.skipped.push({ ...who, reason: check }); continue; }
+    if (busy.has(phoneOf(c))) { report.skipped.push({ ...who, reason: "This number is already being called" }); continue; }
     if (!inCallingWindow(now, c.v.time_zone, c.v.country)) {
       report.skipped.push({ ...who, reason: OUTSIDE_HOURS });
       continue;
@@ -113,6 +116,7 @@ export async function callNow(rows: RowRef[], by: string, now = new Date()): Pro
       continue;
     }
     slots--;
+    busy.add(phoneOf(c));
     await writeRow(c, {
       status: STATUS.calling,
       call_attempts: String((Number(c.v.call_attempts) || 0) + 1),
@@ -151,7 +155,8 @@ export async function schedule(rows: RowRef[], at: Date): Promise<ScheduleReport
 /** Take rows off the schedule (or the queue, or a failed dial) and back to Pending. */
 export async function unschedule(rows: RowRef[]): Promise<number> {
   const d = await readDirectory();
-  const undoable: string[] = [STATUS.scheduled, STATUS.queued, STATUS.dialFailed];
+  // Wrong number: once the admin corrects the number, Retry puts it back (review, 24 Oct).
+  const undoable: string[] = [STATUS.scheduled, STATUS.queued, STATUS.dialFailed, STATUS.wrongNumber];
   let n = 0;
   for (const r of rows) {
     const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
@@ -178,6 +183,9 @@ export async function applyResult(v: ExecutionView, d?: Directory, now = new Dat
   const c = findContact(dir, v);
   if (!c) return "not_found";
   if (c.v.status !== STATUS.calling) return "already";
+  // ⚠️ The webhook and the reconcile pass can both hold a "Calling" copy; re-read the
+  // row's status just before writing, so one result — and one alert email — is applied once.
+  if ((await readCell(c, "status")) !== STATUS.calling) return "already";
 
   // ⚠️ A non-completed final status (no-answer, busy, failed) has no extraction.
   const extraction = v.status === "completed" ? { ...v.extraction, summary: v.extraction.summary || v.summary } : { outcome: "no_answer" };

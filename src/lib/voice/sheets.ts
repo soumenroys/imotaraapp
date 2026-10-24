@@ -93,7 +93,8 @@ const quote = (tab: string) => `'${tab.replace(/'/g, "''")}'`;
 /** Every tab in one request. ⚠️ A missing Settings tab is normal ⇒ safe defaults. */
 export async function readDirectory(): Promise<Directory> {
   const tabs = [...CONTACT_TABS, "Languages", "Team", "Do not call"];
-  const ranges = tabs.map((t) => `ranges=${encodeURIComponent(`${quote(t)}!A1:${LAST_COLUMN}1000`)}`).join("&");
+  // ⚠️ Open-ended: a tab past row 1000 used to be invisible to calling, email and the status sync (review, 24 Oct).
+  const ranges = tabs.map((t) => `ranges=${encodeURIComponent(`${quote(t)}!A1:${LAST_COLUMN}`)}`).join("&");
   const data = (await google(`/values:batchGet?${ranges}&valueRenderOption=FORMATTED_VALUE`)) as {
     valueRanges?: { values?: string[][] }[];
   };
@@ -410,4 +411,10 @@ export async function updateGuide(): Promise<void> {
     ] },
   ];
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+}
+
+/** One cell of one row, read fresh — for a last check just before a write. */
+export async function readCell(c: Pick<Contact, "tab" | "row">, col: Column): Promise<string> {
+  const r = (await google(`/values/${encodeURIComponent(`${quote(c.tab)}!${columnLetter(col)}${c.row}`)}`)) as { values?: string[][] };
+  return String(r.values?.[0]?.[0] ?? "").trim();
 }

@@ -16,6 +16,7 @@ import { AdminShell, useAdminRole } from "@/app/admin/_components/ui";
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { LineChart, Bars, Donut } from "@/app/admin/_components/charts";
+import { CallFlow } from "./CallFlow";
 
 type Row = {
   tab: string; row: number; name: string; organisation: string; phone: string; language: string;
@@ -134,6 +135,7 @@ export default function VoicePage() {
           </div>
         )}
         {data && <StatusStrip data={data} />}
+        {data && <CallFlow callingOn={!!data.settings?.callingEnabled} autoOn={!!data.settings?.autoDispatch} />}
         <nav className="flex flex-wrap gap-2">
           {TABS.map((t) => (
             <button

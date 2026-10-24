@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { approve, withdraw } from "@/lib/broadcast/approval";
+import { autoRunOf, readAuto } from "@/lib/broadcast/autoBroadcast";
+import { checkDraft } from "@/lib/outreach/writer";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,13 +19,22 @@ export async function POST(req: NextRequest, { params }: Params) {
   const supabase = getSupabaseAdmin();
   const { data: b } = await supabase
     .from("broadcasts")
-    .select("id, status, subject, body_html, body_text, header_text, list_id, from_email, message_type")
+    .select("id, status, subject, body_html, body_text, header_text, list_id, from_email, message_type, body_source")
     .eq("id", id)
     .maybeSingle();
   if (!b) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (b.status !== "draft") return NextResponse.json({ error: `This broadcast is ${b.status}; only a draft is approved.` }, { status: 409 });
   if (!b.subject?.trim() || (!b.body_html?.trim() && !b.body_text?.trim())) {
     return NextResponse.json({ error: "There is nothing to approve yet — write the subject and the message first." }, { status: 400 });
+  }
+  // ⛔ A monthly-newsletter draft whose word or house-style checks fail cannot be
+  //    approved — the checks are run again on the words as they are NOW, so an
+  //    edit that fixes them clears it (review, 24 Oct: the findings were dropped).
+  if (autoRunOf(await readAuto(supabase), id)) {
+    const findings = checkDraft(b.subject ?? "", (b.body_source as string | null) ?? b.body_text ?? "");
+    if (findings.length) {
+      return NextResponse.json({ error: `Fix these first, then approve: ${findings.join(" · ")}`, findings }, { status: 422 });
+    }
   }
   try {
     const a = await approve(supabase, id, b, auth.admin.email);

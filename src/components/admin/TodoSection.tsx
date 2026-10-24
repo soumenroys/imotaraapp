@@ -88,7 +88,7 @@ export default function TodoSection({ token }: { token: string }) {
         );
       })}
 
-      <SetupChecklist items={d.items.filter((i) => i.urgency === "setup")} />
+      <SetupChecklist items={d.items.filter((i) => i.urgency === "setup")} checkFailed={d.problems.some((p) => p.area === "Set up")} />
 
       {GROUPS.filter((g) => g.id !== "now").map((g) => {
         const items = d.items.filter((i) => i.urgency === g.id);
@@ -149,7 +149,7 @@ function ItemRow({ i, tone, busy, mark }: { i: Item; tone: string; busy: string 
  * true, the first unfinished one highlighted as "Next". A step is ticked because
  * the thing itself is true, never by pressing a button.
  */
-function SetupChecklist({ items }: { items: Item[] }) {
+function SetupChecklist({ items, checkFailed }: { items: Item[]; checkFailed: boolean }) {
   if (items.length === 0) return null;
   const steps = [...items].sort((a, b) => (a.step ?? 0) - (b.step ?? 0));
   const done = steps.filter((s) => s.done).length;
@@ -158,7 +158,8 @@ function SetupChecklist({ items }: { items: Item[] }) {
     <section className="space-y-2 rounded-2xl border border-indigo-400/25 bg-indigo-500/5 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-[10px] font-semibold uppercase tracking-widest text-indigo-200">🧭 Set up — in this order · {done} of {steps.length} done</h3>
-        {done === steps.length && <span className="text-xs text-emerald-300">Everything runs by itself now.</span>}
+        {/* ⛔ Only when every step was CHECKED and is true — a check that failed is not "done" (review, 24 Oct). */}
+        {done === steps.length && !checkFailed && steps.every((x, i) => x.step === i + 1) && <span className="text-xs text-emerald-300">Everything runs by itself now.</span>}
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
         <div className="h-full rounded-full bg-emerald-400/70" style={{ width: `${Math.round((done / steps.length) * 100)}%` }} />

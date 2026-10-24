@@ -78,21 +78,22 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
   return { text: d.settings.autoDispatch ? "⏳ In queue — called automatically" : "⏸ Not called yet — press 📞 in Voice calls", fix: "" };
 }
 
-export function mailProgress(c: Contact, suppressed: ReadonlySet<string>, state: OutreachState, now: Date): { text: string; fix: string } {
+export function mailProgress(c: Contact, suppressed: ReadonlySet<string>, state: OutreachState, now: Date, dnc?: ReadonlySet<string>): { text: string; fix: string } {
   if (!emailOf(c)) return { text: "— No email", fix: "" };
   const status = c.v.mail_status;
   const sent = Number(c.v.mail_step) || 0;
   if (status === MAIL.done) return { text: `✅ Done — all ${SEQUENCE.length} emails sent (last ${day(c.v.mail_last_sent)})`, fix: "" };
   if (status === MAIL.infoSent) return { text: `✅ Done — details sent ${day(c.v.mail_last_sent)}`, fix: "" };
   if (status === MAIL.unsubscribed) return { text: "✅ Unsubscribed — never emailed again", fix: "" };
-  const check = mailCheck(c, suppressed);
+  const check = mailCheck(c, suppressed, dnc);
   if (check !== "OK") {
+    if (/do-not-call/i.test(check)) return { text: "⛔ On the do-not-call list — never emailed", fix: "" };
     if (/never email/i.test(check)) return { text: "⛔ Unsubscribed or bounced — never emailed again", fix: "" };
     if (/Call outcome/i.test(check)) return { text: `✅ Stopped — ${check.replace("Call outcome: ", "call said ")}`, fix: "" };
     if (/Stopped by admin/i.test(check)) return { text: "⛔ Stopped by admin", fix: "" };
     return { text: `⛔ Not emailed — ${check}`, fix: fixFor(check, MAIL_FIX) };
   }
-  const due = dueStep(c, suppressed, now);
+  const due = dueStep(c, suppressed, now, dnc);
   const progress = sent > 0 ? `${sent} of ${SEQUENCE.length} sent (last ${day(c.v.mail_last_sent)})` : status === MAIL.infoDue ? "details email due" : "not started";
   if (!state.settings.enabled) return { text: `⏸ ${progress} — outreach email is OFF`, fix: "" };
   if (due && !sendableDraft(state, AUDIENCE_OF[c.tab], due)) {
@@ -107,7 +108,7 @@ export function progressFor(
   c: Contact, d: Pick<Directory, "languages" | "dnc" | "settings">, suppressed: ReadonlySet<string>, state: OutreachState, now: Date,
 ): ProgressCells {
   const call = callProgress(c, d, now);
-  const mail = mailProgress(c, suppressed, state, now);
+  const mail = mailProgress(c, suppressed, state, now, d.dnc);
   const fixes = [call.fix && `Call: ${call.fix}`, mail.fix && `Email: ${mail.fix}`].filter(Boolean);
   return { call_progress: call.text, mail_progress: mail.text, what_to_do: fixes.join("  ·  ") || (call.text.startsWith("✅") && !mail.text.startsWith("⏳") ? "Nothing — done." : "Nothing needed now.") };
 }

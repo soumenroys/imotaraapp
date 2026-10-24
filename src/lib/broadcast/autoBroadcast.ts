@@ -31,7 +31,13 @@ import { SIGNATURE, checkDraft, parseMail } from "@/lib/outreach/writer";
 
 const KEY = "auto_broadcast";
 
-export type AutoRun = { month: string; theme: string; sendAt: string; broadcastIds: string[]; createdAt: string; sent: string[] };
+export type AutoRun = {
+  month: string; theme: string; sendAt: string; broadcastIds: string[]; createdAt: string; sent: string[];
+  /** What the word and house-style checks found — approval is refused until they are cleared. */
+  findings?: string[];
+  /** Set while a run is writing it, so a second run cannot write the month again. */
+  claimedAt?: string;
+};
 export type AutoSettings = { enabled: boolean; dayOfMonth: number; hourIst: number; listIds: string[] };
 export type AutoState = { settings: AutoSettings; runs: Record<string, AutoRun> };
 
@@ -83,6 +89,30 @@ export async function readAuto(supabase: SupabaseClient): Promise<AutoState> {
     },
     runs: v.runs ?? {},
   };
+}
+
+/**
+ * 🔴 Save ONE month's run, re-reading everything else first. Writing back the
+ * copy read at the start of a slow run (writing the newsletter takes up to two
+ * minutes) undid any settings change the admin made meanwhile (review, 24 Oct).
+ */
+export async function saveRun(supabase: SupabaseClient, run: AutoRun): Promise<void> {
+  const fresh = await readAuto(supabase);
+  fresh.runs[run.month] = run;
+  await writeAuto(supabase, fresh);
+}
+
+/** The month whose newsletter is next — the same rule for the settings page and the sample. */
+export function nextMonth(now: Date, s: AutoState): string {
+  const m = monthKey(now);
+  if (sendAtFor(m, s.settings).getTime() >= now.getTime()) return m;
+  const [y, mo] = m.split("-").map(Number);
+  return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, "0")}`;
+}
+
+/** Is this broadcast one of the monthly newsletter's drafts — and what did its checks find? */
+export function autoRunOf(s: AutoState, broadcastId: string): AutoRun | null {
+  return Object.values(s.runs).find((r) => r.broadcastIds.includes(broadcastId)) ?? null;
 }
 
 export async function writeAuto(supabase: SupabaseClient, s: AutoState): Promise<void> {
@@ -140,50 +170,58 @@ export async function runAutoBroadcast(supabase: SupabaseClient, now = new Date(
   if (state.settings.listIds.length === 0) return { ok: false, reason: "No list is chosen for the automatic broadcast." };
   const report: AutoReport = { ok: true, created: [], sent: [], waiting: [] };
 
-  // This month, or next month when its drafts are already due (the lead time can cross a month end).
+  // 1 · Write and create this month's drafts, LEAD_DAYS before (the lead time can cross a month end).
   for (const month of new Set([monthKey(now), monthKey(new Date(now.getTime() + LEAD_DAYS * 86_400_000))])) {
     const sendAt = sendAtFor(month, state.settings);
-    let run = state.runs[month];
+    const inWindow = now.getTime() >= sendAt.getTime() - LEAD_DAYS * 86_400_000 && now.getTime() < sendAt.getTime() + 7 * 86_400_000;
+    if (!inWindow) continue;
+    // ⛔ Claim the month first, from a FRESH read: two runs at once used to create two sets of drafts.
+    const fresh = await readAuto(supabase);
+    const existing = fresh.runs[month];
+    if (existing && (existing.broadcastIds.length > 0 || (existing.claimedAt && now.getTime() - Date.parse(existing.claimedAt) < 15 * 60_000))) continue;
+    const theme = themeFor(month);
+    const claim: AutoRun = { month, theme: theme.id, sendAt: sendAt.toISOString(), broadcastIds: [], createdAt: now.toISOString(), sent: [], claimedAt: now.toISOString() };
+    await saveRun(supabase, claim);
 
-    // 1 · Write and create the drafts, LEAD_DAYS before.
-    if (!run && now.getTime() >= sendAt.getTime() - LEAD_DAYS * 86_400_000 && now.getTime() < sendAt.getTime() + 7 * 86_400_000) {
-      const theme = themeFor(month);
-      const w = await writeNewsletter(theme);
-      const from = (await availableIdentities(supabase))[0];
-      if (!from) return { ok: false, reason: "No sender address is set up (Broadcast → sender identities)." };
-      const ids: string[] = [];
-      for (const listId of state.settings.listIds) {
-        const { data, error } = await supabase.from("broadcasts").insert({
-          subject: w.subject, body_html: renderHtml(w.body), body_text: renderText(w.body), body_source: w.body,
-          message_type: "broadcast", list_id: listId, status: "draft",
-          from_email: from.email.toLowerCase(), from_name: from.name || null, reply_to: from.email.toLowerCase(),
-        }).select("id").single();
-        if (error || !data) throw new Error(`Could not create the draft: ${error?.message}`);
-        ids.push(data.id as string);
-      }
-      run = { month, theme: theme.id, sendAt: sendAt.toISOString(), broadcastIds: ids, createdAt: now.toISOString(), sent: [] };
-      state.runs[month] = run;
-      await writeAuto(supabase, state);
-      report.created!.push(...ids);
+    const w = await writeNewsletter(theme);
+    const from = (await availableIdentities(supabase))[0];
+    if (!from) return { ok: false, reason: "No sender address is set up (Broadcast → sender identities)." };
+    const ids: string[] = [];
+    for (const listId of state.settings.listIds) {
+      const { data, error } = await supabase.from("broadcasts").insert({
+        subject: w.subject, body_html: renderHtml(w.body), body_text: renderText(w.body), body_source: w.body,
+        message_type: "broadcast", list_id: listId, status: "draft",
+        from_email: from.email.toLowerCase(), from_name: from.name || null, reply_to: from.email.toLowerCase(),
+      }).select("id").single();
+      if (error || !data) throw new Error(`Could not create the draft: ${error?.message}`);
+      ids.push(data.id as string);
     }
+    await saveRun(supabase, { ...claim, broadcastIds: ids, findings: w.findings, claimedAt: undefined });
+    report.created!.push(...ids);
+  }
 
-    // 2 · On the day, send what is approved.
-    if (run && now.getTime() >= Date.parse(run.sendAt)) {
-      const approvals = await readApprovals(supabase);
-      for (const id of run.broadcastIds) {
-        if (run.sent.includes(id)) continue;
-        const { data: b } = await supabase.from("broadcasts")
-          .select("id, status, subject, body_html, body_text, header_text, list_id, from_email, message_type").eq("id", id).maybeSingle();
-        if (!b || b.status !== "draft") continue; // sent by hand, or discarded
-        // ⛔ Never without approval — the approval must match the words as they are now.
-        if (approvalState(approvals, id, b) !== "approved") { report.waiting!.push(id); continue; }
-        await enqueueBroadcast(supabase, id, b.list_id as string);
-        await supabase.from("broadcasts").update({ status: "sending", started_at: now.toISOString() }).eq("id", id).eq("status", "draft");
-        run.sent.push(id);
-        report.sent!.push(id);
-      }
-      await writeAuto(supabase, state);
+  // 2 · Send what is approved, for EVERY month due in the last 30 days — a draft approved after
+  //     its month ended used to be forgotten while To do still promised it would go (review, 24 Oct).
+  const latest = await readAuto(supabase);
+  const approvals = await readApprovals(supabase);
+  for (const run of Object.values(latest.runs)) {
+    const due = Date.parse(run.sendAt);
+    if (!(due <= now.getTime() && now.getTime() - due < 30 * 86_400_000)) continue;
+    let changed = false;
+    for (const id of run.broadcastIds) {
+      if (run.sent.includes(id)) continue;
+      const { data: b } = await supabase.from("broadcasts")
+        .select("id, status, subject, body_html, body_text, header_text, list_id, from_email, message_type").eq("id", id).maybeSingle();
+      if (!b || b.status !== "draft") continue; // sent by hand, or discarded
+      // ⛔ Never without approval — the approval must match the words as they are now.
+      if (approvalState(approvals, id, b) !== "approved") { report.waiting!.push(id); continue; }
+      await enqueueBroadcast(supabase, id, b.list_id as string);
+      await supabase.from("broadcasts").update({ status: "sending", started_at: now.toISOString() }).eq("id", id).eq("status", "draft");
+      run.sent.push(id);
+      report.sent!.push(id);
+      changed = true;
     }
+    if (changed) await saveRun(supabase, run);
   }
   return report;
 }

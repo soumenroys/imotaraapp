@@ -6,7 +6,7 @@
  * the info email; unsubscribe, bounce, a "no" on a call or a meeting stops it.
  */
 import { describe, it, expect } from "vitest";
-import { COLUMNS, STATUS, columnLetter, letterFor, writebackFor, type Column, type Contact } from "@/lib/voice/rules";
+import { COLUMNS, STATUS, columnLetter, letterFor, phoneOf, writebackFor, type Column, type Contact } from "@/lib/voice/rules";
 import { MAIL, afterSent, dueStep, mailCheck, selectMail } from "@/lib/outreach/sequence";
 import { checkMailStyle, SIGNATURE, parseMail } from "@/lib/outreach/writer";
 import { buildMessage, OUTREACH_ID } from "@/lib/outreach/send";
@@ -94,15 +94,16 @@ describe("the sequence: day 0, 7, 21", () => {
 });
 
 describe("⛔ only an approved draft is sent", () => {
-  const draft = { subject: "s", body: "b", writtenAt: "", writtenBy: "", findings: [] as string[] };
-  const state = (status: "needs_review" | "approved", sendWithoutAsking = false, findings: string[] = []): OutreachState => ({
+  const draft = { subject: "s", body: "b", writtenAt: "", findings: [] as string[] };
+  const state = (status: "needs_review" | "approved", sendWithoutAsking = false, findings: string[] = [], writtenBy = "automatic"): OutreachState => ({
     settings: { enabled: true, sendWithoutAsking, dailyCap: 20 },
-    drafts: { "ngos:intro": { ...draft, status, findings } },
+    drafts: { "ngos:intro": { ...draft, writtenBy, status, findings } },
   });
   it("waiting for review ⇒ not sent", () => expect(sendableDraft(state("needs_review"), "ngos", "intro")).toBeNull());
   it("approved ⇒ sent", () => expect(sendableDraft(state("approved"), "ngos", "intro")).not.toBeNull());
   it("send-without-asking sends a CLEAN unreviewed draft", () => expect(sendableDraft(state("needs_review", true), "ngos", "intro")).not.toBeNull());
   it("⛔ …but never one with findings", () => expect(sendableDraft(state("needs_review", true, ["x"]), "ngos", "intro")).toBeNull());
+  it("⛔ …and never one a person edited and left unapproved", () => expect(sendableDraft(state("needs_review", true, [], "owner@x"), "ngos", "intro")).toBeNull());
 });
 
 describe("the house style is checked in code", () => {
@@ -144,5 +145,14 @@ describe("spam-safe wording is matched as whole words", () => {
   it("⛔ 'free' in a subject and shouting are flagged", () => {
     expect(checkMailStyle("Free for your staff", ok).join(" ")).toMatch(/free/i);
     expect(checkMailStyle("A note", ok.replace("Students", "STUDENTS")).join(" ")).toMatch(/SHOUTED/);
+  });
+});
+
+describe("⛔ the Do-not-call tab stops email too", () => {
+  it("a phone on the Do-not-call list is never emailed", () => {
+    const c = contact();
+    expect(mailCheck(c, none)).toBe("OK");
+    expect(mailCheck(c, none, new Set([phoneOf(c)]))).toMatch(/do-not-call/);
+    expect(dueStep(c, none, TUE_11_IST, new Set([phoneOf(c)]))).toBeNull();
   });
 });

@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { LEAD_DAYS, monthKey, readAuto, sendAtFor, themeFor, writeAuto } from "@/lib/broadcast/autoBroadcast";
+import { LEAD_DAYS, nextMonth, readAuto, sendAtFor, themeFor, writeAuto } from "@/lib/broadcast/autoBroadcast";
 
 export const runtime = "nodejs";
 
@@ -13,11 +13,8 @@ export async function GET(req: NextRequest) {
   if (!auth.ok) return auth.response;
   const s = await readAuto(getSupabaseAdmin());
   const now = new Date();
-  let month = monthKey(now);
-  if (sendAtFor(month, s.settings).getTime() < now.getTime() && s.runs[month]) {
-    const [y, m] = month.split("-").map(Number);
-    month = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`;
-  }
+  // 🔑 One rule, shared with the sample: once this month's send time has passed, the next one is next month.
+  const month = nextMonth(now, s);
   const sendAt = sendAtFor(month, s.settings);
   return NextResponse.json({
     ...s,

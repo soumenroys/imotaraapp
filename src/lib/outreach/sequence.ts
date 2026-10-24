@@ -15,7 +15,7 @@
 // meeting booked (a person takes over), or a safety flag — nothing automatic
 // writes to that person again.
 
-import { CONTACT_TABS, MAIL_INFO_DUE, STATUS, inCallingWindow, stoppedByAdmin, type Contact, type ContactTab } from "@/lib/voice/rules";
+import { CONTACT_TABS, MAIL_INFO_DUE, STATUS, inCallingWindow, phoneOf, stoppedByAdmin, type Contact, type ContactTab } from "@/lib/voice/rules";
 
 export type Audience = "individuals" | "ngos" | "education" | "eldercare" | "corporates";
 
@@ -80,7 +80,8 @@ export function emailOf(c: Contact): string {
 }
 
 /** "OK", or why this person is not emailed. Same spirit as the calling check, mail's own rules. */
-export function mailCheck(c: Contact, suppressed: ReadonlySet<string>): string {
+/** `dnc`: the sheet's Do-not-call tab — a person who asked never to be called is not emailed either. */
+export function mailCheck(c: Contact, suppressed: ReadonlySet<string>, dnc?: ReadonlySet<string>): string {
   const email = emailOf(c);
   if (!email) return "No email";
   if (!EMAIL_RE.test(email)) return "Email looks wrong";
@@ -92,6 +93,7 @@ export function mailCheck(c: Contact, suppressed: ReadonlySet<string>): string {
   // ⛔ The owner's rule: no consent note, no email — exactly as for calls.
   if (!c.v.consent_note) return "Add consent note";
   if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
+  if (dnc?.has(phoneOf(c))) return "On do-not-call list - never contact";
   if (suppressed.has(email)) return "Unsubscribed or bounced - never email";
   if (STOP_CALL_STATUSES.includes(c.v.status)) return `Call outcome: ${c.v.status}`;
   // ⚠️ "Send failed: old@addr" — retried by itself once the admin corrects the address.
@@ -110,8 +112,8 @@ const DAY = 86_400_000;
  * (10:00–18:00 their time, never a Sunday in India) — the same window calls
  * use, so nobody gets an email at 3 a.m. because a job ran then.
  */
-export function dueStep(c: Contact, suppressed: ReadonlySet<string>, now: Date): StepId | null {
-  if (mailCheck(c, suppressed) !== "OK") return null;
+export function dueStep(c: Contact, suppressed: ReadonlySet<string>, now: Date, dnc?: ReadonlySet<string>): StepId | null {
+  if (mailCheck(c, suppressed, dnc) !== "OK") return null;
   if (!inCallingWindow(now, c.v.time_zone, c.v.country)) return null;
   if (c.v.mail_status === MAIL.infoDue) return "info";
 
@@ -141,12 +143,13 @@ export function selectMail(
   suppressed: ReadonlySet<string>,
   now: Date,
   limit: number,
+  dnc?: ReadonlySet<string>,
 ): { contact: Contact; step: StepId }[] {
   const out: { contact: Contact; step: StepId }[] = [];
   const seen = new Set<string>();
   for (const c of contacts) {
     if (out.length >= limit) break;
-    const step = dueStep(c, suppressed, now);
+    const step = dueStep(c, suppressed, now, dnc);
     if (!step) continue;
     // ⛔ One email per address per run, even if the person is on two tabs.
     const email = emailOf(c);

@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { LEAD_DAYS, THEMES, monthKey, sendAtFor, themeFor } from "@/lib/broadcast/autoBroadcast";
+import { LEAD_DAYS, THEMES, monthKey, nextMonth, sendAtFor, themeFor } from "@/lib/broadcast/autoBroadcast";
 
 const s = { enabled: true, dayOfMonth: 5, hourIst: 11, listIds: ["L"] };
 
@@ -34,4 +34,21 @@ describe("⛔ never sent without approval", () => {
   it("only a draft is ever sent — one sent by hand or discarded is left alone", () => {
     expect(src).toMatch(/if \(!b \|\| b\.status !== "draft"\) continue;/);
   });
+});
+
+describe("review fixes, 24 Oct", () => {
+  const src = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+  const st = { settings: s, runs: {} };
+  it("before the 5th, the next newsletter is this month's", () => expect(nextMonth(new Date("2026-11-03T05:30:00Z"), st)).toBe("2026-11"));
+  it("after it, next month's — the settings page and the sample agree", () => {
+    expect(nextMonth(new Date("2026-11-06T05:30:00Z"), st)).toBe("2026-12");
+    expect(nextMonth(new Date("2026-12-06T05:30:00Z"), st)).toBe("2027-01");
+    for (const p of ["src/app/api/admin/broadcast/auto/route.ts", "src/app/api/admin/broadcast/auto/sample/route.ts"]) expect(src(p)).toMatch(/nextMonth\(now, s\)/);
+  });
+  it("⛔ a draft approved after its month still goes — every run due in the last 30 days is looked at", () =>
+    expect(src("src/lib/broadcast/autoBroadcast.ts")).toMatch(/for \(const run of Object\.values\(latest\.runs\)\)/));
+  it("⛔ a slow run never writes back a stale copy of the settings", () =>
+    expect(src("src/lib/broadcast/autoBroadcast.ts")).not.toMatch(/writeAuto\(supabase, state\)/));
+  it("⛔ a newsletter whose checks fail cannot be approved", () =>
+    expect(src("src/app/api/admin/broadcast/broadcasts/[id]/approve/route.ts")).toMatch(/checkDraft\([\s\S]*status: 422/));
 });

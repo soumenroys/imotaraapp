@@ -41,7 +41,12 @@ async function post(url: string, body: unknown) {
 
 export default function OutreachPage() {
   const role = useAdminRole();
+  // 🔑 ?tab=settings (or contacts) opens that tab — the To do page links straight to it.
   const [tab, setTab] = useState<Tab>("emails");
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "settings" || t === "contacts") setTab(t);
+  }, []);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -139,7 +144,7 @@ function EmailsTab({ d, reload, say }: { d: Overview; reload: () => Promise<void
       <p className="text-zinc-400">
         English for now. {"{{name|there}}"} and {"{{organisation}}"} are filled in for each person when it is sent.
       </p>
-      {STEPS.map((s) => <DraftCard key={`${audience}:${s}`} audience={audience} step={s} draft={d.drafts[`${audience}:${s}`]} reload={reload} say={say}
+      {STEPS.map((s) => <DraftCard key={`${audience}:${s}:${d.drafts[`${audience}:${s}`]?.writtenAt ?? ""}`} audience={audience} step={s} draft={d.drafts[`${audience}:${s}`]} reload={reload} say={say}
         startOpen={audience === want.audience && s === want.step} />)}
     </section>
   );

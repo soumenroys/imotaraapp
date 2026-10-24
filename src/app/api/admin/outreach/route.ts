@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       .map((c) => ({
         tab: c.tab, row: c.row, audience: AUDIENCE_OF[c.tab], name: c.v.name, organisation: c.v.organisation,
         email: emailOf(c), mailStatus: c.v.mail_status, mailStep: Number(c.v.mail_step) || 0, lastSent: c.v.mail_last_sent,
-        callStatus: c.v.status, check: mailCheck(c, suppressed), due: dueStep(c, suppressed, now),
+        callStatus: c.v.status, check: mailCheck(c, suppressed, d.dnc), due: dueStep(c, suppressed, now, d.dnc),
       }));
     return NextResponse.json({
       settings: state.settings,

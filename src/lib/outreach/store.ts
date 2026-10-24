@@ -87,5 +87,6 @@ export function sendableDraft(state: OutreachState, a: Audience, s: StepId): Dra
   const d = state.drafts[draftKey(a, s)];
   if (!d) return null;
   if (d.status === "approved") return d;
-  return state.settings.sendWithoutAsking && d.findings.length === 0 ? d : null;
+  // ⚠️ "Send without asking" covers drafts the SYSTEM wrote, as the setting says — an admin's own save still waits for Approve.
+  return state.settings.sendWithoutAsking && d.writtenBy === "automatic" && d.findings.length === 0 ? d : null;
 }

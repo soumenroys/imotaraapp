@@ -15,6 +15,7 @@ import { availableIdentities } from "@/lib/broadcast/identities";
 import { isResendConfigured } from "@/lib/broadcast/resendClient";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
 import { readAuto } from "@/lib/broadcast/autoBroadcast";
+import { OUTREACH_LIST_PREFIX } from "@/lib/outreach/record";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -120,18 +121,23 @@ export function broadcastSource(supabase: SupabaseClient): TodoSource {
       // 🔑 The monthly newsletter's drafts say so, with their send time ⇒ autoBroadcast.ts.
       const auto = await readAuto(supabase).catch(() => null);
       const sendAtOf = new Map<string, string>();
-      for (const r of Object.values(auto?.runs ?? {})) for (const id of r.broadcastIds) sendAtOf.set(id, r.sendAt);
+      const findingsOf = new Map<string, string[]>();
+      for (const r of Object.values(auto?.runs ?? {})) for (const id of r.broadcastIds) { sendAtOf.set(id, r.sendAt); if (r.findings?.length) findingsOf.set(id, r.findings); }
       const out: TodoItem[] = [];
       for (const b of rows ?? []) {
         if (b.status === "paused") {
           out.push({ id: `broadcast:paused:${b.id}`, area: "Broadcast mail", urgency: "now", title: `A broadcast stopped part-way: “${b.subject}”`, detail: "Sending hit an error and paused. Open it to read why, then resume.", href: `/admin?section=broadcast&status=${b.id}`, action: "Open and resume" });
         } else if (approvalState(approvals, b.id as string, b) !== "approved") {
           const due = sendAtOf.get(b.id as string);
+          const late = due ? Date.parse(due) < Date.now() : false;
+          const findings = findingsOf.get(b.id as string);
+          const when = due ? new Date(due).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "";
           out.push({
             id: `broadcast:approve:${b.id}:${b.updated_at}`, area: "Broadcast mail",
-            urgency: due && Date.parse(due) - Date.now() < 2 * 86_400_000 ? "today" : "soon",
+            urgency: late ? "now" : due && Date.parse(due) - Date.now() < 2 * 86_400_000 ? "today" : "soon",
             title: due ? `Approve this month's newsletter: “${b.subject}”` : `Approve or discard: “${b.subject || "(no subject)"}”`,
-            detail: due ? `It goes out by itself on ${new Date(due).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST once approved.`
+            detail: due
+              ? `${findings ? `Its checks found ${plural(findings.length, "problem")} — edit them out before approving. ` : ""}${late ? `It was due on ${when} IST — approve it and it goes out within the hour.` : `It goes out by itself on ${when} IST once approved.`}`
               : !b.list_id ? "No recipient list attached — attach one in the draft, or discard it if it is not needed." : "A draft waiting for approval.",
             href: `/admin?section=broadcast&review=${b.id}`, action: "Read and approve",
           });
@@ -286,49 +292,77 @@ const step = (n: number, done: boolean, title: string, detail: string, href: str
   ({ id: `setup:${n}`, area, urgency: "setup", step: n, done, title, detail, href, action });
 
 /** Steps 1–7: mail, the sheet, social, outreach, calling. */
+const INTENDED = /^(Call ended|On do-not-call|Stopped by admin|EXCLUDED|Individuals paused|Language not started)/;
+
+/**
+ * ⛔ One step failing to check must not hide the others (review, 24 Oct: one
+ * error blanked the whole checklist). A failed check shows as NOT done, saying why.
+ */
+async function checked(n: number, title: string, href: string, action: string, read: () => Promise<TodoItem[]>): Promise<TodoItem[]> {
+  try { return await read(); } catch (e) { return [step(n, false, title, `Could not check this: ${(e as Error).message}`, href, action)]; }
+}
+
 export function setupSource(supabase: SupabaseClient): TodoSource {
   return {
     area: "Set up",
     roles: "admins",
     read: async () => {
       const out: TodoItem[] = [];
-      const from = (await availableIdentities(supabase))[0];
-      const mailOk = Boolean(from) && isResendConfigured() && isUnsubscribeConfigured();
-      out.push(step(1, mailOk, "Mail can be sent", mailOk ? `From ${from!.email}.` : "Set a sender in Broadcast mail → Sending status (and the mail keys).", "/admin?section=broadcast&view=health", "Check sending"));
+      out.push(...await checked(1, "Mail can be sent", "/admin?section=broadcast&view=health", "Check sending", async () => {
+        const from = (await availableIdentities(supabase))[0];
+        const mailOk = Boolean(from) && isResendConfigured() && isUnsubscribeConfigured();
+        return [step(1, mailOk, "Mail can be sent", mailOk ? `From ${from!.email}.` : "Set a sender in Broadcast mail → Sending status (and the mail keys).", "/admin?section=broadcast&view=health", "Check sending")];
+      }));
 
-      const sheet = sheetsConfigured();
-      const d = sheet ? await readDirectory() : null;
-      const contacts = (d?.contacts ?? []).filter((c) => !/^sample\b/i.test(c.v.name));
-      out.push(step(2, contacts.length > 0, "Add your contacts to the Call Directory sheet",
-        contacts.length ? `${plural(contacts.length, "contact")} in the sheet.` : "The sheet is empty. Fill the white columns: phone, name, organisation, language, time zone, consent note — and email for outreach mail.",
-        "/admin/voice", "Open the sheet"));
-      if (d) {
-        const broken = contacts.filter((c) => checkContact(c, d) !== "OK" && !/Stopped by admin|Individuals paused/.test(checkContact(c, d)));
-        out.push(step(3, contacts.length > 0 && broken.length === 0, "Fix the rows the sheet marks ⛔",
-          contacts.length === 0 ? "Add contacts first." : broken.length ? `${plural(broken.length, "row")} cannot be contacted yet — the sheet's what_to_do column says what to fix on each.` : "Every row is complete.",
-          "/admin/voice", "See the rows"));
-      }
+      let d: Awaited<ReturnType<typeof readDirectory>> | null = null;
+      let contacts: Awaited<ReturnType<typeof readDirectory>>["contacts"] = [];
+      out.push(...await checked(2, "Add your contacts to the Call Directory sheet", "/admin/voice", "Open the sheet", async () => {
+        d = sheetsConfigured() ? await readDirectory() : null;
+        contacts = (d?.contacts ?? []).filter((c) => !/^sample\b/i.test(c.v.name));
+        const items = [step(2, contacts.length > 0, "Add your contacts to the Call Directory sheet",
+          contacts.length ? `${plural(contacts.length, "contact")} in the sheet.` : "The sheet is empty. Fill the white columns: phone, name, organisation, language, time zone, consent note — and email for outreach mail.",
+          "/admin/voice", "Open the sheet")];
+        if (d) {
+          const dir = d;
+          // ⚠️ Only rows somebody must FIX. A row that is meant not to be called (ended, do-not-call,
+          //    stopped, excluded, a paused tab or language) is not a mistake (review, 24 Oct).
+          const broken = contacts.filter((c) => { const v = checkContact(c, dir); return v !== "OK" && !INTENDED.test(v); });
+          items.push(step(3, contacts.length > 0 && broken.length === 0, "Fix the rows the sheet marks ⛔",
+            contacts.length === 0 ? "Add contacts first." : broken.length ? `${plural(broken.length, "row")} cannot be contacted yet — the sheet's what_to_do column says what to fix on each.` : "Every row is complete.",
+            "/admin/voice", "See the rows"));
+        }
+        return items;
+      }));
 
-      const { data: schedules } = await supabase.from("social_schedules").select("id").eq("active", true);
-      const { data: channels } = await supabase.from("social_accounts").select("id").in("status", ["ok", "expiring"]);
-      const socialOk = (schedules?.length ?? 0) > 0 && (channels?.length ?? 0) > 0;
-      out.push(step(4, socialOk, "Social: a channel connected and a schedule running",
-        socialOk ? `${plural(channels!.length, "channel")} working, ${plural(schedules!.length, "schedule")} running.` : "Connect a channel and create a schedule.",
-        socialOk ? "/admin/social/schedules" : "/admin/social/channels", "Open Social"));
+      out.push(...await checked(4, "Social: a channel connected and a schedule running", "/admin/social/channels", "Open Social", async () => {
+        const { data: schedules, error: sErr } = await supabase.from("social_schedules").select("id").eq("active", true);
+        const { data: channels, error: cErr } = await supabase.from("social_accounts").select("id").in("status", ["ok", "expiring"]);
+        if (sErr || cErr) throw new Error((sErr ?? cErr)!.message);
+        const socialOk = (schedules?.length ?? 0) > 0 && (channels?.length ?? 0) > 0;
+        return [step(4, socialOk, "Social: a channel connected and a schedule running",
+          socialOk ? `${plural(channels!.length, "channel")} working, ${plural(schedules!.length, "schedule")} running.` : "Connect a channel and create a schedule.",
+          socialOk ? "/admin/social/schedules" : "/admin/social/channels", "Open Social")];
+      }));
 
-      const o = await readOutreach(supabase);
-      const suppressed = new Set<string>();
-      const emailable = contacts.filter((c) => emailOf(c) && mailCheck(c, suppressed) === "OK");
-      const needed = [...new Set(emailable.map((c) => AUDIENCE_OF[c.tab]))].flatMap((a) => (["intro", "followup", "last"] as const).map((st) => draftKey(a, st)));
-      const missing = needed.filter((k) => o.drafts[k]?.status !== "approved");
-      out.push(step(5, emailable.length > 0 && missing.length === 0, "Approve the outreach emails for your contacts",
-        emailable.length === 0 ? "No contact with an email and a consent note yet." : missing.length ? `${plural(missing.length, "email")} still to approve (introduction, day 7, day 21 for each audience in your sheet).` : "All approved.",
-        missing.length ? `/admin/outreach?audience=${missing[0].split(":")[0]}&step=${missing[0].split(":")[1]}` : "/admin/outreach", "Read and approve"));
-      out.push(step(6, o.settings.enabled, "Switch Outreach email ON", o.settings.enabled ? `ON — at most ${o.settings.dailyCap} a day.` : "Once the emails are approved.", "/admin/outreach", "Open Settings"));
+      out.push(...await checked(5, "Approve the outreach emails for your contacts", "/admin/outreach", "Read and approve", async () => {
+        const o = await readOutreach(supabase);
+        const dir = d as Awaited<ReturnType<typeof readDirectory>> | null;
+        const emailable = contacts.filter((c) => emailOf(c) && mailCheck(c, new Set<string>(), dir?.dnc) === "OK");
+        const needed = [...new Set(emailable.map((c) => AUDIENCE_OF[c.tab]))].flatMap((a) => (["intro", "followup", "last"] as const).map((st) => draftKey(a, st)));
+        const missing = needed.filter((k) => o.drafts[k]?.status !== "approved");
+        return [step(5, emailable.length > 0 && missing.length === 0, "Approve the outreach emails for your contacts",
+          emailable.length === 0 ? "No contact with an email and a consent note yet." : missing.length ? `${plural(missing.length, "email")} still to approve (introduction, day 7, day 21 for each audience in your sheet).` : "All approved.",
+          missing.length ? `/admin/outreach?audience=${missing[0].split(":")[0]}&step=${missing[0].split(":")[1]}` : "/admin/outreach", "Read and approve")];
+      }));
+      out.push(...await checked(6, "Switch Outreach email ON", "/admin/outreach?tab=settings", "Open Settings", async () => {
+        const o = await readOutreach(supabase);
+        return [step(6, o.settings.enabled, "Switch Outreach email ON", o.settings.enabled ? `ON — at most ${o.settings.dailyCap} a day.` : "Once the emails are approved.", "/admin/outreach?tab=settings", "Open Settings")];
+      }));
 
-      const callOn = Boolean(d?.settings.callingEnabled && d?.settings.autoDispatch);
+      const dir = d as Awaited<ReturnType<typeof readDirectory>> | null;
+      const callOn = Boolean(dir?.settings.callingEnabled && dir?.settings.autoDispatch);
       out.push(step(7, callOn, "Switch Calling and Automatic calling ON",
-        callOn ? "Calls go out by themselves in each person's daytime." : `Calling is ${d?.settings.callingEnabled ? "ON" : "OFF"}, automatic is ${d?.settings.autoDispatch ? "ON" : "OFF"}.`,
+        callOn ? "Calls go out by themselves in each person's daytime." : `Calling is ${dir?.settings.callingEnabled ? "ON" : "OFF"}, automatic is ${dir?.settings.autoDispatch ? "ON" : "OFF"}.`,
         "/admin/voice", "Open Voice calls → Settings"));
       return out;
     },
@@ -344,7 +378,7 @@ export function setupBroadcastSource(supabase: SupabaseClient): TodoSource {
       const { data: lists, error } = await supabase.from("broadcast_lists").select("id, name, broadcast_recipients(count)");
       if (error) throw new Error(error.message);
       const count = (l: { broadcast_recipients?: unknown }) => Number((l.broadcast_recipients as { count?: number }[] | undefined)?.[0]?.count ?? 0);
-      const usable = (lists ?? []).filter((l) => !(l.name as string).startsWith("Outreach —") && count(l) > 0);
+      const usable = (lists ?? []).filter((l) => !(l.name as string).startsWith(OUTREACH_LIST_PREFIX) && count(l) > 0);
       const auto = await readAuto(supabase);
       return [
         step(8, usable.length > 0, "Have a recipient list for the newsletter",

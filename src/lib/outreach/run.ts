@@ -19,7 +19,7 @@ import { AUDIENCE_OF, MAIL, emailOf, selectMail, afterSent, type Audience, type 
 import { draftKey, readOutreach, sendableDraft, updateOutreach } from "@/lib/outreach/store";
 import { sendOutreach, senderIdentity, suppressedEmails } from "@/lib/outreach/send";
 import { writeMailDraft } from "@/lib/outreach/writer";
-import { createVersion, recordSend } from "@/lib/outreach/record";
+import { createVersion, outreachHistory, recordSend } from "@/lib/outreach/record";
 
 /** At most this many sends per pass, so one run stays well inside its time limit. */
 export const PER_RUN = 10;
@@ -56,7 +56,7 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
   report.limit = limit;
 
   // Everyone due, regardless of today's limit — to know which drafts are needed.
-  const due = selectMail(d.contacts, suppressed, now, 500);
+  const due = selectMail(d.contacts, suppressed, now, 500, d.dnc);
 
   // 1. Write the drafts that due mail needs and that do not exist yet.
   const missing = [...new Set(due.map(({ contact, step }) => draftKey(AUDIENCE_OF[contact.tab], step)))]
@@ -66,8 +66,9 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
     const [audience, step] = k.split(":") as [Audience, StepId];
     try {
       const w = await writeMailDraft(audience, step);
+      // ⛔ Only if still missing: an admin may have written and approved it while this one was being written (review, 24 Oct).
       state = await updateOutreach(supabase, (s) => {
-        s.drafts[k] = { ...w, status: "needs_review", writtenAt: now.toISOString(), writtenBy: "automatic" };
+        if (!s.drafts[k]) s.drafts[k] = { ...w, status: "needs_review", writtenAt: now.toISOString(), writtenBy: "automatic" };
       });
       report.draftsWritten.push(k);
     } catch (e) {
@@ -76,9 +77,16 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
   }
 
   // 2. Send what is due, within today's limit, and only with a sendable draft.
+  const history = await outreachHistory(supabase, [...new Set(due.map(({ contact }) => emailOf(contact)))]);
   let left = limit;
   for (const { contact, step } of due) {
     if (left <= 0) break;
+    const had = history.get(emailOf(contact)) ?? new Set<string>();
+    const mine = draftKey(AUDIENCE_OF[contact.tab], step);
+    // ⛔ Already sent (the sheet just did not hear of it) — repair the sheet, never send twice.
+    if (had.has(mine)) { await writeRow(contact, afterSent(contact, step, now)).catch(() => {}); continue; }
+    // ⛔ One sequence per address: the same person on two tabs used to get two (review, 24 Oct).
+    if ([...had].some((k) => !k.startsWith(`${AUDIENCE_OF[contact.tab]}:`))) continue;
     const k = draftKey(AUDIENCE_OF[contact.tab], step);
     const draft = sendableDraft(state, AUDIENCE_OF[contact.tab], step);
     if (!draft) { if (!report.waitingForApproval.includes(k)) report.waitingForApproval.push(k); continue; }
@@ -91,10 +99,16 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
     }
     const out = await sendOutreach(draft, { email, name: contact.v.name, organisation: contact.v.organisation }, from, draft.broadcastId);
     if (out.ok) {
-      await writeRow(contact, afterSent(contact, step, now));
+      // 🔑 The database record first — it is what stops a second send — then the sheet.
       await recordSend(supabase, { broadcastId: draft.broadcastId, audience: AUDIENCE_OF[contact.tab], contact, email, resendId: out.id, now });
       report.sent.push({ email, step });
       left--;
+      try {
+        await writeRow(contact, afterSent(contact, step, now));
+      } catch (e) {
+        // ⛔ The sheet could not be told: stop here rather than carry on blind; the next run repairs it from the record.
+        return { ...report, ok: false, reason: `Sent to ${email}, but the sheet could not be updated: ${(e as Error).message}` };
+      }
     } else if (out.kind === "recipient") {
       await writeRow(contact, { mail_status: `${MAIL.failed}: ${email}`, next_action: `Email refused: ${out.message.slice(0, 120)}` });
       report.failed.push({ email, error: out.message });

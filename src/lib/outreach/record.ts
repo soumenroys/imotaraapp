@@ -23,7 +23,9 @@ import type { Contact } from "@/lib/voice/rules";
 
 export const OUTREACH_PREFIX = "Outreach · ";
 
-export const listNameFor = (a: Audience) => `Outreach — ${AUDIENCE_LABEL[a]}`;
+/** Every outreach recipient list is named with this — it is not a newsletter list. */
+export const OUTREACH_LIST_PREFIX = "Outreach — ";
+export const listNameFor = (a: Audience) => `${OUTREACH_LIST_PREFIX}${AUDIENCE_LABEL[a]}`;
 
 /** The broadcast_recipients.source enum, read from what the team typed. Unknown ⇒ meeting; the exact words go in source_detail. */
 export function sourceFor(raw: string): string {
@@ -82,7 +84,7 @@ export async function createVersion(
 export async function recordSend(
   supabase: SupabaseClient,
   args: { broadcastId: string; audience: Audience; contact: Contact; email: string; resendId: string; now: Date },
-): Promise<void> {
+): Promise<boolean> {
   const now = args.now.toISOString();
   try {
     const listId = await ensureList(supabase, args.audience);
@@ -104,7 +106,40 @@ export async function recordSend(
     );
     const { data: b } = await supabase.from("broadcasts").select("started_at").eq("id", args.broadcastId).maybeSingle();
     await supabase.from("broadcasts").update({ started_at: b?.started_at ?? now, finished_at: now }).eq("id", args.broadcastId);
+    return true;
   } catch (e) {
     console.error("[outreach/record] sent but not recorded", { email: args.email, error: (e as Error).message });
+    return false;
   }
+}
+
+/**
+ * 🔴 WHO HAS ALREADY HAD WHAT — from the broadcast tables, not the sheet.
+ * The sheet was the only record of a send; if writing to it failed (quota, a
+ * timeout, a row moved), the next run mailed the same person again, every ten
+ * minutes (review, 24 Oct). ⇒ The send row in broadcast_sends is the truth:
+ * email → the outreach emails ("ngos:intro" …) it has received.
+ */
+export async function outreachHistory(supabase: SupabaseClient, emails: string[]): Promise<Map<string, Set<string>>> {
+  const out = new Map<string, Set<string>>();
+  if (emails.length === 0) return out;
+  const { data: versions, error } = await supabase.from("broadcasts").select("id, subject").ilike("subject", `${OUTREACH_PREFIX}%`);
+  if (error) throw new Error(`Could not read outreach history: ${error.message}`);
+  const keyOf = new Map<string, string>();
+  for (const v of versions ?? []) {
+    for (const [a, label] of Object.entries(AUDIENCE_LABEL)) for (const [st, sl] of Object.entries(STEP_LABEL)) {
+      if ((v.subject as string).startsWith(`${OUTREACH_PREFIX}${label} · ${sl} —`)) keyOf.set(v.id as string, `${a}:${st}`);
+    }
+  }
+  if (keyOf.size === 0) return out;
+  for (let i = 0; i < emails.length; i += 200) {
+    const { data: sends, error: e2 } = await supabase.from("broadcast_sends").select("broadcast_id, email")
+      .in("broadcast_id", [...keyOf.keys()]).in("email", emails.slice(i, i + 200));
+    if (e2) throw new Error(`Could not read outreach history: ${e2.message}`);
+    for (const r of sends ?? []) {
+      const k = keyOf.get(r.broadcast_id as string);
+      if (k) out.set(r.email as string, (out.get(r.email as string) ?? new Set()).add(k));
+    }
+  }
+  return out;
 }

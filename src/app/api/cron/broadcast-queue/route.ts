@@ -135,17 +135,33 @@ export async function GET(req: NextRequest) {
 
   // ── 3. Claim a slice ───────────────────────────────────────────────────────
   const take = Math.min(budget.remaining, MAX_BATCH);
-  const { data: rows, error: rErr } = await supabase
+  const claimed = await supabase
     .from("broadcast_sends")
     .select("id, email, attempts")
     .eq("broadcast_id", broadcast.id)
     .eq("status", "queued")
     .order("queued_at", { ascending: true })
     .limit(take);
+  let rows = claimed.data;
+  const rErr = claimed.error;
 
   if (rErr) {
     console.error("[broadcast-queue] queue query error:", rErr.message);
     return NextResponse.json({ ok: false, error: "Internal error" }, { status: 500 });
+  }
+
+  // ⛔ Re-checked at send time: an address suppressed AFTER it was queued (a bounce or a
+  // complaint mid-run) is skipped, not mailed (review, 24 Oct).
+  if (rows && rows.length > 0) {
+    const { data: sup } = await supabase.from("broadcast_suppressions").select("email, reason").in("email", rows.map((r) => r.email));
+    const why = new Map((sup ?? []).map((x) => [x.email as string, x.reason as string]));
+    if (why.size > 0) {
+      for (const r of rows.filter((x) => why.has(x.email))) {
+        await supabase.from("broadcast_sends").update({ status: "skipped", skip_reason: why.get(r.email) }).eq("id", r.id).eq("status", "queued");
+      }
+      rows = rows.filter((x) => !why.has(x.email));
+      if (rows.length === 0) return NextResponse.json({ ok: true, drained: 0, skipped: why.size, reason: "only suppressed addresses in this slice" });
+    }
   }
 
   // Queue empty for this broadcast — it is finished.

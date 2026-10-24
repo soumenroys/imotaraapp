@@ -40,6 +40,15 @@ function isHardBounce(type: string | undefined, subType: string | undefined): bo
   return /permanent|hard|invalid|no ?such|not ?exist|suppress/.test(t);
 }
 
+/**
+ * ⛔ A dead address or a complaint must also stop what is ALREADY QUEUED for it —
+ * a newsletter spread over several days by the warm-up kept mailing someone who
+ * had complained (review, 24 Oct). Unsubscribe already did this; now all three do.
+ */
+async function skipQueued(supabase: ReturnType<typeof getSupabaseAdmin>, email: string, reason: "hard_bounce" | "complaint") {
+  await supabase.from("broadcast_sends").update({ status: "skipped", skip_reason: reason }).eq("email", email).eq("status", "queued");
+}
+
 export async function POST(req: NextRequest) {
   if (!WEBHOOK_SECRET) {
     console.error("[resend-webhook] RESEND_WEBHOOK_SECRET not set — rejecting");
@@ -115,6 +124,7 @@ export async function POST(req: NextRequest) {
     if (suppressFor && to) {
       await supabase.from("broadcast_suppressions")
         .upsert({ email: to, reason: suppressFor }, { onConflict: "email", ignoreDuplicates: true });
+      await skipQueued(supabase, to, suppressFor);
       console.warn("[resend-webhook] unmatched", suppressFor, to, "— suppressed");
     }
     return NextResponse.json({ ok: true, unmatched: emailId, type: event.type, suppressed: Boolean(suppressFor && to) });
@@ -149,6 +159,7 @@ export async function POST(req: NextRequest) {
             { email, reason: "hard_bounce", source_broadcast_id: row.broadcast_id },
             { onConflict: "email", ignoreDuplicates: true },
           );
+        await skipQueued(supabase, email, "hard_bounce");
       }
 
       console.warn("[resend-webhook] bounce", email, bounce.type, bounce.subType, hard ? "(suppressed)" : "(soft, kept)");
@@ -169,6 +180,7 @@ export async function POST(req: NextRequest) {
             { email, reason: "complaint", source_broadcast_id: row.broadcast_id },
             { onConflict: "email", ignoreDuplicates: true },
           );
+        await skipQueued(supabase, email, "complaint");
       }
       console.warn("[resend-webhook] COMPLAINT", email, "— suppressed");
       break;

@@ -87,11 +87,11 @@ NEVER
 - Belittling anyone — competitors, professionals, or anybody's way of coping.
 - A testimonial, or a story about a person who does not exist.
 
-⛔ NEVER WRITE TO SOMEONE WHO MAY BE IN DISTRESS
-For a wellbeing app, a post framed around loneliness, the middle of the night,
-or "who else hears you?" reads as reaching out to a person in crisis, and a
-public post cannot follow up. Say what Imotara does and when it is available,
-plainly ("any hour", "even offline"); never dramatise the hour or the feeling.
+LONELINESS AND LATE NIGHTS ARE ONE THEME AMONG MANY
+They are welcome — the angles rotate, so they come up now and then, not in
+every post. When a post is about them, say plainly what Imotara offers and
+when ("any hour", "even offline"). Don't dramatise the hour or the feeling,
+and never write as if to one person in crisis: a public post cannot follow up.
 
 ⛔ THE PHRASES THAT ANNOUNCE A MACHINE WROTE THIS
 

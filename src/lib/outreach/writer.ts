@@ -64,7 +64,7 @@ export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avo
   eldercare: {
     cares: "residents who want someone to talk to between visits, often more comfortable speaking than typing and in their mother tongue, and caregivers who cannot be everywhere",
     lead: "speak instead of type · their mother tongue among 22 languages · remembers what mattered last time, so they need not repeat themselves · works offline · no feed or anything to keep up with",
-    avoid: "Do not frame residents as lonely or helpless; speak of company and continuity, with dignity.",
+    avoid: "Loneliness may be named, but with dignity — never as helplessness; speak of company and continuity.",
   },
   corporates: {
     cares: "employee wellbeing that people will actually use because it is genuinely private, across a workforce that speaks many languages and works all hours",

@@ -11,7 +11,7 @@
 // contact check (consent, do-not-call, language, the Individuals switch) and
 // local calling hours as the automatic dispatcher ⇒ src/lib/voice/dispatch.ts.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell, useAdminRole } from "@/app/admin/_components/ui";
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
@@ -108,13 +108,19 @@ function describeCallNow(j: { placed?: unknown[]; queued?: unknown[]; skipped?: 
 export default function VoicePage() {
   const role = useAdminRole();
   const [tab, setTab] = useState<Tab>("contacts");
+  const [data, setData] = useState<Preview | null>(null);
   // 🔑 ?tab=settings (or contacts, …) from the To do page opens that tab, on screen.
+  // ⚠️ Scrolled only once the data is in — the strip and diagram above load with
+  //    it and would push the tabs back off screen (measured live, 24 Oct).
+  const jump = useRef(false);
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
     const hit = TABS.find((x) => x.id === t);
-    if (hit) { setTab(hit.id); scrollToTarget("voice-tabs"); }
+    if (hit) { setTab(hit.id); jump.current = true; }
   }, []);
-  const [data, setData] = useState<Preview | null>(null);
+  useEffect(() => {
+    if (data && jump.current) { jump.current = false; scrollToTarget("voice-tabs"); }
+  }, [data]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   // 🔑 One call log for both tabs: Call records and Reports used to load it separately (10–30 s each).

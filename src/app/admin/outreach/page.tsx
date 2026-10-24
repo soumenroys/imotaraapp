@@ -6,7 +6,7 @@
 // email then run on their own. This page is where the drafts are approved, the
 // switch is turned on, and anyone can see who got what ⇒ lib/outreach.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AdminShell, useAdminRole } from "@/app/admin/_components/ui";
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
@@ -44,11 +44,16 @@ export default function OutreachPage() {
   const role = useAdminRole();
   // 🔑 ?tab=settings (or contacts) opens that tab — the To do page links straight to it.
   const [tab, setTab] = useState<Tab>("emails");
+  const [data, setData] = useState<Overview | null>(null);
+  const jump = useRef(false);
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "settings" || t === "contacts") { setTab(t); scrollToTarget("outreach-tabs"); }
+    if (t === "settings" || t === "contacts") { setTab(t); jump.current = true; }
   }, []);
-  const [data, setData] = useState<Overview | null>(null);
+  // ⚠️ Only once the data is in — the strip and diagram above load with it (measured live, 24 Oct).
+  useEffect(() => {
+    if (data && jump.current) { jump.current = false; scrollToTarget("outreach-tabs"); }
+  }, [data]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 

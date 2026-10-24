@@ -87,6 +87,12 @@ NEVER
 - Belittling anyone — competitors, professionals, or anybody's way of coping.
 - A testimonial, or a story about a person who does not exist.
 
+⛔ NEVER WRITE TO SOMEONE WHO MAY BE IN DISTRESS
+For a wellbeing app, a post framed around loneliness, the middle of the night,
+or "who else hears you?" reads as reaching out to a person in crisis, and a
+public post cannot follow up. Say what Imotara does and when it is available,
+plainly ("any hour", "even offline"); never dramatise the hour or the feeling.
+
 ⛔ THE PHRASES THAT ANNOUNCE A MACHINE WROTE THIS
 
 Never use any of these, or anything built to the same pattern. They are not

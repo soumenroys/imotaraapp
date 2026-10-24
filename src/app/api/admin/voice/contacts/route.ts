@@ -12,7 +12,7 @@ export const maxDuration = 120;
 
 type Body = Partial<Record<
   "tab" | "name" | "organisation" | "organisation_type" | "phone" | "country" | "time_zone" | "language" |
-  "voice_gender" | "consent_note" | "team_member" | "context" | "call_reason", string
+  "voice_gender" | "consent_note" | "team_member" | "context" | "call_reason" | "email", string
 >> & { callNow?: boolean };
 
 const validZone = (z: string) => {
@@ -38,6 +38,8 @@ export async function POST(req: NextRequest) {
   if (!validZone(t("time_zone"))) problems.push("Time zone must be like Asia/Kolkata.");
   // ⛔ No consent note, no call — the same rule the sheet's Check column enforces.
   if (!t("consent_note")) problems.push("Say how this contact agreed to be called (consent note).");
+  const email = t("email").toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) problems.push("The email does not look right.");
   if (problems.length) return NextResponse.json({ error: problems.join(" ") }, { status: 400 });
 
   const cells: Partial<Record<Column, string>> = {
@@ -46,6 +48,7 @@ export async function POST(req: NextRequest) {
     source: `admin console (${a.admin.email})`, consent_note: t("consent_note"), team_member: t("team_member"),
     context: t("context"), call_reason: t("call_reason"), status: STATUS.pending, call_attempts: "0",
     voice_gender: t("voice_gender").toLowerCase() === "male" ? "male" : "female",
+    email,
   };
   try {
     const row = await appendContact(tab, cells);

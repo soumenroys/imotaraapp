@@ -348,7 +348,7 @@ function NeedsAPerson({ rows }: { rows: Row[] }) {
 
 const EMPTY_CONTACT = {
   tab: "NGOs", name: "", organisation: "", organisation_type: "", phone: "", country: "IN", time_zone: "Asia/Kolkata",
-  language: "en", voice_gender: "female", consent_note: "", team_member: "", context: "", call_reason: "",
+  language: "en", voice_gender: "female", consent_note: "", team_member: "", context: "", call_reason: "", email: "",
 };
 
 function AddContact({ onDone }: { onDone: (m: string) => void }) {
@@ -374,6 +374,7 @@ function AddContact({ onDone }: { onDone: (m: string) => void }) {
       <label>Name<input className={input} value={f.name} onChange={set("name")} /></label>
       <label>Organisation<input className={input} value={f.organisation} onChange={set("organisation")} /></label>
       <label>Phone (with country code)<input className={input} value={f.phone} onChange={set("phone")} placeholder="+91…" /></label>
+      <label>Email (optional — for outreach mail)<input className={input} value={f.email} onChange={set("email")} placeholder="name@organisation.org" /></label>
       <label>Country (2 letters)<input className={input} value={f.country} onChange={set("country")} /></label>
       <label>Time zone<input className={input} value={f.time_zone} onChange={set("time_zone")} /></label>
       <label>Language<select className={input} value={f.language} onChange={set("language")}>{LANGS.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select></label>

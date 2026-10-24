@@ -115,7 +115,7 @@ writing is lopsided. Let one sentence be much shorter than the others. Begin
 a sentence with "And" or "But" if that is how it would be said out loud.
 `.trim();
 
-const FACTS = `
+export const FACTS = `
 WHAT IS TRUE ABOUT IMOTARA, and nothing beyond this
 
 - A private companion for saying how you actually feel. You can type or speak.

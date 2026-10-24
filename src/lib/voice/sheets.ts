@@ -10,7 +10,7 @@
 
 import { createSign } from "node:crypto";
 import {
-  CONTACT_TABS, COLUMNS, columnLetter, parseContacts, parseDnc, parseLanguages, parseSettings, parseTeam,
+  CONTACT_TABS, COLUMNS, LAST_COLUMN, columnLetter, parseContacts, parseDnc, parseLanguages, parseSettings, parseTeam,
   type Column, type Contact, type ContactTab, type Directory,
 } from "@/lib/voice/rules";
 
@@ -93,7 +93,7 @@ const quote = (tab: string) => `'${tab.replace(/'/g, "''")}'`;
 /** Every tab in one request. ⚠️ A missing Settings tab is normal ⇒ safe defaults. */
 export async function readDirectory(): Promise<Directory> {
   const tabs = [...CONTACT_TABS, "Languages", "Team", "Do not call"];
-  const ranges = tabs.map((t) => `ranges=${encodeURIComponent(`${quote(t)}!A1:Y1000`)}`).join("&");
+  const ranges = tabs.map((t) => `ranges=${encodeURIComponent(`${quote(t)}!A1:${LAST_COLUMN}1000`)}`).join("&");
   const data = (await google(`/values:batchGet?${ranges}&valueRenderOption=FORMATTED_VALUE`)) as {
     valueRanges?: { values?: string[][] }[];
   };
@@ -134,9 +134,14 @@ export async function appendDnc(phone: string, name: string, reason: string): Pr
   });
 }
 
-/** Make sure column Y is headed, so the team sees what the system writes there. */
-export async function ensureSystemColumn(): Promise<void> {
-  const data = CONTACT_TABS.map((t) => ({ range: `${quote(t)}!Y1`, values: [[COLUMNS[COLUMNS.length - 1]]] }));
+/**
+ * Head the columns the system added (Y call_id, Z–AC outreach email), so the
+ * team sees what lives there. Idempotent: it writes header text only.
+ */
+export async function ensureSystemColumns(): Promise<void> {
+  const from = COLUMNS.indexOf("call_id");
+  const headers = COLUMNS.slice(from);
+  const data = CONTACT_TABS.map((t) => ({ range: `${quote(t)}!${columnLetter("call_id")}1:${LAST_COLUMN}1`, values: [[...headers]] }));
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
 }
 
@@ -175,7 +180,7 @@ export async function writeSettings(values: Partial<Record<SettingKey, string>>)
  */
 export async function appendContact(tab: ContactTab, cells: Partial<Record<Column, string>>): Promise<number> {
   const row = COLUMNS.map((c) => cells[c] ?? "");
-  const res = (await google(`/values/${encodeURIComponent(`${quote(tab)}!A:Y`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  const res = (await google(`/values/${encodeURIComponent(`${quote(tab)}!A:${LAST_COLUMN}`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     method: "POST",
     body: JSON.stringify({ values: [row] }),
   })) as { updates?: { updatedRange?: string } };

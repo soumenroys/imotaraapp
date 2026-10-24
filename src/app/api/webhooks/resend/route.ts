@@ -103,7 +103,21 @@ export async function POST(req: NextRequest) {
     // Either mail sent outside this feature (the Connect/wallet mailers), or
     // an event that overtook our own write. Acknowledge either way: a non-2xx
     // makes Resend retry, and retrying will not conjure the row.
-    return NextResponse.json({ ok: true, unmatched: emailId, type: event.type });
+    //
+    // 🔴 But a dead address or a complaint is still recorded. Outreach mail
+    // (lib/outreach) is sent one-to-one with no row here, and its bounce must
+    // stop the next email of the sequence — the address is dead whatever sent to it.
+    const bounce = (data.bounce ?? {}) as { type?: string; subType?: string };
+    const suppressFor =
+      event.type === "email.complained" ? "complaint"
+      : event.type === "email.bounced" && isHardBounce(bounce.type, bounce.subType) ? "hard_bounce"
+      : null;
+    if (suppressFor && to) {
+      await supabase.from("broadcast_suppressions")
+        .upsert({ email: to, reason: suppressFor }, { onConflict: "email", ignoreDuplicates: true });
+      console.warn("[resend-webhook] unmatched", suppressFor, to, "— suppressed");
+    }
+    return NextResponse.json({ ok: true, unmatched: emailId, type: event.type, suppressed: Boolean(suppressFor && to) });
   }
 
   const email = row.email ?? to;

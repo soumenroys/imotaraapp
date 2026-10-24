@@ -19,19 +19,39 @@ import { agentFor } from "@/lib/voice/agents";
 export const CONTACT_TABS = ["Individuals", "NGOs", "Education", "Eldercare", "Corporates"] as const;
 export type ContactTab = (typeof CONTACT_TABS)[number];
 
-/** The sheet's columns A–X, in order, plus Y which the system adds. */
+/**
+ * The sheet's columns A–X, in order, plus Y which the system adds — and Z–AC
+ * for outreach email (owner, 24 Oct 2026: one row = one person for calls AND
+ * mail). Z `email` is the team's to fill; AA–AC the system writes.
+ */
 export const COLUMNS = [
   "phone", "contact_number", "name", "organisation", "organisation_type", "country", "time_zone",
   "language", "source", "consent_note", "team_member", "context", "call_reason", "disclose_upfront",
   "Check", "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action",
   "follow_up_datetime", "ambassador_notes", "voice_gender", "call_id",
+  "email", "mail_status", "mail_step", "mail_last_sent",
 ] as const;
 export type Column = (typeof COLUMNS)[number];
 
-/** Column letter for a field ⇒ writing a single cell back. */
-export function columnLetter(col: Column): string {
-  return String.fromCharCode(65 + COLUMNS.indexOf(col));
+/** A 0-based column index as the sheet names it: 0 → A, 25 → Z, 26 → AA. */
+export function letterFor(index: number): string {
+  let n = index + 1;
+  let out = "";
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    out = String.fromCharCode(65 + r) + out;
+    n = Math.floor((n - 1) / 26);
+  }
+  return out;
 }
+
+/** Column letter for a field ⇒ writing a single cell back. ⚠️ Past Z it is two letters. */
+export function columnLetter(col: Column): string {
+  return letterFor(COLUMNS.indexOf(col));
+}
+
+/** The last column the system reads or writes, e.g. "AC". */
+export const LAST_COLUMN = letterFor(COLUMNS.length - 1);
 
 /** The status labels as the sheet shows them. */
 export const STATUS = {
@@ -66,6 +86,9 @@ export const NEEDS_A_PERSON: readonly string[] = [STATUS.safety, STATUS.review, 
  * call days later (calling was off, the job was down) is a call nobody chose.
  */
 export const SCHEDULE_GRACE_HOURS = 2;
+
+/** Written by a call that ended "send me details"; the outreach mailer picks it up. */
+export const MAIL_INFO_DUE = "Info due";
 
 export type Contact = { tab: ContactTab; row: number; v: Record<Column, string> };
 
@@ -423,7 +446,10 @@ export function writebackFor(x: Extraction, now: Date, timeZone = "Asia/Kolkata"
     case "callback_requested":
       cells.status = STATUS.callback; cells.follow_up_datetime = x.callback_time || elevenLocal(now, 1, timeZone); break;
     case "send_info":
-      cells.status = STATUS.sendInfo; cells.follow_up_datetime = elevenLocal(now, 3, timeZone); w.sendInfo = true; break;
+      cells.status = STATUS.sendInfo; cells.follow_up_datetime = elevenLocal(now, 3, timeZone); w.sendInfo = true;
+      // 🔑 The call asked for details ⇒ the outreach mailer sends the info email next ⇒ lib/outreach.
+      cells.mail_status = MAIL_INFO_DUE;
+      break;
     case "not_interested":
       cells.status = STATUS.notInterested; break;
     case "do_not_call":

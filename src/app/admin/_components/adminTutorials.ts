@@ -161,4 +161,15 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     ],
     footnote: "⛔ Every call is the same rule set: consent note, do-not-call list, language started, calling hours, the daily cap. Results are written back into the sheet, and safety/meeting/send-info alerts are emailed at once.",
   },
+  outreach: {
+    title: "Emailing contacts from the sheet — automatically",
+    steps: [
+      { do: "Type each person's email in the sheet's email column, with a consent note.", then: "Only rows with a consent note are emailed — the same rule as calls." },
+      { do: "Emails tab: read each draft, edit if needed, press Approve.", then: "Drafts are written for you per audience. Nothing unapproved is sent." },
+      { do: "Press “Send me a test” to see it in your own inbox first.", then: "It goes only to you." },
+      { do: "Settings tab: switch Outreach email ON and set emails per day.", then: "Every 10 minutes it sends what is due, in their daytime: intro, day 7, day 21." },
+      { do: "Contacts tab: see who got what and who is next.", then: "Unsubscribe, bounce, 'not interested' or a meeting stops the sequence." },
+    ],
+    footnote: "⛔ The daily limit protects imotara.com's mail reputation, which app mail and receipts depend on.",
+  },
 };

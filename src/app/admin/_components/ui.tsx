@@ -70,21 +70,36 @@ export type NavItem = {
   ownerOnly?: boolean;
   /** Visible to a connect_reviewer, whose view is deliberately narrow. */
   reviewer?: boolean;
+  /** Which labelled group of the menu it sits in ⇒ NAV_GROUPS. */
+  group: NavGroup;
 };
 
+/**
+ * 🔑 THE MENU IS GROUPED BY JOB (owner, 24 Oct 2026: "broadcast and outreach
+ * mail can be side by side … re-arranged for easier access"). The four tools
+ * that reach people sit together; the overview comes first.
+ */
+export type NavGroup = "overview" | "reach" | "customers" | "team";
+export const NAV_GROUPS: { id: NavGroup; label: string }[] = [
+  { id: "overview", label: "Overview" },
+  { id: "reach", label: "Reach people" },
+  { id: "customers", label: "Customers" },
+  { id: "team", label: "Team" },
+];
+
 export const ADMIN_NAV: NavItem[] = [
-  { key: "comments",      icon: "💬", label: "Comments",      href: "/admin?section=comments",      reviewer: true },
-  { key: "licenses",      icon: "🔑", label: "Licenses",      href: "/admin?section=licenses" },
-  { key: "organizations", icon: "🏢", label: "Organisations", href: "/admin?section=organizations" },
-  { key: "connect",       icon: "🤝", label: "Connect",       href: "/admin?section=connect",       reviewer: true },
-  { key: "superadmins",   icon: "👑", label: "Admins",        href: "/admin?section=superadmins" },
-  { key: "broadcast",     icon: "📣", label: "Broadcast",     href: "/admin?section=broadcast",     ownerOnly: true },
-  { key: "stats",         icon: "📊", label: "Dashboard",     href: "/admin?section=stats" },
-  { key: "analytics",     icon: "📈", label: "Activity",      href: "/admin/analytics",      route: true },
-  { key: "crisis",        icon: "🆘", label: "Crisis",        href: "/admin/crisis-events",  route: true },
-  { key: "social",        icon: "📅", label: "Social",        href: "/admin/social",         route: true },
-  { key: "voice",         icon: "📞", label: "Voice calls",   href: "/admin/voice",          route: true },
-  { key: "outreach",      icon: "✉️", label: "Outreach mail", href: "/admin/outreach",       route: true },
+  { key: "stats",         icon: "📊", label: "Dashboard",      href: "/admin?section=stats",         group: "overview" },
+  { key: "analytics",     icon: "📈", label: "Activity",       href: "/admin/analytics",      route: true, group: "overview" },
+  { key: "crisis",        icon: "🆘", label: "Crisis",         href: "/admin/crisis-events",  route: true, group: "overview" },
+  { key: "social",        icon: "📅", label: "Social",         href: "/admin/social",         route: true, group: "reach" },
+  { key: "broadcast",     icon: "📣", label: "Broadcast mail", href: "/admin?section=broadcast",     ownerOnly: true, group: "reach" },
+  { key: "outreach",      icon: "✉️", label: "Outreach mail",  href: "/admin/outreach",       route: true, group: "reach" },
+  { key: "voice",         icon: "📞", label: "Voice calls",    href: "/admin/voice",          route: true, group: "reach" },
+  { key: "organizations", icon: "🏢", label: "Organisations",  href: "/admin?section=organizations", group: "customers" },
+  { key: "licenses",      icon: "🔑", label: "Licenses",       href: "/admin?section=licenses",      group: "customers" },
+  { key: "connect",       icon: "🤝", label: "Connect",        href: "/admin?section=connect",       reviewer: true, group: "customers" },
+  { key: "comments",      icon: "💬", label: "Comments",       href: "/admin?section=comments",      reviewer: true, group: "customers" },
+  { key: "superadmins",   icon: "👑", label: "Admins",         href: "/admin?section=superadmins",   group: "team" },
 ];
 
 /**
@@ -120,8 +135,14 @@ export function AdminNav({
      * horizontal scroll nobody discovers.
      */
     <nav aria-label="Admin sections" className="mb-6">
-      <div className="flex flex-wrap gap-1 rounded-xl border border-white/8 bg-white/5 p-1">
-        {items.map((item) => {
+      <div className="space-y-1 rounded-xl border border-white/8 bg-white/5 p-1">
+        {NAV_GROUPS.map((g) => {
+          const mine = items.filter((i) => i.group === g.id);
+          if (mine.length === 0) return null;
+          return (
+            <div key={g.id} className="flex flex-wrap items-center gap-1">
+              <span className="w-full px-2 pt-1 text-[9px] font-semibold uppercase tracking-widest text-zinc-600 sm:w-28 sm:whitespace-nowrap sm:pt-0">{g.label}</span>
+        {mine.map((item) => {
           const active = item.key === current;
           const className =
             `flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs whitespace-nowrap transition ${
@@ -146,6 +167,9 @@ export function AdminNav({
               <span className="hidden sm:inline">{item.label}</span>
               <span className="sr-only sm:hidden">{item.label}</span>
             </a>
+          );
+        })}
+            </div>
           );
         })}
       </div>

@@ -3471,7 +3471,9 @@ function isSection(v: string | null): v is Section {
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
   const [myRole, setMyRole]   = useState<string | null>(null);
-  const [section, setSection] = useState<Section>("comments");
+  // 🔑 Opens on the Dashboard (owner, 24 Oct 2026: the menu leads with the overview).
+  // A connect reviewer cannot see it and is moved to Connect once their role is known.
+  const [section, setSection] = useState<Section>("stats");
   // ⚠️ Starts true so a signed-in admin never sees the login card flash past
   // while we ask the server whether this tab is already authenticated.
   const [checking, setChecking] = useState(true);

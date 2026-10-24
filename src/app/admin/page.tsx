@@ -2140,6 +2140,15 @@ function SuperAdminsSection({ token }: { token: string }) {
   // quietly reassuring the operator.
   const legacyKeyActive = !token.startsWith("session:");
 
+  // Declared before fetchAdmins, which calls it.
+  async function refreshMyAdmin() {
+    const r = await fetch("/api/admin/auth/me", { credentials: "same-origin" });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.admin) setMyAdmin(d.admin as SuperAdmin);
+    }
+  }
+
   const fetchAdmins = useCallback(async () => {
     setLoading(true);
     try {
@@ -2234,14 +2243,6 @@ function SuperAdminsSection({ token }: { token: string }) {
     await fetch("/api/admin/auth/sessions?all=true", adminFetchOpts(token, { method: "DELETE" }));
     void fetchSessions();
     setMsg("✓ All other sessions revoked");
-  }
-
-  async function refreshMyAdmin() {
-    const r = await fetch("/api/admin/auth/me", { credentials: "same-origin" });
-    if (r.ok) {
-      const d = await r.json();
-      if (d.admin) setMyAdmin(d.admin as SuperAdmin);
-    }
   }
 
   async function handle2FASetup() {

@@ -947,184 +947,6 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
     URL.revokeObjectURL(url);
   }
 
-  // ⬇️ Inline modal component (now lists conflict details + actions)
-  function ConflictModal({
-    onClose,
-    conflicts,
-    lastConflictAt,
-    items,
-  }: {
-    onClose: () => void;
-    conflicts: number;
-    lastConflictAt: number | null;
-    items: ConflictItem[];
-  }) {
-    const fmt = (ts: number) => (ts ? new Date(ts).toLocaleString() : "—");
-    const previewMsg = (s?: string) =>
-      s ? (s.length > 60 ? `${s.slice(0, 60)}…` : s) : "(no message)";
-
-    return (
-      <Modal
-        open
-        onClose={onClose}
-        labelledBy="conflict-dialog-title"
-        // It already declared role="dialog" and aria-modal, which is more than
-        // most of them had — but nothing enforced it: focus never entered, Tab
-        // walked out to the page behind, and Escape did nothing. The wrapper is
-        // what makes the two attributes true. Backdrop-click already closed it,
-        // so that behaviour is unchanged.
-        backdropClassName="flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-        className="w-full max-w-lg"
-      >
-        {/* panel */}
-        <div className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-2xl backdrop-blur-md">
-          <h3 id="conflict-dialog-title" className="text-base font-semibold text-zinc-50">
-            Server updates available
-          </h3>
-          <p className="mt-2 text-sm text-zinc-300">
-            We detected <strong>{conflicts}</strong> newer update
-            {conflicts === 1 ? "" : "s"} on the server
-            {lastConflictAt
-              ? ` (since ${new Date(lastConflictAt).toLocaleString()})`
-              : ""}{" "}
-            .
-          </p>
-
-          <div className="mt-4 max-h-72 overflow-auto rounded-xl border border-white/10 bg-zinc-900/40">
-            {items.length === 0 ? (
-              <div className="p-3 text-xs text-zinc-400">
-                No per-record details found.
-              </div>
-            ) : (
-              <ul className="divide-y divide-white/5">
-                {items.map((it) => {
-                  const previewForItem = conflictPreviews.find(
-                    (p) => p.id === it.id,
-                  );
-
-                  return (
-                    <li key={it.id} className="p-3 text-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-medium text-zinc-50">
-                            {it.server?.emotion ??
-                              it.local?.emotion ??
-                              "unknown"}{" "}
-                            <span className="text-xs font-normal text-zinc-400">
-                              • id: {it.id}
-                            </span>
-                          </div>
-                          <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-zinc-300">
-                            <div>
-                              <div className="uppercase tracking-wide text-[10px] text-zinc-500">
-                                Server
-                              </div>
-                              <div>{fmt(it.serverTs)}</div>
-                              <div className="mt-0.5 italic text-zinc-400">
-                                {previewMsg(it.server?.message)}
-                              </div>
-                            </div>
-                            <div>
-                              <div className="uppercase tracking-wide text-[10px] text-zinc-500">
-                                Local
-                              </div>
-                              <div>{fmt(it.localTs)}</div>
-                              <div className="mt-0.5 italic text-zinc-400">
-                                {previewMsg(it.local?.message)}
-                              </div>
-                            </div>
-                          </div>
-
-                          {previewForItem &&
-                            previewForItem.diffs &&
-                            previewForItem.diffs.length > 0 && (
-                              <div className="mt-2 text-[11px] text-zinc-400">
-                                Changed fields:{" "}
-                                {previewForItem.diffs.join(", ")}
-                              </div>
-                            )}
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-2">
-                          <span className="rounded-full border border-amber-500/70 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
-                            server newer
-                          </span>
-                          <button
-                            onClick={() => {
-                              void applyLocalVersion(it.id, it.local ?? null);
-                            }}
-                            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-100 hover:bg-white/10"
-                            title="Keep your local copy and dismiss this conflict"
-                          >
-                            Keep local
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (it.server)
-                                void applyServerVersion(it.id, it.server);
-                            }}
-                            className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-100 hover:bg-white/10"
-                            title="Replace local copy with the server version"
-                          >
-                            Use server
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-300">
-            <div>
-              {items.length > 0
-                ? "You can apply one-by-one or resolve all at once."
-                : "Nothing to review."}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={onClose}
-                className="rounded-xl border border-white/10 bg-white/8 px-3 py-1.5 text-sm text-zinc-100 hover:bg-white/10"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  keepLocalForAll();
-                  onClose();
-                }}
-                className="rounded-xl border border-white/10 bg-white/8 px-3 py-1.5 text-sm text-zinc-100 hover:bg-white/10"
-                title="Keep all local copies and mark conflicts as resolved"
-              >
-                Keep local for all
-              </button>
-              <button
-                onClick={async () => {
-                  await manualSync();
-                  onClose();
-                }}
-                className="rounded-xl border border-white/10 bg-white/8 px-3 py-1.5 text-sm text-zinc-100 hover:bg-white/10"
-                title="Pull and merge from server"
-              >
-                Pull all
-              </button>
-              <button
-                onClick={async () => {
-                  await applyServerVersionForAll();
-                  onClose();
-                }}
-                className="rounded-xl border border-emerald-400/60 bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-50 hover:bg-emerald-500/30"
-                title="Replace local copies with server versions for all listed items"
-              >
-                Use server for all
-              </button>
-            </div>
-          </div>
-        </div>
-      </Modal>
-    );
-  }
 
   const safeItems: EmotionRecord[] = Array.isArray(items) ? items : [];
   // ⬇️ Only show non-deleted items in the UI
@@ -2153,8 +1975,206 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
           conflicts={conflicts}
           lastConflictAt={lastConflictAt}
           items={conflictItems}
+          conflictPreviews={conflictPreviews}
+          applyLocalVersion={applyLocalVersion}
+          applyServerVersion={applyServerVersion}
+          applyServerVersionForAll={applyServerVersionForAll}
+          keepLocalForAll={keepLocalForAll}
+          manualSync={manualSync}
         />
       )}
     </section>
+  );
+}
+
+// Conflict review modal. Lives OUTSIDE EmotionHistory on purpose: a component
+// declared inside another is a new type every render and remounts each time.
+function ConflictModal({
+  onClose,
+  conflicts,
+  lastConflictAt,
+  items,
+  conflictPreviews,
+  applyLocalVersion,
+  applyServerVersion,
+  applyServerVersionForAll,
+  keepLocalForAll,
+  manualSync,
+}: {
+  onClose: () => void;
+  conflicts: number;
+  lastConflictAt: number | null;
+  items: ConflictItem[];
+  conflictPreviews: ConflictPreview[];
+  applyLocalVersion: (id: string, localRec?: EmotionRecord | null) => Promise<void>;
+  applyServerVersion: (id: string, serverRec: EmotionRecord) => Promise<void>;
+  applyServerVersionForAll: () => Promise<void>;
+  keepLocalForAll: () => void;
+  manualSync: () => Promise<void>;
+}) {
+  const fmt = (ts: number) => (ts ? new Date(ts).toLocaleString() : "—");
+  const previewMsg = (s?: string) =>
+    s ? (s.length > 60 ? `${s.slice(0, 60)}…` : s) : "(no message)";
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      labelledBy="conflict-dialog-title"
+      // It already declared role="dialog" and aria-modal, which is more than
+      // most of them had — but nothing enforced it: focus never entered, Tab
+      // walked out to the page behind, and Escape did nothing. The wrapper is
+      // what makes the two attributes true. Backdrop-click already closed it,
+      // so that behaviour is unchanged.
+      backdropClassName="flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      className="w-full max-w-lg"
+    >
+      {/* panel */}
+      <div className="relative z-10 w-full max-w-lg rounded-2xl border border-white/10 bg-zinc-900/80 p-5 shadow-2xl backdrop-blur-md">
+        <h3 id="conflict-dialog-title" className="text-base font-semibold text-zinc-50">
+          Server updates available
+        </h3>
+        <p className="mt-2 text-sm text-zinc-300">
+          We detected <strong>{conflicts}</strong> newer update
+          {conflicts === 1 ? "" : "s"} on the server
+          {lastConflictAt
+            ? ` (since ${new Date(lastConflictAt).toLocaleString()})`
+            : ""}{" "}
+          .
+        </p>
+
+        <div className="mt-4 max-h-72 overflow-auto rounded-xl border border-white/10 bg-zinc-900/40">
+          {items.length === 0 ? (
+            <div className="p-3 text-xs text-zinc-400">
+              No per-record details found.
+            </div>
+          ) : (
+            <ul className="divide-y divide-white/5">
+              {items.map((it) => {
+                const previewForItem = conflictPreviews.find(
+                  (p) => p.id === it.id,
+                );
+
+                return (
+                  <li key={it.id} className="p-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-medium text-zinc-50">
+                          {it.server?.emotion ??
+                            it.local?.emotion ??
+                            "unknown"}{" "}
+                          <span className="text-xs font-normal text-zinc-400">
+                            • id: {it.id}
+                          </span>
+                        </div>
+                        <div className="mt-1 grid grid-cols-2 gap-3 text-xs text-zinc-300">
+                          <div>
+                            <div className="uppercase tracking-wide text-[10px] text-zinc-500">
+                              Server
+                            </div>
+                            <div>{fmt(it.serverTs)}</div>
+                            <div className="mt-0.5 italic text-zinc-400">
+                              {previewMsg(it.server?.message)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="uppercase tracking-wide text-[10px] text-zinc-500">
+                              Local
+                            </div>
+                            <div>{fmt(it.localTs)}</div>
+                            <div className="mt-0.5 italic text-zinc-400">
+                              {previewMsg(it.local?.message)}
+                            </div>
+                          </div>
+                        </div>
+
+                        {previewForItem &&
+                          previewForItem.diffs &&
+                          previewForItem.diffs.length > 0 && (
+                            <div className="mt-2 text-[11px] text-zinc-400">
+                              Changed fields:{" "}
+                              {previewForItem.diffs.join(", ")}
+                            </div>
+                          )}
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <span className="rounded-full border border-amber-500/70 bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-200">
+                          server newer
+                        </span>
+                        <button
+                          onClick={() => {
+                            void applyLocalVersion(it.id, it.local ?? null);
+                          }}
+                          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-100 hover:bg-white/10"
+                          title="Keep your local copy and dismiss this conflict"
+                        >
+                          Keep local
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (it.server)
+                              void applyServerVersion(it.id, it.server);
+                          }}
+                          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-zinc-100 hover:bg-white/10"
+                          title="Replace local copy with the server version"
+                        >
+                          Use server
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-300">
+          <div>
+            {items.length > 0
+              ? "You can apply one-by-one or resolve all at once."
+              : "Nothing to review."}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={onClose}
+              className="rounded-xl border border-white/10 bg-white/8 px-3 py-1.5 text-sm text-zinc-100 hover:bg-white/10"
+            >
+              Close
+            </button>
+            <button
+              onClick={() => {
+                keepLocalForAll();
+                onClose();
+              }}
+              className="rounded-xl border border-white/10 bg-white/8 px-3 py-1.5 text-sm text-zinc-100 hover:bg-white/10"
+              title="Keep all local copies and mark conflicts as resolved"
+            >
+              Keep local for all
+            </button>
+            <button
+              onClick={async () => {
+                await manualSync();
+                onClose();
+              }}
+              className="rounded-xl border border-white/10 bg-white/8 px-3 py-1.5 text-sm text-zinc-100 hover:bg-white/10"
+              title="Pull and merge from server"
+            >
+              Pull all
+            </button>
+            <button
+              onClick={async () => {
+                await applyServerVersionForAll();
+                onClose();
+              }}
+              className="rounded-xl border border-emerald-400/60 bg-emerald-500/20 px-3 py-1.5 text-sm font-medium text-emerald-50 hover:bg-emerald-500/30"
+              title="Replace local copies with server versions for all listed items"
+            >
+              Use server for all
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }

@@ -296,8 +296,11 @@ export default function UpgradePage() {
         }
     }
 
-    // Keep the ref current so the auth-state listener always calls the latest checkout
-    checkoutRef.current = checkout;
+    // Keep the ref current so the auth-state listener always calls the latest checkout.
+    // In an effect, not during render: React may render without committing.
+    useEffect(() => {
+        checkoutRef.current = checkout;
+    });
 
     const currentTier = (mounted && !license.loading) ? license.tier : null;
 

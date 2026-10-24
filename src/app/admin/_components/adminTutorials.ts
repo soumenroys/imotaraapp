@@ -102,9 +102,10 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     steps: [
       { do: "Choose a template, then read it end to end as the recipient.", then: "The house style is deliberate: no images, no buttons, at most one link." },
       { do: "Send yourself a test first, every time.", then: "There is no recall. A broadcast is in somebody's inbox the moment it leaves." },
-      { do: "Send, then watch the delivery figures.", then: "Bounces matter more than opens — a rising bounce rate costs the domain its reputation." },
+      { do: "On the review screen, read it and press Approve.", then: "Nothing is sent or scheduled unapproved; editing it later asks for approval again." },
+      { do: "Send now or pick a time, then watch the delivery figures.", then: "Bounces matter more than opens — a rising bounce rate costs the domain its reputation." },
     ],
-    footnote: "⛔ Owner only, because it speaks to everybody at once in Imotara's name.",
+    footnote: "⛔ Owner only. Automatic outreach emails appear here too, as “Outreach · …”.",
   },
 
   stats: {

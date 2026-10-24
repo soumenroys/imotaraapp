@@ -234,7 +234,7 @@ const NOTES: Partial<Record<Column, string>> = {
   source: "YOU FILL: where we met them.",
   consent_note: "YOU FILL — REQUIRED: how they agreed to be contacted. No consent note = no call and no email.",
   team_member: "YOU FILL: the ambassador who owns this contact.",
-  context: "YOU FILL (optional): how they know us.",
+  context: "YOU FILL (optional): what the voice assistant may mention on the call, e.g. 'runs a student helpline'. ⛔ Not consent — that goes in consent_note, which is never said or sent.",
   call_reason: "YOU FILL (optional): why we are calling.",
   ambassador_notes: "YOU FILL (optional): your own notes.",
   voice_gender: "YOU FILL (optional): male, or leave empty for a female voice.",

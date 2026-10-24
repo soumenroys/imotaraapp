@@ -6,6 +6,8 @@
  * the info email; unsubscribe, bounce, a "no" on a call or a meeting stops it.
  */
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { COLUMNS, STATUS, columnLetter, letterFor, phoneOf, writebackFor, type Column, type Contact } from "@/lib/voice/rules";
 import { MAIL, afterSent, dueStep, mailCheck, selectMail } from "@/lib/outreach/sequence";
 import { checkMailStyle, SIGNATURE, parseMail } from "@/lib/outreach/writer";
@@ -154,5 +156,20 @@ describe("⛔ the Do-not-call tab stops email too", () => {
     expect(mailCheck(c, none)).toBe("OK");
     expect(mailCheck(c, none, new Set([phoneOf(c)]))).toMatch(/do-not-call/);
     expect(dueStep(c, none, TUE_11_IST, new Set([phoneOf(c)]))).toBeNull();
+  });
+});
+
+describe("🔑 every email is written ahead, switch on or off (owner, 25 Oct)", () => {
+  it("all audiences × all emails — introductions first", async () => {
+    const { ALL_DRAFT_KEYS } = await import("@/lib/outreach/run");
+    expect(ALL_DRAFT_KEYS).toHaveLength(20);
+    for (const a of ["ngos", "education", "eldercare", "corporates", "individuals"]) expect(ALL_DRAFT_KEYS).toContain(`${a}:intro`);
+    expect(ALL_DRAFT_KEYS.slice(0, 5).every((k) => k.endsWith(":intro"))).toBe(true);
+  });
+  it("⛔ the drafts are written BEFORE the master switch is looked at", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/outreach/run.ts"), "utf8");
+    const body = src.slice(src.indexOf("export async function runOutreach"));
+    expect(body.indexOf("writeMissingDrafts(")).toBeGreaterThan(-1);
+    expect(body.indexOf("writeMissingDrafts(")).toBeLessThan(body.indexOf("settings.enabled"));
   });
 });

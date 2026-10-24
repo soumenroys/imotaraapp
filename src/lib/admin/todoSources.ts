@@ -89,11 +89,18 @@ export function outreachSource(supabase: SupabaseClient): TodoSource {
     read: async () => {
       const s = await readOutreach(supabase);
       const out: TodoItem[] = [];
-      for (const a of AUDIENCES) for (const st of STEPS) {
-        const d = s.drafts[draftKey(a, st)];
-        if (d?.status === "needs_review") {
-          out.push({ id: `outreach:${draftKey(a, st)}:${d.writtenAt}`, area: "Outreach mail", urgency: "soon", title: `Approve the ${AUDIENCE_LABEL[a]} “${STEP_LABEL[st]}” email`, detail: `“${d.subject}”${d.findings.length ? ` — ${plural(d.findings.length, "check")} to fix first` : ""}`, href: `/admin/outreach?audience=${a}&step=${st}`, action: "Read and approve" });
-        }
+      // 🔑 ONE line per audience: every email is now written ahead (owner, 25 Oct), and
+      //    twenty separate lines would bury everything else on the page.
+      for (const a of AUDIENCES) {
+        const waiting = STEPS.map((st) => ({ st, d: s.drafts[draftKey(a, st)] })).filter((x) => x.d?.status === "needs_review");
+        if (waiting.length === 0) continue;
+        const toFix = waiting.filter((x) => x.d!.findings.length > 0).length;
+        out.push({
+          id: `outreach:${a}:${waiting.map((x) => `${x.st}@${x.d!.writtenAt}`).join(",")}`, area: "Outreach mail", urgency: "soon",
+          title: waiting.length === 1 ? `Approve the ${AUDIENCE_LABEL[a]} “${STEP_LABEL[waiting[0].st]}” email` : `Approve the ${AUDIENCE_LABEL[a]} emails — ${waiting.length} waiting`,
+          detail: `${waiting.map((x) => STEP_LABEL[x.st]).join(", ")}${toFix ? ` · ${plural(toFix, "email")} with checks to fix first` : ""}`,
+          href: `/admin/outreach?audience=${a}&step=${waiting[0].st}`, action: "Read and approve",
+        });
       }
       const approved = Object.values(s.drafts).filter((d) => d.status === "approved").length;
       if (s.settings.enabled && approved === 0) {
@@ -356,7 +363,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
       }));
       out.push(...await checked(6, "Switch Outreach email ON", "/admin/outreach?tab=settings", "Open Settings", async () => {
         const o = await readOutreach(supabase);
-        return [step(6, o.settings.enabled, "Switch Outreach email ON", o.settings.enabled ? `ON — at most ${o.settings.dailyCap} a day.` : "Once the emails are approved.", "/admin/outreach?tab=settings", "Open Settings")];
+        return [step(6, o.settings.enabled, "Switch Outreach email ON", o.settings.enabled ? `ON — at most ${o.settings.dailyCap} a day.` : "Safe at any time — nothing is sent until an email is approved.", "/admin/outreach?tab=settings", "Open Settings")];
       }));
 
       const dir = d as Awaited<ReturnType<typeof readDirectory>> | null;

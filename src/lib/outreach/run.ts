@@ -1,6 +1,10 @@
 // src/lib/outreach/run.ts
 // One pass of the outreach mailer: write any missing draft, then send what is due.
 //
+// 🔑 Owner, 25 Oct 2026: "add all kind of mails … everything". Every email for every
+// audience is written ahead — switch ON or OFF — so the admin finds them all waiting
+// for approval instead of discovering they only appear once outreach is switched on.
+//
 // 🔑 THE UNATTENDED PATH the owner asked for (24 Oct 2026): the admin fills the
 // sheet; this runs every 10 minutes ⇒ /api/cron/outreach-mail.
 //
@@ -15,7 +19,7 @@ import { readDirectory, writeRow } from "@/lib/voice/sheets";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isResendConfigured } from "@/lib/broadcast/resendClient";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
-import { AUDIENCE_OF, MAIL, emailOf, selectMail, afterSent, type Audience, type StepId } from "@/lib/outreach/sequence";
+import { AUDIENCES, AUDIENCE_OF, MAIL, STEPS, emailOf, selectMail, afterSent, type Audience, type StepId } from "@/lib/outreach/sequence";
 import { draftKey, readOutreach, sendableDraft, updateOutreach } from "@/lib/outreach/store";
 import { sendOutreach, senderIdentity, suppressedEmails } from "@/lib/outreach/send";
 import { writeMailDraft } from "@/lib/outreach/writer";
@@ -36,10 +40,42 @@ export type RunReport = {
   limit: number;
 };
 
+/** Every email the system can send: each step for every audience, introductions first. */
+export const ALL_DRAFT_KEYS: string[] = STEPS.flatMap((st) => AUDIENCES.map((a) => draftKey(a, st)));
+
+/**
+ * Write up to `limit` drafts that do not exist yet — ahead of need, whether outreach
+ * is ON or OFF. ⛔ Writing never sends: every draft lands as "needs_review" and waits
+ * for approval (or for send-without-asking, which covers only these automatic ones).
+ */
+export async function writeMissingDrafts(supabase: SupabaseClient, now = new Date(), limit = DRAFTS_PER_RUN): Promise<{ written: string[]; failed: { email: string; error: string }[] }> {
+  const out = { written: [] as string[], failed: [] as { email: string; error: string }[] };
+  const state = await readOutreach(supabase);
+  const missing = ALL_DRAFT_KEYS.filter((k) => !state.drafts[k]).slice(0, limit);
+  for (const k of missing) {
+    const [audience, step] = k.split(":") as [Audience, StepId];
+    try {
+      const w = await writeMailDraft(audience, step);
+      // ⛔ Only if still missing: an admin may have written and approved it while this one was being written (review, 24 Oct).
+      await updateOutreach(supabase, (s) => {
+        if (!s.drafts[k]) s.drafts[k] = { ...w, status: "needs_review", writtenAt: now.toISOString(), writtenBy: "automatic" };
+      });
+      out.written.push(k);
+    } catch (e) {
+      out.failed.push({ email: k, error: `Could not write the draft: ${(e as Error).message}` });
+    }
+  }
+  return out;
+}
+
 const startOfUtcDay = (now: Date) => { const d = new Date(now); d.setUTCHours(0, 0, 0, 0); return d.getTime(); };
 
 export async function runOutreach(supabase: SupabaseClient, now = new Date()): Promise<RunReport> {
   const report: RunReport = { ok: true, sent: [], failed: [], waitingForApproval: [], draftsWritten: [], limit: 0 };
+  // 1. Write missing drafts first — even while switched off (nothing is sent by writing).
+  const drafts = await writeMissingDrafts(supabase, now);
+  report.draftsWritten.push(...drafts.written);
+  report.failed.push(...drafts.failed);
   let state = await readOutreach(supabase);
   if (!state.settings.enabled) return { ...report, ok: false, reason: "Outreach email is switched off." };
   if (!isResendConfigured()) return { ...report, ok: false, reason: "Email sending is not configured (RESEND_API_KEY)." };
@@ -57,24 +93,6 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
 
   // Everyone due, regardless of today's limit — to know which drafts are needed.
   const due = selectMail(d.contacts, suppressed, now, 500, d.dnc);
-
-  // 1. Write the drafts that due mail needs and that do not exist yet.
-  const missing = [...new Set(due.map(({ contact, step }) => draftKey(AUDIENCE_OF[contact.tab], step)))]
-    .filter((k) => !state.drafts[k])
-    .slice(0, DRAFTS_PER_RUN);
-  for (const k of missing) {
-    const [audience, step] = k.split(":") as [Audience, StepId];
-    try {
-      const w = await writeMailDraft(audience, step);
-      // ⛔ Only if still missing: an admin may have written and approved it while this one was being written (review, 24 Oct).
-      state = await updateOutreach(supabase, (s) => {
-        if (!s.drafts[k]) s.drafts[k] = { ...w, status: "needs_review", writtenAt: now.toISOString(), writtenBy: "automatic" };
-      });
-      report.draftsWritten.push(k);
-    } catch (e) {
-      report.failed.push({ email: k, error: `Could not write the draft: ${(e as Error).message}` });
-    }
-  }
 
   // 2. Send what is due, within today's limit, and only with a sendable draft.
   const history = await outreachHistory(supabase, [...new Set(due.map(({ contact }) => emailOf(contact)))]);

@@ -70,3 +70,19 @@ describe("🔗 every To do link goes somewhere real (owner: 'check and approve l
     expect(read("src/app/admin/page.tsx")).toMatch(/get\("tab"\)/);
   });
 });
+
+describe("🧭 urgent first, then set-up in order (owner, 24 Oct)", () => {
+  it("now → setup by step → today → soon", async () => {
+    const S = (area: string, items: { id: string; urgency: "now" | "setup" | "today" | "soon"; step?: number; done?: boolean }[]): TodoSource =>
+      ({ area, roles: "all", read: async () => items.map((x) => ({ ...x, area, title: x.id, href: "/", action: "go" })) });
+    const r = await collect([
+      S("a", [{ id: "soon", urgency: "soon" }, { id: "s3", urgency: "setup", step: 3 }]),
+      S("b", [{ id: "today", urgency: "today" }, { id: "s1", urgency: "setup", step: 1, done: true }, { id: "now", urgency: "now" }]),
+    ], "owner", {});
+    expect(r.items.map((i) => i.id)).toEqual(["now", "s1", "s3", "today", "soon"]);
+  });
+  it("a finished set-up step stays on the list (ticked), so the sequence is always visible", async () => {
+    const r = await collect([{ area: "Set up", roles: "all", read: async () => [{ id: "s1", area: "Set up", urgency: "setup", step: 1, done: true, title: "", href: "/", action: "" }] }], "owner", {});
+    expect(r.items).toHaveLength(1);
+  });
+});

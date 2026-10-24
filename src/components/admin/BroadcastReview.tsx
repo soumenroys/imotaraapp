@@ -75,6 +75,19 @@ export default function BroadcastReview({
     finally { setApproving(false); }
   }
 
+  // Old drafts that will never be sent are clutter on To do — let the owner throw one away (drafts only; sent mail is permanent).
+  async function discard() {
+    if (!window.confirm("Discard this draft for good? It has never been sent, and it cannot be brought back.")) return;
+    setApproving(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}`, adminFetchOpts(token, { method: "DELETE" }));
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(j.error ?? `Could not discard (HTTP ${res.status}).`); return; }
+      onBack();
+    } catch { setError("Network error."); }
+    finally { setApproving(false); }
+  }
+
   async function send() {
     if (!p || sending) return;
     setSending(true); setError(null);
@@ -237,6 +250,9 @@ export default function BroadcastReview({
             )}
             <button onClick={onEdit} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] text-zinc-400 transition hover:text-zinc-200">
               Change the words
+            </button>
+            <button onClick={() => void discard()} disabled={approving} className="ml-auto rounded-lg border border-rose-400/25 px-3 py-1.5 text-[11px] text-rose-300 transition hover:bg-rose-500/10 disabled:opacity-40">
+              Discard this draft
             </button>
           </div>
         </div>

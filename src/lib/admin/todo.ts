@@ -20,7 +20,13 @@
 // a failure becomes a visible "could not check …" line, never an empty list
 // that reads as "nothing to do".
 
-export type Urgency = "now" | "today" | "soon";
+/**
+ * 🔑 "setup" is the numbered checklist an admin works through IN ORDER before
+ * anything can run by itself (owner, 24 Oct 2026: "the admin first need to fill
+ * up google sheet properly … create the to-do list priority wise or sequence
+ * wise"). Shown after "now", before "today".
+ */
+export type Urgency = "now" | "setup" | "today" | "soon";
 
 export type TodoItem = {
   id: string;
@@ -32,13 +38,16 @@ export type TodoItem = {
   action: string;
   /** Needs a person to say it is done (nothing in the system can see it). */
   manual?: boolean;
+  /** Set-up steps: their place in the sequence, and whether they are already done. */
+  step?: number;
+  done?: boolean;
 };
 
 export type TodoSource = { area: string; roles: "all" | "admins" | "owner"; read: () => Promise<TodoItem[]> };
 
 export type TodoResult = { items: TodoItem[]; problems: { area: string; error: string }[]; checked: string[] };
 
-const RANK: Record<Urgency, number> = { now: 0, today: 1, soon: 2 };
+const RANK: Record<Urgency, number> = { now: 0, setup: 1, today: 2, soon: 3 };
 
 /** Who may see a source: a connect reviewer only the "all" ones; an admin all but owner-only. */
 export function visibleTo(role: string, roles: TodoSource["roles"]): boolean {
@@ -59,7 +68,7 @@ export async function collect(sources: TodoSource[], role: string, done: Record<
   return {
     items: items
       .filter((x) => !(x.manual && done[x.id]))
-      .sort((a, b) => RANK[a.urgency] - RANK[b.urgency] || a.area.localeCompare(b.area)),
+      .sort((a, b) => RANK[a.urgency] - RANK[b.urgency] || (a.step ?? 0) - (b.step ?? 0) || a.area.localeCompare(b.area)),
     problems,
     checked: mine.map((s) => s.area),
   };

@@ -120,7 +120,7 @@ export default function BroadcastSection({ token }: { token: string }) {
     const uuid = /^[0-9a-f-]{36}$/i;
     if (review && uuid.test(review)) setView({ name: "review", id: review });
     else if (status && uuid.test(status)) setView({ name: "status", id: status });
-    else if (v === "requests") setView({ name: "requests" });
+    else if (v === "requests" || v === "health" || v === "lists" || v === "templates" || v === "auto") setView({ name: v } as View);
     if (review || status || v) {
       ["review", "status", "view"].forEach((k) => sp.delete(k));
       window.history.replaceState(null, "", `${window.location.pathname}?${sp.toString()}`);

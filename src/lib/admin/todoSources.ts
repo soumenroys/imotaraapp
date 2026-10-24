@@ -7,10 +7,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TodoItem, TodoSource } from "@/lib/admin/todo";
 import { readDirectory, sheetsConfigured } from "@/lib/voice/sheets";
-import { STATUS, missedSchedule, phoneOf } from "@/lib/voice/rules";
-import { AUDIENCES, AUDIENCE_LABEL, STEPS, STEP_LABEL } from "@/lib/outreach/sequence";
+import { STATUS, checkContact, missedSchedule, phoneOf } from "@/lib/voice/rules";
+import { AUDIENCES, AUDIENCE_LABEL, AUDIENCE_OF, STEPS, STEP_LABEL, emailOf, mailCheck } from "@/lib/outreach/sequence";
 import { draftKey, readOutreach } from "@/lib/outreach/store";
 import { approvalState, readApprovals } from "@/lib/broadcast/approval";
+import { availableIdentities } from "@/lib/broadcast/identities";
+import { isResendConfigured } from "@/lib/broadcast/resendClient";
+import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
 import { readAuto } from "@/lib/broadcast/autoBroadcast";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -107,7 +110,8 @@ export function broadcastSource(supabase: SupabaseClient): TodoSource {
             id: `broadcast:approve:${b.id}:${b.updated_at}`, area: "Broadcast mail",
             urgency: due && Date.parse(due) - Date.now() < 2 * 86_400_000 ? "today" : "soon",
             title: due ? `Approve this month's newsletter: “${b.subject}”` : `Approve or discard: “${b.subject || "(no subject)"}”`,
-            detail: due ? `It goes out by itself on ${new Date(due).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST once approved.` : "A draft waiting for approval.",
+            detail: due ? `It goes out by itself on ${new Date(due).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST once approved.`
+              : !b.list_id ? "No recipient list attached — attach one in the draft, or discard it if it is not needed." : "A draft waiting for approval.",
             href: `/admin?section=broadcast&review=${b.id}`, action: "Read and approve",
           });
         }
@@ -244,6 +248,91 @@ export function cronSource(supabase: SupabaseClient, declared: { path: string; s
           title: `A scheduled job is ${j.state === "never" ? "not running" : "late"}: ${j.job}`,
           detail: j.description ?? undefined, href: "/admin?section=stats", action: "See job health",
         }));
+    },
+  };
+}
+
+// ── Set up, in order ─────────────────────────────────────────────────────────
+//
+// 🔑 Owner, 24 Oct 2026: the admin fills the sheet once and sets the schedules
+// once; after that everything runs by itself. These are those steps, NUMBERED,
+// each read from the real state — a step is ticked because the thing is true,
+// never because somebody pressed a button. All steps are always shown (done ones
+// with ✓) so the sequence and the progress are visible at a glance.
+
+
+const step = (n: number, done: boolean, title: string, detail: string, href: string, action: string, area = "Set up"): TodoItem =>
+  ({ id: `setup:${n}`, area, urgency: "setup", step: n, done, title, detail, href, action });
+
+/** Steps 1–7: mail, the sheet, social, outreach, calling. */
+export function setupSource(supabase: SupabaseClient): TodoSource {
+  return {
+    area: "Set up",
+    roles: "admins",
+    read: async () => {
+      const out: TodoItem[] = [];
+      const from = (await availableIdentities(supabase))[0];
+      const mailOk = Boolean(from) && isResendConfigured() && isUnsubscribeConfigured();
+      out.push(step(1, mailOk, "Mail can be sent", mailOk ? `From ${from!.email}.` : "Set a sender in Broadcast mail → Sending status (and the mail keys).", "/admin?section=broadcast&view=health", "Check sending"));
+
+      const sheet = sheetsConfigured();
+      const d = sheet ? await readDirectory() : null;
+      const contacts = (d?.contacts ?? []).filter((c) => !/^sample\b/i.test(c.v.name));
+      out.push(step(2, contacts.length > 0, "Add your contacts to the Call Directory sheet",
+        contacts.length ? `${plural(contacts.length, "contact")} in the sheet.` : "The sheet is empty. Fill the white columns: phone, name, organisation, language, time zone, consent note — and email for outreach mail.",
+        "/admin/voice", "Open the sheet"));
+      if (d) {
+        const broken = contacts.filter((c) => checkContact(c, d) !== "OK" && !/Stopped by admin|Individuals paused/.test(checkContact(c, d)));
+        out.push(step(3, contacts.length > 0 && broken.length === 0, "Fix the rows the sheet marks ⛔",
+          contacts.length === 0 ? "Add contacts first." : broken.length ? `${plural(broken.length, "row")} cannot be contacted yet — the sheet's what_to_do column says what to fix on each.` : "Every row is complete.",
+          "/admin/voice", "See the rows"));
+      }
+
+      const { data: schedules } = await supabase.from("social_schedules").select("id").eq("active", true);
+      const { data: channels } = await supabase.from("social_accounts").select("id").in("status", ["ok", "expiring"]);
+      const socialOk = (schedules?.length ?? 0) > 0 && (channels?.length ?? 0) > 0;
+      out.push(step(4, socialOk, "Social: a channel connected and a schedule running",
+        socialOk ? `${plural(channels!.length, "channel")} working, ${plural(schedules!.length, "schedule")} running.` : "Connect a channel and create a schedule.",
+        socialOk ? "/admin/social/schedules" : "/admin/social/channels", "Open Social"));
+
+      const o = await readOutreach(supabase);
+      const suppressed = new Set<string>();
+      const emailable = contacts.filter((c) => emailOf(c) && mailCheck(c, suppressed) === "OK");
+      const needed = [...new Set(emailable.map((c) => AUDIENCE_OF[c.tab]))].flatMap((a) => (["intro", "followup", "last"] as const).map((st) => draftKey(a, st)));
+      const missing = needed.filter((k) => o.drafts[k]?.status !== "approved");
+      out.push(step(5, emailable.length > 0 && missing.length === 0, "Approve the outreach emails for your contacts",
+        emailable.length === 0 ? "No contact with an email and a consent note yet." : missing.length ? `${plural(missing.length, "email")} still to approve (introduction, day 7, day 21 for each audience in your sheet).` : "All approved.",
+        missing.length ? `/admin/outreach?audience=${missing[0].split(":")[0]}&step=${missing[0].split(":")[1]}` : "/admin/outreach", "Read and approve"));
+      out.push(step(6, o.settings.enabled, "Switch Outreach email ON", o.settings.enabled ? `ON — at most ${o.settings.dailyCap} a day.` : "Once the emails are approved.", "/admin/outreach", "Open Settings"));
+
+      const callOn = Boolean(d?.settings.callingEnabled && d?.settings.autoDispatch);
+      out.push(step(7, callOn, "Switch Calling and Automatic calling ON",
+        callOn ? "Calls go out by themselves in each person's daytime." : `Calling is ${d?.settings.callingEnabled ? "ON" : "OFF"}, automatic is ${d?.settings.autoDispatch ? "ON" : "OFF"}.`,
+        "/admin/voice", "Open Voice calls → Settings"));
+      return out;
+    },
+  };
+}
+
+/** Steps 8–9 (owner): a newsletter list, and the monthly newsletter switched on. */
+export function setupBroadcastSource(supabase: SupabaseClient): TodoSource {
+  return {
+    area: "Set up",
+    roles: "owner",
+    read: async () => {
+      const { data: lists, error } = await supabase.from("broadcast_lists").select("id, name, broadcast_recipients(count)");
+      if (error) throw new Error(error.message);
+      const count = (l: { broadcast_recipients?: unknown }) => Number((l.broadcast_recipients as { count?: number }[] | undefined)?.[0]?.count ?? 0);
+      const usable = (lists ?? []).filter((l) => !(l.name as string).startsWith("Outreach —") && count(l) > 0);
+      const auto = await readAuto(supabase);
+      return [
+        step(8, usable.length > 0, "Have a recipient list for the newsletter",
+          usable.length ? `${usable.map((l) => `${l.name} (${count(l)})`).join(", ")}.` : "No list with people on it. Make one under Recipient lists, or add people who asked for updates (Requests).",
+          "/admin?section=broadcast&view=lists", "Open Recipient lists", "Set up"),
+        step(9, auto.settings.enabled && auto.settings.listIds.length > 0, "Switch the monthly newsletter ON",
+          auto.settings.enabled ? "ON — it waits on this page for your approval each month." : "Choose the day, the hour and the list.",
+          "/admin?section=broadcast&view=auto", "Open Automatic", "Set up"),
+      ];
     },
   };
 }

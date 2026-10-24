@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 
-type Item = { id: string; area: string; urgency: "now" | "today" | "soon"; title: string; detail?: string; href: string; action: string; manual?: boolean };
+type Item = { id: string; area: string; urgency: "now" | "setup" | "today" | "soon"; title: string; detail?: string; href: string; action: string; manual?: boolean; step?: number; done?: boolean };
 type Done = { id: string; by: string; at: string; title: string };
 type Data = { items: Item[]; problems: { area: string; error: string }[]; checked: string[]; recentlyDone: Done[]; asOf: string };
 
@@ -54,6 +54,7 @@ export default function TodoSection({ token }: { token: string }) {
     } finally { setBusy(null); }
   };
 
+  const pending = (d?.items ?? []).filter((i) => !i.done);
   if (error) return <div className="rounded-xl border border-rose-400/25 bg-rose-500/8 px-4 py-3 text-sm text-rose-300">{error}</div>;
   if (!d) return <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-16 animate-pulse rounded-xl border border-white/8 bg-white/3" />)}</div>;
 
@@ -61,9 +62,9 @@ export default function TodoSection({ token }: { token: string }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm text-zinc-300">
-          {d.items.length === 0
+          {pending.length === 0
             ? <b className="text-emerald-300">✅ Nothing is waiting for you.</b>
-            : <><b className="text-zinc-100">{d.items.length} thing{d.items.length === 1 ? "" : "s"} waiting for you.</b> Most urgent first.</>}
+            : <><b className="text-zinc-100">{pending.length} thing{pending.length === 1 ? "" : "s"} waiting for you.</b> Urgent first, then set-up in order.</>}
         </p>
         <button onClick={() => void load()} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200">
           Refresh · checked {time(d.asOf)}
@@ -76,30 +77,26 @@ export default function TodoSection({ token }: { token: string }) {
         </div>
       )}
 
-      {GROUPS.map((g) => {
+      {GROUPS.filter((g) => g.id === "now").map((g) => {
         const items = d.items.filter((i) => i.urgency === g.id);
         if (items.length === 0) return null;
         return (
           <section key={g.id} className="space-y-2">
             <h3 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{g.label} · {items.length}</h3>
-            {items.map((i) => (
-              <div key={i.id} className={`flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 ${g.tone}`}>
-                <span className="mt-0.5 shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-zinc-400">{i.area}</span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-zinc-100">{i.title}</p>
-                  {i.detail && <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">{i.detail}</p>}
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                  <a href={i.href} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20">{i.action} →</a>
-                  {i.manual && (
-                    <button disabled={busy === i.id} onClick={() => void mark(i, true)}
-                      className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40">
-                      {busy === i.id ? "Saving…" : "✓ Mark done"}
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+            {items.map((i) => <ItemRow key={i.id} i={i} tone={g.tone} busy={busy} mark={mark} />)}
+          </section>
+        );
+      })}
+
+      <SetupChecklist items={d.items.filter((i) => i.urgency === "setup")} />
+
+      {GROUPS.filter((g) => g.id !== "now").map((g) => {
+        const items = d.items.filter((i) => i.urgency === g.id);
+        if (items.length === 0) return null;
+        return (
+          <section key={g.id} className="space-y-2">
+            <h3 className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">{g.label} · {items.length}</h3>
+            {items.map((i) => <ItemRow key={i.id} i={i} tone={g.tone} busy={busy} mark={mark} />)}
           </section>
         );
       })}
@@ -123,5 +120,67 @@ export default function TodoSection({ token }: { token: string }) {
         the ones the system cannot see — a call made, a meeting held — have a Mark done button.
       </p>
     </div>
+  );
+}
+
+function ItemRow({ i, tone, busy, mark }: { i: Item; tone: string; busy: string | null; mark: (item: { id: string; title: string }, done: boolean) => Promise<void> }) {
+  return (
+    <div className={`flex flex-wrap items-start gap-3 rounded-xl border px-4 py-3 ${tone}`}>
+      <span className="mt-0.5 shrink-0 rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-zinc-400">{i.area}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-zinc-100">{i.title}</p>
+        {i.detail && <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">{i.detail}</p>}
+      </div>
+      <div className="flex shrink-0 flex-wrap gap-2">
+        <a href={i.href} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20">{i.action} →</a>
+        {i.manual && (
+          <button disabled={busy === i.id} onClick={() => void mark(i, true)}
+            className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40">
+            {busy === i.id ? "Saving…" : "✓ Mark done"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 🧭 The set-up steps, numbered and IN ORDER, every one shown — ✓ when it is
+ * true, the first unfinished one highlighted as "Next". A step is ticked because
+ * the thing itself is true, never by pressing a button.
+ */
+function SetupChecklist({ items }: { items: Item[] }) {
+  if (items.length === 0) return null;
+  const steps = [...items].sort((a, b) => (a.step ?? 0) - (b.step ?? 0));
+  const done = steps.filter((s) => s.done).length;
+  const next = steps.find((s) => !s.done)?.id;
+  return (
+    <section className="space-y-2 rounded-2xl border border-indigo-400/25 bg-indigo-500/5 p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-[10px] font-semibold uppercase tracking-widest text-indigo-200">🧭 Set up — in this order · {done} of {steps.length} done</h3>
+        {done === steps.length && <span className="text-xs text-emerald-300">Everything runs by itself now.</span>}
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="h-full rounded-full bg-emerald-400/70" style={{ width: `${Math.round((done / steps.length) * 100)}%` }} />
+      </div>
+      <ol className="space-y-1.5">
+        {steps.map((s, idx) => (
+          <li key={s.id} className={`flex flex-wrap items-start gap-3 rounded-xl border px-3 py-2.5 ${s.id === next ? "border-amber-400/40 bg-amber-500/8" : s.done ? "border-white/5 bg-transparent" : "border-white/10 bg-white/3"}`}>
+            <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${s.done ? "bg-emerald-500/20 text-emerald-300" : s.id === next ? "bg-amber-400/20 text-amber-200" : "bg-white/10 text-zinc-400"}`}>
+              {s.done ? "✓" : idx + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className={`text-sm ${s.done ? "text-zinc-500" : "text-zinc-100"}`}>
+                {s.title}{s.id === next && <span className="ml-2 rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-200">Next</span>}
+              </p>
+              {s.detail && <p className={`mt-0.5 text-xs leading-relaxed ${s.done ? "text-zinc-600" : "text-zinc-400"}`}>{s.detail}</p>}
+            </div>
+            {!s.done && (
+              <a href={s.href} className="shrink-0 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20">{s.action} →</a>
+            )}
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }

@@ -12,7 +12,7 @@ import { collect } from "@/lib/admin/todo";
 import { markDone, readDone, undoDone } from "@/lib/admin/todoDone";
 import {
   broadcastSource, commentsSource, connectMoneySource, connectSource, cronSource, organisationsSource,
-  outreachSource, requestsSource, socialSource, voiceSource,
+  outreachSource, requestsSource, setupBroadcastSource, setupSource, socialSource, voiceSource,
 } from "@/lib/admin/todoSources";
 
 export const runtime = "nodejs";
@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
       voiceSource(), outreachSource(supabase), broadcastSource(supabase), requestsSource(supabase), commentsSource(supabase),
       connectSource(supabase), connectMoneySource(supabase), organisationsSource(supabase), socialSource(supabase),
       cronSource(supabase, declared),
+      setupSource(supabase), setupBroadcastSource(supabase),
     ],
     auth.admin.role,
     done,

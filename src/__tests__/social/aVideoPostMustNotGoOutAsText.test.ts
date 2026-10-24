@@ -139,7 +139,10 @@ describe("the publisher asks before it does anything", () => {
     // the post itself was never the problem.
     const at = publisher.indexOf("mediaPlan(platform");
     const block = publisher.slice(at, at + 700);
-    expect(block).toContain('status: "approved"');
+    // ⚠️ 24 Oct: via release(), which keeps it 'approved' until its attempts are spent,
+    // then 'failed' with the reason — never 'approved' for ever.
+    expect(block).toContain("release(post,");
+    expect(publisher).toMatch(/status: spent \? "failed" : "approved"/);
     expect(block).toContain("continue;");
   });
 });

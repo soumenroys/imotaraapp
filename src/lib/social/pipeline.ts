@@ -886,6 +886,14 @@ export async function prepareGenerated(
    * exactly its answer. What is new is that the rest of the cycle is kept, so
    * a subject clash has somewhere to go instead of losing the slot.
    */
+  /**
+   * ⚠️ A schedule whose ONLY angle is "trending", in a week with no moment for
+   * this post's day: say so, rather than fail as if the schedule had no angle at
+   * all and email a misleading alert for every slot (review, 24 Oct).
+   */
+  if (cycle.length === 0 && args.schedule.topicPool.includes("trending")) {
+    return { ok: false, reason: "No current moment applies to this post's day, and this schedule has no other angle. Add another angle to the schedule.", rejected: [] };
+  }
   const order = angleOrder(cycle, args.postsSoFar);
   let pool = order[0];
 
@@ -1115,14 +1123,20 @@ export async function prepareGenerated(
      * needs_review into an approved.
      */
     const decided = decideStatus(args.schedule.autoPublish, language, overlay);
-    const status = mistake ? "needs_review" : decided.status;
+    // ⛔ A post about this week's moment is never published unattended either:
+    // nothing can prove it added no "fact" about a live event (review, 24 Oct).
+    const status = mistake || trend ? "needs_review" : decided.status;
     const note =
       mistake && decided.status === "approved"
         ? `⚠️ Held for you to read. A post about something we got wrong never publishes ` +
           `unattended — the keyword check proves it is about the right mistake and cannot prove ` +
           `it did not add to it.`
-        : decided.note;
+        : trend && decided.status === "approved"
+          ? `⚠️ Held for you to read: a post about this week's moment never publishes unattended.`
+          : decided.note;
     if (note) notes.push(note);
+    // 🔑 Which moment it was handed — so the reviewer can see it ⇒ /admin/social/trends.
+    if (trend) notes.push(`This week's moment: ${trend.topic} — ${trend.why}`);
     if (gate.listsUnavailable.length > 0) {
       notes.push(
         `Not every list could be run on this post: ${gate.listsUnavailable.join(", ")} has no ` +

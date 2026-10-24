@@ -18,6 +18,16 @@ import { loadOverlay } from "@/lib/social/store";
 type Body = { action?: string; subject?: string; body?: string; scheduledFor?: string | null };
 
 const APPROVABLE = ["needs_review"];
+/**
+ * ⛔ What edit / skip / retry may touch. A post that has gone out (or is going
+ * out) is the public record: a stale tab pressing "Change the words" on it used
+ * to put it back in review, and approving it published it a second time (review, 24 Oct).
+ */
+const CHANGEABLE = ["needs_review", "approved", "failed"];
+const goneOn = (error: { code?: string; message: string } | null) =>
+  error?.code === "PGRST116"
+    ? NextResponse.json({ error: "This post has already gone out or changed since the page loaded — press Refresh." }, { status: 409 })
+    : NextResponse.json({ error: error?.message ?? "That did not work." }, { status: 400 });
 
 /**
  * ⚠️ APPROVING NOW DOES REAL WORK. For a short video it renders five frames,
@@ -115,7 +125,8 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
       const { data, error } = await db
         .from("social_posts")
-        .update({ status: "approved", reviewed_by: guard.actor.id, reviewed_at: now, updated_at: now })
+        // ⚠️ A fresh approval gets fresh attempts — re-approving a post that had spent them did nothing before.
+        .update({ status: "approved", attempts: 0, reviewed_by: guard.actor.id, reviewed_at: now, updated_at: now })
         .eq("id", id)
         // ⚠️ Conditional on the status we read, so two reviewers pressing
         // approve at once cannot both succeed.
@@ -197,10 +208,11 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           updated_at: now,
         })
         .eq("id", id)
+        .in("status", CHANGEABLE)
         .select("id, status, subject, body")
         .single();
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (error) return goneOn(error);
       return NextResponse.json({
         post: data,
         houseStyle: houseStyle.problems,
@@ -213,10 +225,24 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
         .from("social_posts")
         .update({ status: "skipped", reviewed_by: guard.actor.id, reviewed_at: now, updated_at: now })
         .eq("id", id)
+        .in("status", CHANGEABLE)
         .select("id, status")
         .single();
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (error) return goneOn(error);
       return NextResponse.json({ post: data, note: "Skipped. The subject stays claimed, so it will not come round again." });
+    }
+
+    /** A post that failed to publish goes back to "Waiting for you", with fresh attempts — read it, then approve again. */
+    case "retry": {
+      const { data, error } = await db
+        .from("social_posts")
+        .update({ status: "needs_review", attempts: 0, reviewed_by: null, reviewed_at: null, updated_at: now })
+        .eq("id", id)
+        .eq("status", "failed")
+        .select("id, status")
+        .single();
+      if (error) return goneOn(error);
+      return NextResponse.json({ post: data, note: "Back in Waiting for you. Read it and approve it to try again." });
     }
 
     case "unapprove": {

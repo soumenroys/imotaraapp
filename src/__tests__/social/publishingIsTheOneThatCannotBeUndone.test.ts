@@ -200,7 +200,8 @@ describe("the drain claims a post before it publishes it", () => {
    */
   it("does not publish the words when the card fails to render", () => {
     const branch = cron.slice(cron.indexOf("if (!rendered.ok)"), cron.indexOf("picture = rendered.bytes"));
-    expect(branch).toMatch(/status: "approved"/);
+    // ⚠️ 24 Oct: released via release() — 'approved' until the attempts are spent, then 'failed'.
+    expect(branch).toContain("release(post,");
     expect(branch).toContain("continue;");
   });
 

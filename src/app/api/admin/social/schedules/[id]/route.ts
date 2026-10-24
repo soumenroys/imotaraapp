@@ -214,8 +214,26 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
   }
 
+  /**
+   * 🔴 TURNING AUTO-PUBLISH OFF, OR PAUSING, MUST REACH THE POSTS ALREADY QUEUED.
+   * Posts written under auto-publish sit 'approved' with nobody's review; the
+   * publisher never re-reads the schedule, so they went out anyway (review, 24 Oct).
+   * ⇒ Every approved post on this schedule that no PERSON approved goes back to
+   * "Waiting for you". Posts a person approved stay approved.
+   */
+  let backToReview = 0;
+  if (patch.auto_publish === false || patch.active === false) {
+    const { count } = await db.from("social_posts")
+      .update({ status: "needs_review", updated_at: new Date().toISOString() }, { count: "exact" })
+      .eq("schedule_id", id)
+      .eq("status", "approved")
+      .is("reviewed_by", null);
+    backToReview = count ?? 0;
+  }
+
   return NextResponse.json({
     schedule: data,
+    backToReview,
     /**
      * 🔑 SAID BACK, not done silently. Moving somebody's queue is a bigger
      * consequence than editing a row, and an orphan — a post whose weekday
@@ -247,7 +265,11 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   if (!guard.ok) return guard.response;
 
   const db = getSupabaseAdmin();
+  // ⚠️ Its unreviewed queued posts go back for review first — deleting a schedule must not leave them to publish themselves.
+  const { count } = await db.from("social_posts")
+    .update({ status: "needs_review", updated_at: new Date().toISOString() }, { count: "exact" })
+    .eq("schedule_id", id).eq("status", "approved").is("reviewed_by", null);
   const { error } = await db.from("social_schedules").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  return NextResponse.json({ ok: true, note: "The posts it already produced are kept." });
+  return NextResponse.json({ ok: true, note: `The posts it already produced are kept.${count ? ` ${count} that nobody had approved went back to Waiting for you.` : ""}` });
 }

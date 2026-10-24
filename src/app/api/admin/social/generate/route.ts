@@ -85,13 +85,18 @@ export async function POST(req: NextRequest) {
      * every time and look like the rotation is broken — so a preview walks the
      * pools instead, which is also the fastest way to see what each one does.
      */
-    const result = await prepareGenerated(deps, {
-      schedule: shape,
-      platform,
-      language,
-      postsSoFar: Math.floor(Math.random() * Math.max(1, shape.topicPool.length)),
-      trends: await activeTrends(getSupabaseAdmin()).catch(() => []),
-    });
+    let result: Awaited<ReturnType<typeof prepareGenerated>>;
+    try {
+      result = await prepareGenerated(deps, {
+        schedule: shape,
+        platform,
+        language,
+        postsSoFar: Math.floor(Math.random() * Math.max(1, shape.topicPool.length)),
+        trends: await activeTrends(getSupabaseAdmin()).catch(() => []),
+      });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 422 });
+    }
     if (!result.ok) {
       return NextResponse.json({ error: result.reason, rejected: result.rejected }, { status: 422 });
     }
@@ -148,7 +153,13 @@ export async function POST(req: NextRequest) {
   }
 
   const deps = await liveDeps();
-  const result = await prepareGenerated(deps, { schedule, platform, language, postsSoFar, trends: await activeTrends(db).catch(() => []) });
+  // ⚠️ A thrown error used to reach the admin as a bare 500 (review, 24 Oct).
+  let result: Awaited<ReturnType<typeof prepareGenerated>>;
+  try {
+    result = await prepareGenerated(deps, { schedule, platform, language, postsSoFar, trends: await activeTrends(db).catch(() => []) });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 422 });
+  }
 
   if (!result.ok) {
     // 🔑 The rejected drafts come back too. "Three drafts were written and all

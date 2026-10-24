@@ -117,7 +117,7 @@ export function PostFlow({ waiting }: { waiting: number }) {
 
       <div className="grid gap-2 sm:grid-cols-3">
         <Box tone="good" title="Published">The link appears on Today.</Box>
-        <Box tone="stop" title="The platform refused">Tried up to 3 times in all, then marked failed — read why on Today.</Box>
+        <Box tone="stop" title="It did not go out">Marked failed — read why on Today → Problems, then Try again or Skip. It also shows on To do.</Box>
         <Box tone="step" title="Numbers come back">Reach, likes and saves on the Stats screen, refreshed daily at 19:30 IST.</Box>
       </div>
 

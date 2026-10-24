@@ -41,6 +41,19 @@ export const maxDuration = 300;
 const MAX_ATTEMPTS = 3;
 
 /**
+ * 🔴 A PRE-FLIGHT FAILURE HANDS THE POST BACK — UNTIL ITS ATTEMPTS ARE SPENT.
+ * Each run claims the post and spends one attempt; the query only takes posts
+ * under MAX_ATTEMPTS. A post released as 'approved' on its last attempt was
+ * never selected again and still read "Ready to go" — for ever (review, 24 Oct).
+ * ⇒ On the last attempt it becomes 'failed', with the reason, where Today's
+ * Problems view and the admin's To do show it.
+ */
+function release(post: Record<string, unknown>, why: string) {
+  const spent = (Number(post.attempts) || 0) + 1 >= MAX_ATTEMPTS;
+  return { status: spent ? "failed" : "approved", last_error: why, updated_at: new Date().toISOString() };
+}
+
+/**
  * ⚠️ A SMALL BATCH, DELIBERATELY. Publishing is the slow, irreversible part;
  * a run that tries twenty posts and times out half way has published an
  * unknown number of them. Five per minute is far more than this product will
@@ -279,7 +292,7 @@ export async function GET(req: NextRequest) {
     if (!media.ok) {
       await db
         .from("social_posts")
-        .update({ status: "approved", last_error: media.why, updated_at: new Date().toISOString() })
+        .update(release(post, media.why))
         .eq("id", post.id);
       outcomes.push({
         id: post.id as string,
@@ -306,7 +319,7 @@ export async function GET(req: NextRequest) {
       if (!reachable.ok) {
         await db
           .from("social_posts")
-          .update({ status: "approved", last_error: reachable.why, updated_at: new Date().toISOString() })
+          .update(release(post, reachable.why))
           .eq("id", post.id);
         outcomes.push({
           id: post.id as string,
@@ -350,6 +363,8 @@ export async function GET(req: NextRequest) {
               `and a Short must have one. ⛔ Nothing was invented to fill it. ▶️ Give the post a shorter ` +
               `subject, or a shorter opening sentence.`,
           });
+          // ⛔ The row was claimed as 'publishing'; leaving it there stranded it for ever.
+          await db.from("social_posts").update({ ...release(post, "No title short enough for a YouTube Short."), status: "failed" }).eq("id", post.id);
           continue;
         }
 
@@ -366,6 +381,7 @@ export async function GET(req: NextRequest) {
             result: "failed",
             detail: `The video could not be read for upload, so nothing was posted: ${(e as Error).message}`,
           });
+          await db.from("social_posts").update(release(post, `The video could not be read for upload: ${(e as Error).message}`)).eq("id", post.id);
           continue;
         }
 
@@ -433,7 +449,7 @@ export async function GET(req: NextRequest) {
       if (!plan.ok) {
         await db
           .from("social_posts")
-          .update({ status: "approved", last_error: plan.why, updated_at: new Date().toISOString() })
+          .update(release(post, plan.why))
           .eq("id", post.id);
         outcomes.push({
           id: post.id as string,
@@ -474,7 +490,7 @@ export async function GET(req: NextRequest) {
       if (unreachable) {
         await db
           .from("social_posts")
-          .update({ status: "approved", last_error: unreachable.why, updated_at: new Date().toISOString() })
+          .update(release(post, unreachable.why))
           .eq("id", post.id);
         outcomes.push({
           id: post.id as string,
@@ -538,7 +554,7 @@ export async function GET(req: NextRequest) {
            */
           await db
             .from("social_posts")
-            .update({ status: "approved", last_error: rendered.failure.error, updated_at: new Date().toISOString() })
+            .update(release(post, rendered.failure.error))
             .eq("id", post.id);
           outcomes.push({
             id: post.id as string,
@@ -575,7 +591,7 @@ export async function GET(req: NextRequest) {
         if (!rendered.ok) {
           await db
             .from("social_posts")
-            .update({ status: "approved", last_error: rendered.failure.error, updated_at: new Date().toISOString() })
+            .update(release(post, rendered.failure.error))
             .eq("id", post.id);
           outcomes.push({
             id: post.id as string,

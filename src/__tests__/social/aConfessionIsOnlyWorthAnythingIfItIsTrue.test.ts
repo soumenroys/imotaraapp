@@ -121,7 +121,8 @@ describe("the pipeline enforces it", () => {
    * me" is on.
    */
   it("⛔ never lets a confession publish unattended", () => {
-    expect(pipeline).toMatch(/const status = mistake \? "needs_review" : decided\.status;/);
+    // ⚠️ 24 Oct: a post about this week's moment is held the same way.
+    expect(pipeline).toMatch(/const status = mistake \|\| trend \? "needs_review" : decided\.status;/);
   });
 
   it("⛔ and the override only ever moves TOWARDS review", () => {

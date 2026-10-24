@@ -43,7 +43,13 @@ type Post = {
   visual_recipe: Record<string, unknown> | null;
   gate_result: GateResult | null;
   created_at: string;
+  last_error?: string | null;
+  attempts?: number;
 };
+
+/** "Sun 26 Oct, 18:00" in the reader's own time — when this post goes out. */
+const goesOut = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString(undefined, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "no time set";
 
 /**
  * The card numbers this post publishes, in order.
@@ -255,6 +261,8 @@ export default function Today() {
                               Asked for a picture — none made
                             </Chip>
                           )}
+                          {/* 🔑 When it goes out — drafts are written ten days ahead, and the day was nowhere on the row (review, 24 Oct). */}
+                          <span className="text-xs font-medium text-zinc-300">{post.status === "published" ? "went out" : "goes out"} {goesOut(post.scheduled_for)}</span>
                           <span className="text-xs text-zinc-500">
                             {post.platform} · {post.language}
                             {post.media_kind === "graphic" && " · with a picture"}
@@ -457,6 +465,24 @@ export default function Today() {
                                 </button>
                               </>
                             ))}
+                          {post.status === "failed" && (
+                            <>
+                              {/* 🔴 The reason was never shown, and the only button was "Change the time" — which did nothing for a failed post. */}
+                              <p className="w-full rounded-lg border border-rose-900/60 bg-rose-950/30 p-3 text-xs leading-relaxed text-rose-200">
+                                Why it did not go out: {post.last_error || "no reason was recorded."}
+                              </p>
+                              <button type="button" disabled={busy === post.id}
+                                onClick={() => void act(post.id, "retry")}
+                                className="min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-50">
+                                Try again
+                              </button>
+                              <button type="button" disabled={busy === post.id}
+                                onClick={() => void act(post.id, "skip")}
+                                className="min-h-11 rounded-lg border border-rose-900 px-4 text-sm text-rose-300 hover:bg-rose-950/40 disabled:opacity-50">
+                                Skip it
+                              </button>
+                            </>
+                          )}
                           {post.status === "approved" && (
                             <button type="button" disabled={busy === post.id}
                               onClick={() => void act(post.id, "unapprove")}
@@ -470,7 +496,7 @@ export default function Today() {
                               immediately, and spreading them took a direct
                               database update — which left the owner unable to
                               do the same thing. */}
-                          {post.status !== "published" && (
+                          {(post.status === "needs_review" || post.status === "approved") && (
                             <button type="button" disabled={busy === post.id}
                               onClick={() => setWhen(when?.id === post.id ? null : {
                                 id: post.id,
@@ -539,7 +565,7 @@ export default function Today() {
               ["Waiting for you", byStatus.needs_review ?? 0],
               ["Ready to go", byStatus.approved ?? 0],
               ["Posted", byStatus.published ?? 0],
-              ["Blocked", byStatus.rejected_by_gate ?? 0],
+              ["Problems", (byStatus.failed ?? 0) + (byStatus.rejected_by_gate ?? 0)],
             ].map(([label, value]) => (
               <div key={label as string} className="rounded-xl border border-white/8 bg-white/5 p-3">
                 <div className="text-[11px] uppercase tracking-wide text-zinc-500">{label}</div>

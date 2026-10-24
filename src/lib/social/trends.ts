@@ -93,7 +93,7 @@ export function parseTrendsRss(xml: string, source: Candidate["source"]): Candid
 const decode = (s: string) => s.replace(/&amp;/g, "&").replace(/&#39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 
 /** Awareness days whose window (3 days before → end of the day) touches the next `days` days. */
-export function upcomingAwarenessDays(now: Date, days = 10): TrendNote[] {
+export function upcomingAwarenessDays(now: Date, days = 14): TrendNote[] {
   const out: TrendNote[] = [];
   for (const y of [now.getUTCFullYear(), now.getUTCFullYear() + 1]) {
     for (const a of AWARENESS_DAYS) {
@@ -144,10 +144,15 @@ async function writeTrends(supabase: SupabaseClient, s: TrendState): Promise<voi
   if (error) throw new Error(`Could not save trends: ${error.message}`);
 }
 
-/** The notes a post may use now — active, not expired, not removed by an admin. */
+/**
+ * The notes a post may use — not removed, not yet expired. ⚠️ Includes ones whose
+ * window is still AHEAD: posts are written up to ten days early, and the pipeline
+ * matches each note to the post's own day (review, 24 Oct: filtering by "active
+ * now" meant no post written ahead could ever use one).
+ */
 export function activeNotes(s: TrendState, now = new Date()): TrendNote[] {
   const t = now.getTime();
-  return s.notes.filter((n) => !n.removed && Date.parse(n.activeFrom) <= t && Date.parse(n.expiresAt) > t);
+  return s.notes.filter((n) => !n.removed && Date.parse(n.expiresAt) > t);
 }
 
 export async function activeTrends(supabase: SupabaseClient, now = new Date()): Promise<TrendNote[]> {
@@ -173,11 +178,19 @@ export async function refreshTrends(supabase: SupabaseClient, now = new Date()):
   const prev = await readTrends(supabase);
   const removed = new Set(prev.notes.filter((n) => n.removed).map((n) => n.topic.toLowerCase()));
   const notes: TrendNote[] = upcomingAwarenessDays(now).map((n) => (removed.has(n.topic.toLowerCase()) ? { ...n, removed: true } : n));
+  // ⚠️ Kept across refreshes: removed notes (so "Never use this" holds) and trends still inside their window.
+  for (const n of prev.notes) {
+    if (n.source === "awareness-day" || Date.parse(n.expiresAt) <= now.getTime()) continue;
+    if (!notes.some((x) => x.topic.toLowerCase() === n.topic.toLowerCase())) notes.push(n);
+  }
   const rejected: TrendState["rejected"] = [];
 
   const feeds = await Promise.allSettled([fetchFeed("IN"), fetchFeed("US")]);
   const candidates: Candidate[] = [];
-  for (const f of feeds) if (f.status === "fulfilled") candidates.push(...f.value.slice(0, 20));
+  feeds.forEach((f, i) => {
+    if (f.status === "fulfilled") candidates.push(...f.value.slice(0, 20));
+    else rejected.push({ topic: `(trending searches, ${i === 0 ? "India" : "US"})`, why: `Could not be read: ${(f.reason as Error)?.message ?? f.reason}` });
+  });
   // Filter 1 — words.
   const passed = candidates.filter((c) => {
     if (isBlocked(`${c.topic} ${c.context}`)) { rejected.push({ topic: c.topic, why: "blocked word (death, violence, politics …)" }); return false; }
@@ -192,6 +205,7 @@ export async function refreshTrends(supabase: SupabaseClient, now = new Date()):
       for (const k of (j.kept ?? []).slice(0, 4)) {
         const c = passed[k.n - 1];
         if (!c || isBlocked(`${k.topic} ${k.why} ${k.angle}`) || removed.has(k.topic.toLowerCase())) continue;
+        if (notes.some((x) => x.topic.toLowerCase() === k.topic.toLowerCase())) continue;
         notes.push({
           id: `trend:${c.source}:${k.topic.toLowerCase().replace(/\s+/g, "-").slice(0, 60)}`, topic: k.topic, why: k.why, angle: k.angle, source: c.source,
           activeFrom: now.toISOString(), expiresAt: new Date(now.getTime() + 4 * 86_400_000).toISOString(), addedAt: now.toISOString(),

@@ -49,6 +49,8 @@ export const STATUS = {
   safety: "Safety - follow up today",
   /** The call happened but no outcome came back. ⛔ Never auto-called: a person reads it. */
   review: "Needs review",
+  /** An admin chose a time in the console; follow_up_datetime holds it. Called when due, like Queued. */
+  scheduled: "Scheduled",
 } as const;
 
 export type Contact = { tab: ContactTab; row: number; v: Record<Column, string> };
@@ -61,6 +63,13 @@ export type Settings = {
   maxConcurrency: number;
   dailyCap: number;
   alertEmails: string[];
+  /**
+   * ⛔ Unsolicited promotional calls to INDIVIDUALS need TRAI DLT registration in
+   * India, so the Individuals tab is blocked until the owner switches this on.
+   * Optional so an omitted value (tests, old callers) means "not decided here";
+   * parseSettings always sets it, and its default is false.
+   */
+  allowIndividuals?: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -69,6 +78,7 @@ export const DEFAULT_SETTINGS: Settings = {
   maxConcurrency: 2,
   dailyCap: 30,
   alertEmails: ["info@imotara.com"],
+  allowIndividuals: false,
 };
 
 export type Directory = {
@@ -112,6 +122,7 @@ export function parseSettings(rows: string[][] | null): Settings {
     else if (key === "max_concurrency" && Number(v) > 0) s.maxConcurrency = Math.min(10, Math.floor(Number(v)));
     else if (key === "daily_cap" && Number(v) > 0) s.dailyCap = Math.floor(Number(v));
     else if (key === "alert_emails" && v?.trim()) s.alertEmails = v.split(/[,;\s]+/).filter((e) => e.includes("@"));
+    else if (key === "allow_individuals") s.allowIndividuals = truthy(v);
   }
   return s;
 }
@@ -144,7 +155,10 @@ export function phoneOf(c: Contact): string {
   return normalisePhone(c.v.contact_number || c.v.phone);
 }
 
-export function checkContact(c: Contact, d: Pick<Directory, "languages" | "dnc">): string {
+export function checkContact(
+  c: Contact,
+  d: Pick<Directory, "languages" | "dnc"> & { settings?: Pick<Settings, "allowIndividuals"> },
+): string {
   const phone = phoneOf(c);
   if (phone.replace("+", "").length < 10) return "Phone needs country code and number";
   if (!c.v.name) return "Missing name";
@@ -155,6 +169,7 @@ export function checkContact(c: Contact, d: Pick<Directory, "languages" | "dnc">
     return "EXCLUDED: OpenLM - never call";
   }
   if (!c.v.consent_note) return "Add consent note";
+  if (c.tab === "Individuals" && d.settings?.allowIndividuals === false) return "Individuals paused (TRAI/DLT)";
   if (d.languages.get(c.v.language.toLowerCase()) !== "start") return "Language not started yet";
   if (!agentFor(c.v.language, c.v.voice_gender)) return "No agent for this language and voice";
   if (!c.v.time_zone) return "Add time zone";
@@ -232,6 +247,10 @@ export function selectDue(d: Directory, now: Date, opts: { auto: boolean }): Sel
     const attempts = Number(c.v.call_attempts) || 0;
     let group = -1;
     if (status === STATUS.queued) group = 1;
+    else if (status === STATUS.scheduled) {
+      // An admin's own choice of time ⇒ not gated by autoDispatch, like Queued.
+      if ((parseTime(c.v.follow_up_datetime) ?? Infinity) <= nowMs) group = 1;
+    }
     else if (opts.auto) {
       if ((status === STATUS.callback || status === STATUS.sendInfo) && (parseTime(c.v.follow_up_datetime) ?? Infinity) <= nowMs) group = 0;
       else if (status === STATUS.noAnswer && attempts < MAX_ATTEMPTS) {

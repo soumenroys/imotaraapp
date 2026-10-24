@@ -14,7 +14,7 @@ import { agentFor } from "@/lib/voice/agents";
 import { placeCall, getExecution, readExecution, type ExecutionView } from "@/lib/voice/bolna";
 import { readDirectory, writeRow, appendDnc } from "@/lib/voice/sheets";
 import {
-  ACTIVE_CALL_MINUTES, STATUS, phoneOf, selectDue, userData, writebackFor, normalisePhone,
+  ACTIVE_CALL_MINUTES, STATUS, checkContact, inCallingWindow, phoneOf, selectDue, userData, writebackFor, normalisePhone,
   type Contact, type Directory, type Selection,
 } from "@/lib/voice/rules";
 
@@ -45,7 +45,7 @@ export async function dispatch(opts: { auto: boolean; dryRun?: boolean; now?: Da
     const phone = phoneOf(c);
     // ⚠️ Marked BEFORE the dial returns would be ideal; marked right after it,
     // with attempts counted on placement, so a crash later cannot re-dial.
-    const placed = await placeCall(agent, phone, userData(c, d, now));
+    const placed = await placeCall(agent, phone, { ...userData(c, d, now), imotara_placed_by: "automatic" });
     if (!placed.ok) {
       report.failed.push({ tab: c.tab, name: label(c), error: placed.error });
       await writeRow(c, { next_action: `Dial failed: ${placed.error.slice(0, 120)}` });
@@ -60,6 +60,88 @@ export async function dispatch(opts: { auto: boolean; dryRun?: boolean; now?: Da
     report.placed.push({ tab: c.tab, name: label(c), phone, executionId: placed.executionId });
   }
   return report;
+}
+
+export type CallNowReport = {
+  ok: boolean;
+  reason?: string;
+  placed: { tab: string; name: string; executionId: string }[];
+  queued: { tab: string; name: string }[];
+  skipped: { tab: string; name: string; reason: string }[];
+};
+
+/**
+ * "📞 Call now" from the console. Same gates as the dispatcher — the kill
+ * switch, the contact check (consent, do-not-call, language, the individuals
+ * switch) and the person's local calling hours — and the same line limits:
+ * what does not fit in a free line is Queued for the next dispatch instead.
+ */
+export async function callNow(rows: { tab: string; row: number }[], by: string, now = new Date()): Promise<CallNowReport> {
+  const d = await readDirectory();
+  const report: CallNowReport = { ok: true, placed: [], queued: [], skipped: [] };
+  if (!d.settings.callingEnabled) return { ...report, ok: false, reason: "Calling is switched off. Turn it on in Settings first." };
+
+  const base = selectDue(d, now, { auto: false });
+  let slots = Math.max(0, Math.min(d.settings.maxConcurrency - base.activeCalls, d.settings.dailyCap - base.placedToday));
+  for (const r of rows) {
+    const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
+    if (!c) continue;
+    const who = { tab: c.tab, name: label(c) };
+    if (c.v.status === STATUS.calling) { report.skipped.push({ ...who, reason: "Already being called" }); continue; }
+    const check = checkContact(c, d);
+    if (check !== "OK") { report.skipped.push({ ...who, reason: check }); continue; }
+    if (!inCallingWindow(now, c.v.time_zone, c.v.country)) {
+      report.skipped.push({ ...who, reason: "Outside their calling hours (10:00–18:00 local, no Sundays in India)" });
+      continue;
+    }
+    if (slots <= 0) {
+      await writeRow(c, { status: STATUS.queued });
+      report.queued.push(who);
+      continue;
+    }
+    const agent = agentFor(c.v.language, c.v.voice_gender)!;
+    const placed = await placeCall(agent, phoneOf(c), { ...userData(c, d, now), imotara_placed_by: by });
+    if (!placed.ok) {
+      report.skipped.push({ ...who, reason: placed.error });
+      await writeRow(c, { next_action: `Dial failed: ${placed.error.slice(0, 120)}` });
+      continue;
+    }
+    slots--;
+    await writeRow(c, {
+      status: STATUS.calling,
+      call_attempts: String((Number(c.v.call_attempts) || 0) + 1),
+      last_call_date: now.toISOString(),
+      bolna_execution_id: placed.executionId,
+    });
+    report.placed.push({ ...who, executionId: placed.executionId });
+  }
+  return report;
+}
+
+/** Schedule rows for a time the admin chose; the 5-minute dispatcher places them when due. */
+export async function schedule(rows: { tab: string; row: number }[], at: Date): Promise<number> {
+  const d = await readDirectory();
+  let n = 0;
+  for (const r of rows) {
+    const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
+    if (!c || c.v.status === STATUS.calling) continue;
+    await writeRow(c, { status: STATUS.scheduled, follow_up_datetime: at.toISOString() });
+    n++;
+  }
+  return n;
+}
+
+/** Take rows off the schedule (or the queue) and back to Pending. */
+export async function unschedule(rows: { tab: string; row: number }[]): Promise<number> {
+  const d = await readDirectory();
+  let n = 0;
+  for (const r of rows) {
+    const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
+    if (!c || (c.v.status !== STATUS.scheduled && c.v.status !== STATUS.queued)) continue;
+    await writeRow(c, { status: STATUS.pending, follow_up_datetime: "" });
+    n++;
+  }
+  return n;
 }
 
 /** Mark chosen rows Queued — what "Run now" does. The cron places them. */

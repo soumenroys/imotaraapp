@@ -11,7 +11,7 @@
 import { createSign } from "node:crypto";
 import {
   CONTACT_TABS, COLUMNS, columnLetter, parseContacts, parseDnc, parseLanguages, parseSettings, parseTeam,
-  type Column, type Contact, type Directory,
+  type Column, type Contact, type ContactTab, type Directory,
 } from "@/lib/voice/rules";
 
 /** ⚠️ Not a secret: the id is in every link to the sheet. Override with VOICE_SHEET_ID. */
@@ -138,4 +138,48 @@ export async function appendDnc(phone: string, name: string, reason: string): Pr
 export async function ensureSystemColumn(): Promise<void> {
   const data = CONTACT_TABS.map((t) => ({ range: `${quote(t)}!Y1`, values: [[COLUMNS[COLUMNS.length - 1]]] }));
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+}
+
+/** The Settings keys the admin console may change, as the sheet spells them. */
+export type SettingKey = "calling_enabled" | "auto_dispatch" | "max_concurrency" | "daily_cap" | "allow_individuals";
+
+/**
+ * Write Settings values from the admin console. Updates the row that already
+ * holds a key, appends the ones that are missing — so the team still sees and
+ * can edit every switch in the sheet.
+ */
+export async function writeSettings(values: Partial<Record<SettingKey, string>>): Promise<void> {
+  const entries = Object.entries(values);
+  if (entries.length === 0) return;
+  const s = (await google(`/values/${encodeURIComponent(`${quote("Settings")}!A1:B50`)}`)) as { values?: string[][] };
+  const rows = s.values ?? [];
+  const data: { range: string; values: string[][] }[] = [];
+  const missing: string[][] = [];
+  for (const [key, value] of entries) {
+    const i = rows.findIndex((r) => (r[0] ?? "").trim().toLowerCase() === key);
+    if (i >= 0) data.push({ range: `${quote("Settings")}!B${i + 1}`, values: [[value ?? ""]] });
+    else missing.push([key, value ?? ""]);
+  }
+  if (data.length) await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+  if (missing.length) {
+    await google(`/values/${encodeURIComponent(`${quote("Settings")}!A:B`)}:append?valueInputOption=RAW`, {
+      method: "POST",
+      body: JSON.stringify({ values: missing }),
+    });
+  }
+}
+
+/**
+ * Add one contact to a tab and return its row. Columns follow COLUMNS; the
+ * sheet's own "Check" formula column is left empty (the system recomputes it).
+ */
+export async function appendContact(tab: ContactTab, cells: Partial<Record<Column, string>>): Promise<number> {
+  const row = COLUMNS.map((c) => cells[c] ?? "");
+  const res = (await google(`/values/${encodeURIComponent(`${quote(tab)}!A:Y`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    method: "POST",
+    body: JSON.stringify({ values: [row] }),
+  })) as { updates?: { updatedRange?: string } };
+  const m = /!A(\d+)/.exec(res.updates?.updatedRange ?? "");
+  if (!m) throw new Error("Google did not say which row it added.");
+  return Number(m[1]);
 }

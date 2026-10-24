@@ -88,7 +88,7 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
       report.sent.push({ email, step });
       left--;
     } else if (out.kind === "recipient") {
-      await writeRow(contact, { mail_status: MAIL.failed, next_action: `Email refused: ${out.message.slice(0, 120)}` });
+      await writeRow(contact, { mail_status: `${MAIL.failed}: ${email}`, next_action: `Email refused: ${out.message.slice(0, 120)}` });
       report.failed.push({ email, error: out.message });
     } else if (out.kind === "fatal") {
       report.failed.push({ email, error: out.message });

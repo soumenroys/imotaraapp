@@ -39,10 +39,46 @@ const STEP_BRIEF: Record<StepId, string> = {
     "this audience would need to decide: what Imotara is, what it is not, privacy, languages, and how to try it. Still one link only.",
 };
 
+/**
+ * 🔑 WHAT EACH AUDIENCE CARES ABOUT, AND WHICH TRUE FEATURES ANSWER IT.
+ * Owner, 24 Oct 2026: "highlight Imotara advantages and uniqueness … always
+ * highlight their interest with imotara features". ⛔ Every feature named here
+ * is on the FACTS list — this chooses and orders, it never adds a claim.
+ */
+export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avoid: string }> = {
+  individuals: {
+    cares: "a private place to say how they really feel, in their own words and language, at any hour, without being judged or tracked",
+    lead: "privacy (stays on their own phone by default) · 22 languages incl. 11 Indian · type or speak · works offline · remembers what mattered last time · no feed, streaks or badges · free to start",
+    avoid: "Do not lecture about mental health. Write to one person.",
+  },
+  ngos: {
+    cares: "field staff, volunteers and the people they serve — often across languages and with patchy signal — and nothing extra for an already stretched team to run",
+    lead: "11 Indian languages, replies in the language they write in · works offline · private: conversations stay on the device, so nothing reaches a supervisor · asks no training or admin effort · Imotara Connect human peer companions (not counsellors)",
+    avoid: "Do not claim it replaces counselling or any programme they run.",
+  },
+  education: {
+    cares: "students in colleges and universities and their staff, who need somewhere private to think aloud between lectures, exams and counselling appointments",
+    lead: "privacy — nothing is shared with the institution · their own language · any hour, including the night before an exam · no feed, streaks or addictive mechanics · alongside the counselling service, never instead of it",
+    avoid: "⛔ Never suggest it is for children or anyone under 13; speak of college and university students and staff.",
+  },
+  eldercare: {
+    cares: "residents who want someone to talk to between visits, often more comfortable speaking than typing and in their mother tongue, and caregivers who cannot be everywhere",
+    lead: "speak instead of type · their mother tongue among 22 languages · remembers what mattered last time, so they need not repeat themselves · works offline · no feed or anything to keep up with",
+    avoid: "Do not frame residents as lonely or helpless; speak of company and continuity, with dignity.",
+  },
+  corporates: {
+    cares: "employee wellbeing that people will actually use because it is genuinely private, across a workforce that speaks many languages and works all hours",
+    lead: "private — the employer never sees conversations; stays on the device by default · 22 languages · any hour, any shift · no app fatigue: no feed, streaks or badges · complements an EAP, does not replace it",
+    avoid: "Do not promise productivity or ROI figures.",
+  },
+};
+
 const BANNED = [
   "act now", "limited time", "don't miss", "dont miss", "hurry", "special offer", "discount", "click here", "buy now",
   "order now", "risk-free", "no obligation", "guaranteed", "100%", "exclusive deal", "sign up now", "register now",
   "best price", "cheap", "winner", "just following up", "bumping this", "circling back",
+  "earn", "cash", "deal", "offer", "urgent", "last chance", "act fast", "amazing", "incredible", "revolutionary",
+  "dear friend", "congratulations", "100% free", "risk free", "unsubscribe here",
 ];
 
 /** The house-style checks a draft must pass — the broadcast templates' rules, in code. */
@@ -52,8 +88,16 @@ export function checkMailStyle(subject: string, body: string): string[] {
   if (!subject.trim()) out.push("The subject is empty.");
   if (subject.length > 70) out.push("The subject is too long for a phone inbox (keep it under 70 characters).");
   if (subject.includes("!")) out.push("No exclamation marks in the subject.");
+  // ⚠️ Spam filters weigh these heavily in a subject line.
+  if (/\bfree\b|[₹$%]|^\s*(re|fwd?):/i.test(subject)) out.push("No “free”, currency, percentages or fake Re:/Fwd: in the subject.");
+  if ((body.match(/!/g) ?? []).length > 1) out.push("At most one exclamation mark in the body.");
+  if (/\b[A-Z]{5,}\b/.test(body.replace(/\bIMOTARA\b/g, ""))) out.push("No SHOUTED words in the body.");
   if (/\b[A-Z]{4,}\b/.test(subject.replace(/\bIMOTARA\b/g, ""))) out.push("No SHOUTED words in the subject.");
-  for (const w of BANNED) if (hay.includes(w)) out.push(`Promotional wording: “${w}”.`);
+  // ⚠️ Whole words: "earn" must not fire on "learn", nor "deal" on "ideal".
+  for (const w of BANNED) {
+    const re = new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z])`, "i");
+    if (re.test(hay)) out.push(`Promotional wording: “${w}”.`);
+  }
   const links = body.match(/https?:\/\/\S+/g) ?? [];
   if (links.length > 1) out.push("At most one link.");
   if (links.some((l) => !l.startsWith(SITE))) out.push(`The only link allowed is ${SITE}.`);
@@ -78,12 +122,19 @@ export function buildMailPrompt(audience: Audience, step: StepId): string {
   return `
 You are writing ONE short email from Imotara to ${AUDIENCE_LABEL[audience]}.
 
+WHAT THIS READER CARES ABOUT: ${AUDIENCE_FOCUS[audience].cares}.
+LEAD WITH THEIR INTEREST, then show how Imotara answers it — choose the one or two most relevant of these
+true strengths, and say WHY each matters to THIS reader (not a list of features):
+${AUDIENCE_FOCUS[audience].lead}
+${AUDIENCE_FOCUS[audience].avoid}
+
 WHICH EMAIL THIS IS: ${STEP_LABEL[step]}.
 ${STEP_BRIEF[step]}
 
 ${FACTS}
 
-HOW IT MUST READ — like a person wrote it to one person, not a campaign:
+HOW IT MUST READ — like a person wrote it to one person, not a campaign (spam filters and readers both judge this):
+- No marketing tone, no superlatives, no urgency, no "offer", no prices, no "free" in the subject.
 - Plain text paragraphs. No headings, no bullet lists, no bold, no images, no buttons.
 - Open exactly with: Hello {{name|there}},
 - You may use {{organisation}} once where the organisation's name fits naturally (it can be empty — write so the sentence still reads if it is).

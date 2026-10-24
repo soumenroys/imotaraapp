@@ -15,7 +15,7 @@
 // meeting booked (a person takes over), or a safety flag — nothing automatic
 // writes to that person again.
 
-import { CONTACT_TABS, MAIL_INFO_DUE, STATUS, inCallingWindow, type Contact, type ContactTab } from "@/lib/voice/rules";
+import { CONTACT_TABS, MAIL_INFO_DUE, STATUS, inCallingWindow, stoppedByAdmin, type Contact, type ContactTab } from "@/lib/voice/rules";
 
 export type Audience = "individuals" | "ngos" | "education" | "eldercare" | "corporates";
 
@@ -91,9 +91,14 @@ export function mailCheck(c: Contact, suppressed: ReadonlySet<string>): string {
   }
   // ⛔ The owner's rule: no consent note, no email — exactly as for calls.
   if (!c.v.consent_note) return "Add consent note";
+  if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
   if (suppressed.has(email)) return "Unsubscribed or bounced - never email";
   if (STOP_CALL_STATUSES.includes(c.v.status)) return `Call outcome: ${c.v.status}`;
-  if (FINAL_MAIL.includes(c.v.mail_status)) return c.v.mail_status;
+  // ⚠️ "Send failed: old@addr" — retried by itself once the admin corrects the address.
+  if (c.v.mail_status.startsWith(`${MAIL.failed}:`)) {
+    const failedFor = c.v.mail_status.slice(MAIL.failed.length + 1).trim().toLowerCase();
+    if (failedFor === email) return `${MAIL.failed} - correct the email`;
+  } else if (FINAL_MAIL.includes(c.v.mail_status)) return c.v.mail_status;
   if (!c.v.time_zone) return "Add time zone";
   return "OK";
 }

@@ -231,7 +231,16 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
   return (
     <section className="space-y-3">
       {!callingOn && <CallingOffNote />}
-      {attention.length > 0 && <NeedsAPerson rows={attention} />}
+      {attention.length > 0 && (
+        <NeedsAPerson
+          rows={attention}
+          retry={async (c) => {
+            const { ok, json } = await post("/api/admin/voice/schedule", { rows: [ref(c)] }, "DELETE");
+            say(ok ? (json.cancelled ? `${c.name} is back to Pending.` : "Nothing changed — press Refresh.") : json.error);
+            void reload();
+          }}
+        />
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, organisation, phone" className="w-56 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5" />
         <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5">
@@ -327,7 +336,7 @@ function CallingOffNote() {
 }
 
 /** 🔴 What a PERSON must do next — safety first. These were only visible by scanning the sheet. */
-function NeedsAPerson({ rows }: { rows: Row[] }) {
+function NeedsAPerson({ rows, retry }: { rows: Row[]; retry: (r: Row) => void }) {
   const order = (r: Row) => (r.status.startsWith("Safety") ? 0 : r.missed ? 3 : 1);
   return (
     <div className="rounded-2xl border border-amber-400/40 p-3">
@@ -340,6 +349,11 @@ function NeedsAPerson({ rows }: { rows: Row[] }) {
           <span className="font-semibold">{c.name}</span>
           <span className="text-zinc-400">{c.organisation || c.tab} · {c.phone}</span>
           <span className="text-zinc-400">{c.missed ? "Its time passed while calling was off — schedule it again or cancel it." : c.nextAction}</span>
+          {(c.status === "Dial failed" || c.missed) && (
+            <button className="ml-auto underline" onClick={() => retry(c)} title="Back to Pending, so it can be called or scheduled again">
+              {c.missed ? "Clear" : "Retry"}
+            </button>
+          )}
         </div>
       ))}
     </div>
@@ -610,6 +624,29 @@ function ReportsTab({ calls: state, days, setDays }: CallsTabProps) {
   );
 }
 
+/** 🔒 Format the sheet and lock everything but the admin's columns (owner only). Safe to press again. */
+function SheetSetup({ say }: { say: (m: string) => void }) {
+  const [busy, setBusy] = useState(false);
+  const run = async () => {
+    if (!window.confirm("Format the contact sheet and lock every column except the ones an admin fills? The system can still write its own columns.")) return;
+    setBusy(true);
+    const { ok, json } = await post("/api/admin/sheet/setup", {});
+    setBusy(false);
+    say(ok ? `Done: ${json.tabs.length} tabs formatted and locked; status written on ${json.status.rows} rows.` : json.error);
+  };
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4 border-t border-zinc-800 py-3">
+      <div>
+        <div className="font-semibold">Format and lock the contact sheet</div>
+        <div className="text-zinc-400">Only the white columns stay editable. Status, errors and what to do are written into the grey columns every 10 minutes.</div>
+      </div>
+      <button className="rounded-xl border border-zinc-600 px-4 py-1.5 font-semibold disabled:opacity-40" disabled={busy} onClick={() => void run()}>
+        {busy ? "Working…" : "Format and lock"}
+      </button>
+    </div>
+  );
+}
+
 function Toggle({ label, hint, on, warn, busy, onToggle }: {
   label: string; hint: string; on: boolean; warn?: string; busy: boolean;
   onToggle: (next: boolean, warn?: string) => void;
@@ -680,6 +717,7 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
           Save limits
         </button>
       </div>
+      <SheetSetup say={say} />
       <p className="border-t border-zinc-800 pt-3 text-zinc-400">
         Alerts (safety, meetings, send-info) go to: {s.alertEmails.join(", ") || "—"} — change them in the sheet&apos;s Settings tab.
       </p>

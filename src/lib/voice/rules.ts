@@ -30,7 +30,24 @@ export const COLUMNS = [
   "Check", "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action",
   "follow_up_datetime", "ambassador_notes", "voice_gender", "call_id",
   "email", "mail_status", "mail_step", "mail_last_sent",
+  "do_not_contact", "call_progress", "mail_progress", "what_to_do",
 ] as const;
+
+/**
+ * 🔑 THE COLUMNS AN ADMIN FILLS — the only ones left unlocked when the sheet is
+ * protected (owner, 24 Oct 2026: "lock the entire google sheet … only keep
+ * unlocked the columns which admin need to fill up"). Everything else is the
+ * system's or a formula. ⇒ sheets.protectAndFormat.
+ */
+export const ADMIN_COLUMNS: readonly Column[] = [
+  "phone", "name", "organisation", "organisation_type", "country", "time_zone", "language", "source",
+  "consent_note", "team_member", "context", "call_reason", "ambassador_notes", "voice_gender", "email", "do_not_contact",
+];
+
+/** "yes", "y", "true", "stop", "x" or a ticked box ⇒ never contact this person, by phone or email. */
+export function stoppedByAdmin(c: { v: Record<string, string> }): boolean {
+  return /^(yes|y|true|stop|x|✓|✔)$/i.test((c.v.do_not_contact ?? "").trim());
+}
 export type Column = (typeof COLUMNS)[number];
 
 /** A 0-based column index as the sheet names it: 0 → A, 25 → Z, 26 → AA. */
@@ -201,6 +218,7 @@ export function checkContact(
   if (!c.v.name) return "Missing name";
   if (/^sample\b/i.test(c.v.name)) return "Sample row - delete it";
   if (d.dnc.has(phone)) return "On do-not-call list - never call";
+  if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
   // ⛔ Permanent, owner's instruction ⇒ spec §5.1.
   if (/open ?lm/i.test(c.v.organisation) || /openlm\.com/i.test(c.v.consent_note + c.v.context)) {
     return "EXCLUDED: OpenLM - never call";

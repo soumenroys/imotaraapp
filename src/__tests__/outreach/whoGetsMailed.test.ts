@@ -137,3 +137,12 @@ describe("the email that is actually sent", () => {
     expect(m.html.toLowerCase()).toContain("unsubscribe");
   });
 });
+
+describe("spam-safe wording is matched as whole words", () => {
+  const ok = `Hello {{name|there}},\n\nStudents learn a lot; an ideal space.\n\nWould that help?\n\n${SIGNATURE}`;
+  it("'learn' and 'ideal' are not flagged", () => expect(checkMailStyle("A note for your team", ok)).toEqual([]));
+  it("⛔ 'free' in a subject and shouting are flagged", () => {
+    expect(checkMailStyle("Free for your staff", ok).join(" ")).toMatch(/free/i);
+    expect(checkMailStyle("A note", ok.replace("Students", "STUDENTS")).join(" ")).toMatch(/SHOUTED/);
+  });
+});

@@ -454,7 +454,7 @@ function CallDetail({ c }: { c: Call }) {
         <div className="sm:col-span-2"><span className="text-zinc-400">Next action:</span> {c.nextAction || "—"}</div>
         {c.error && <div className="text-red-400 sm:col-span-2">Error: {c.error}</div>}
       </div>
-      {c.recordingUrl ? <audio controls preload="none" src={c.recordingUrl} className="w-full" /> : <p className="text-zinc-500">No recording for this call.</p>}
+      {c.recordingUrl ? <audio controls preload="none" src={`/api/admin/voice/recording/${encodeURIComponent(c.id)}`} className="w-full" /> : <p className="text-zinc-500">No recording for this call.</p>}
       {c.transcript ? (
         <pre className="max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-zinc-950 p-3 font-sans text-zinc-200">{c.transcript}</pre>
       ) : (

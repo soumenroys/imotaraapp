@@ -279,7 +279,7 @@ export function NewSchedule({
         <div className="space-y-2">
           <label htmlFor="ns-time" className={label}>Time</label>
           <input id="ns-time" type="time" value={postAt} onChange={(e) => setPostAt(e.target.value)} className={field} />
-          <p className="text-[11px] text-zinc-500">Asia/Kolkata. Writing starts two hours earlier.</p>
+          <p className="text-[11px] text-zinc-500">Asia/Kolkata. Drafts are written up to ten days ahead, so there is time to read them.</p>
         </div>
       </div>
 

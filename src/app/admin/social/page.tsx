@@ -13,6 +13,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
+import { PostFlow } from "@/app/admin/social/_components/PostFlow";
 import { SocialPage, Chip, Explain, HowItWorks, POST_STATUS } from "@/app/admin/social/_components/ui";
 import { publishingSentence } from "@/lib/social/platforms";
 import { cardsForPost } from "@/lib/social/cards";
@@ -172,6 +173,7 @@ export default function Today() {
       {authed === true && (
         <>
           <PageTutorial id="today" {...TUTORIALS.today} />
+          <PostFlow waiting={waiting} />
 
           {message && (
             <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
@@ -192,7 +194,7 @@ export default function Today() {
             ) : (
               <p className="text-sm text-zinc-400">
                 <strong className="text-zinc-200">Nothing is waiting for you.</strong> New drafts appear
-                here two hours before a schedule&rsquo;s time.
+                here up to ten days before a schedule&rsquo;s time.
               </p>
             )}
           </section>

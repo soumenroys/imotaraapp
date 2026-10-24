@@ -25,7 +25,7 @@ export const TUTORIALS: Record<string, { title: string; steps: Step[]; footnote?
     steps: [
       {
         do: "Look at the line under the tabs — it says whether anything is waiting for you.",
-        then: "Drafts appear two hours before a schedule's time, so there is room to read them.",
+        then: "Drafts appear up to ten days before a schedule's time, so there is room to read them.",
       },
       {
         do: "Press “Read it” on a draft to open the words, the picture and the checks.",

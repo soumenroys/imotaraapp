@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { readDirectory, sheetsConfigured, sheetId } from "@/lib/voice/sheets";
 import { bolnaConfigured } from "@/lib/voice/bolna";
-import { checkContact, phoneOf, selectDue } from "@/lib/voice/rules";
+import { NEEDS_A_PERSON, checkContact, missedSchedule, phoneOf, selectDue } from "@/lib/voice/rules";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,6 @@ export async function GET(req: NextRequest) {
   try {
     const d = await readDirectory();
     const now = new Date();
-    const manual = selectDue(d, now, { auto: false });
     const auto = selectDue(d, now, { auto: true });
     return NextResponse.json({
       setup,
@@ -29,12 +28,11 @@ export async function GET(req: NextRequest) {
       contacts: d.contacts.map((c) => ({
         tab: c.tab, row: c.row, name: c.v.name, organisation: c.v.organisation, phone: phoneOf(c),
         language: c.v.language, status: c.v.status || "Pending", attempts: c.v.call_attempts,
-        lastCall: c.v.last_call_date, outcome: c.v.outcome, summary: c.v.call_summary, check: checkContact(c, d),
+        lastCall: c.v.last_call_date, outcome: c.v.outcome, summary: c.v.call_summary, check: checkContact(c, d), missed: missedSchedule(c, now),
+        needsPerson: NEEDS_A_PERSON.includes(c.v.status),
         followUp: c.v.follow_up_datetime, nextAction: c.v.next_action, voice: c.v.voice_gender || "female",
         country: c.v.country, timeZone: c.v.time_zone, teamMember: c.v.team_member, type: c.v.organisation_type,
       })),
-      wouldCallNow: (d.settings.autoDispatch ? auto : manual).toCall.map((c) => ({ tab: c.tab, row: c.row, name: c.v.name })),
-      dueIfAutomatic: auto.toCall.length + auto.skipped.filter((s) => s.reason === "Waiting for a free line").length,
       activeCalls: auto.activeCalls,
     });
   } catch (e) {

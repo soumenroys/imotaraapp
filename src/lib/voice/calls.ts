@@ -176,7 +176,8 @@ export function summarise(calls: CallRecord[]): CallReport {
     if (connected) bump(r.byOutcome, c.outcome);
     bump(r.byLanguage, c.language);
     bump(r.byTab, c.tab);
-    bump(r.byPlacedBy, c.placedBy || "automatic");
+    // ⚠️ Empty means the call was placed outside the console (e.g. the 21 Oct test), NOT by the dispatcher — which always writes "automatic".
+    bump(r.byPlacedBy, c.placedBy || "not recorded");
     if (c.outcome === "safety") r.safety++;
     if (c.outcome === "meeting_booked") r.meetings++;
     const day = c.createdAt.slice(0, 10);

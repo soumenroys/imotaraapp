@@ -1,10 +1,10 @@
 // src/lib/voice/dispatch.ts
 // Placing due calls, applying results, and catching results that never arrived.
 //
-// 🔑 ONE PATH FOR THE BUTTON AND THE SCHEDULE. "Run now" in the admin marks
-// rows Queued; the cron places queued rows as lines free up, and — only when
-// the sheet's Settings say auto_dispatch — picks due contacts by itself too.
-// So unattended calling later is a switch in the sheet, not new code.
+// 🔑 ONE RULE SET FOR THE BUTTON AND THE SCHEDULE. "Call now" in the console
+// dials what fits in a free line and marks the rest Queued; the cron places
+// Queued and due Scheduled rows as lines free up, and — only when the sheet's
+// Settings say auto_dispatch — picks due contacts by itself too.
 //
 // ⛔ calling_enabled is checked HERE, on every placement path. Off ⇒ nothing
 // rings, whatever pressed the button.
@@ -14,9 +14,15 @@ import { agentFor } from "@/lib/voice/agents";
 import { placeCall, getExecution, readExecution, type ExecutionView } from "@/lib/voice/bolna";
 import { readDirectory, writeRow, appendDnc } from "@/lib/voice/sheets";
 import {
-  ACTIVE_CALL_MINUTES, STATUS, checkContact, inCallingWindow, phoneOf, selectDue, userData, writebackFor, normalisePhone,
+  ACTIVE_CALL_MINUTES, STATUS, checkContact, inCallingWindow, phoneOf, sameContact, selectDue, userData, writebackFor, normalisePhone,
   type Contact, type Directory, type Selection,
 } from "@/lib/voice/rules";
+
+/** A row as the console showed it — with the phone, so a shifted sheet is caught ⇒ rules.sameContact. */
+export type RowRef = { tab: string; row: number; phone: string };
+
+const SHEET_CHANGED = "The sheet changed since this page loaded - press Refresh";
+const OUTSIDE_HOURS = "Outside their calling hours (10:00-18:00 their time, no Sundays in India)";
 
 export type DispatchReport = {
   ok: boolean;
@@ -48,7 +54,7 @@ export async function dispatch(opts: { auto: boolean; dryRun?: boolean; now?: Da
     const placed = await placeCall(agent, phone, { ...userData(c, d, now), imotara_placed_by: "automatic" });
     if (!placed.ok) {
       report.failed.push({ tab: c.tab, name: label(c), error: placed.error });
-      await writeRow(c, { next_action: `Dial failed: ${placed.error.slice(0, 120)}` });
+      await writeRow(c, { status: STATUS.dialFailed, next_action: `Dial failed: ${placed.error.slice(0, 120)}` });
       continue;
     }
     await writeRow(c, {
@@ -76,7 +82,7 @@ export type CallNowReport = {
  * switch) and the person's local calling hours — and the same line limits:
  * what does not fit in a free line is Queued for the next dispatch instead.
  */
-export async function callNow(rows: { tab: string; row: number }[], by: string, now = new Date()): Promise<CallNowReport> {
+export async function callNow(rows: RowRef[], by: string, now = new Date()): Promise<CallNowReport> {
   const d = await readDirectory();
   const report: CallNowReport = { ok: true, placed: [], queued: [], skipped: [] };
   if (!d.settings.callingEnabled) return { ...report, ok: false, reason: "Calling is switched off. Turn it on in Settings first." };
@@ -85,13 +91,13 @@ export async function callNow(rows: { tab: string; row: number }[], by: string, 
   let slots = Math.max(0, Math.min(d.settings.maxConcurrency - base.activeCalls, d.settings.dailyCap - base.placedToday));
   for (const r of rows) {
     const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
-    if (!c) continue;
+    if (!c || !sameContact(c, r.phone)) { report.skipped.push({ tab: r.tab, name: `row ${r.row}`, reason: SHEET_CHANGED }); continue; }
     const who = { tab: c.tab, name: label(c) };
     if (c.v.status === STATUS.calling) { report.skipped.push({ ...who, reason: "Already being called" }); continue; }
     const check = checkContact(c, d);
     if (check !== "OK") { report.skipped.push({ ...who, reason: check }); continue; }
     if (!inCallingWindow(now, c.v.time_zone, c.v.country)) {
-      report.skipped.push({ ...who, reason: "Outside their calling hours (10:00–18:00 local, no Sundays in India)" });
+      report.skipped.push({ ...who, reason: OUTSIDE_HOURS });
       continue;
     }
     if (slots <= 0) {
@@ -103,7 +109,7 @@ export async function callNow(rows: { tab: string; row: number }[], by: string, 
     const placed = await placeCall(agent, phoneOf(c), { ...userData(c, d, now), imotara_placed_by: by });
     if (!placed.ok) {
       report.skipped.push({ ...who, reason: placed.error });
-      await writeRow(c, { next_action: `Dial failed: ${placed.error.slice(0, 120)}` });
+      await writeRow(c, { status: STATUS.dialFailed, next_action: `Dial failed: ${placed.error.slice(0, 120)}` });
       continue;
     }
     slots--;
@@ -118,40 +124,39 @@ export async function callNow(rows: { tab: string; row: number }[], by: string, 
   return report;
 }
 
-/** Schedule rows for a time the admin chose; the 5-minute dispatcher places them when due. */
-export async function schedule(rows: { tab: string; row: number }[], at: Date): Promise<number> {
+export type ScheduleReport = { scheduled: number; skipped: { tab: string; name: string; reason: string }[] };
+
+/**
+ * Schedule rows for a time the admin chose; the 5-minute dispatcher places them
+ * when due. ⚠️ Checked NOW, not at ring time: a time outside the person's
+ * calling hours used to be accepted and then silently wait for the next window.
+ */
+export async function schedule(rows: RowRef[], at: Date): Promise<ScheduleReport> {
   const d = await readDirectory();
-  let n = 0;
+  const report: ScheduleReport = { scheduled: 0, skipped: [] };
   for (const r of rows) {
     const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
-    if (!c || c.v.status === STATUS.calling) continue;
+    if (!c || !sameContact(c, r.phone)) { report.skipped.push({ tab: r.tab, name: `row ${r.row}`, reason: SHEET_CHANGED }); continue; }
+    const who = { tab: c.tab, name: label(c) };
+    if (c.v.status === STATUS.calling) { report.skipped.push({ ...who, reason: "Already being called" }); continue; }
+    const check = checkContact(c, d);
+    if (check !== "OK") { report.skipped.push({ ...who, reason: check }); continue; }
+    if (!inCallingWindow(at, c.v.time_zone, c.v.country)) { report.skipped.push({ ...who, reason: OUTSIDE_HOURS }); continue; }
     await writeRow(c, { status: STATUS.scheduled, follow_up_datetime: at.toISOString() });
-    n++;
+    report.scheduled++;
   }
-  return n;
+  return report;
 }
 
-/** Take rows off the schedule (or the queue) and back to Pending. */
-export async function unschedule(rows: { tab: string; row: number }[]): Promise<number> {
+/** Take rows off the schedule (or the queue, or a failed dial) and back to Pending. */
+export async function unschedule(rows: RowRef[]): Promise<number> {
   const d = await readDirectory();
+  const undoable: string[] = [STATUS.scheduled, STATUS.queued, STATUS.dialFailed];
   let n = 0;
   for (const r of rows) {
     const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
-    if (!c || (c.v.status !== STATUS.scheduled && c.v.status !== STATUS.queued)) continue;
+    if (!c || !sameContact(c, r.phone) || !undoable.includes(c.v.status)) continue;
     await writeRow(c, { status: STATUS.pending, follow_up_datetime: "" });
-    n++;
-  }
-  return n;
-}
-
-/** Mark chosen rows Queued — what "Run now" does. The cron places them. */
-export async function queue(rows: { tab: string; row: number }[]): Promise<number> {
-  const d = await readDirectory();
-  let n = 0;
-  for (const r of rows) {
-    const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
-    if (!c) continue;
-    await writeRow(c, { status: STATUS.queued });
     n++;
   }
   return n;

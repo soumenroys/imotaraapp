@@ -152,9 +152,10 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     title: "Calling contacts — now, on schedule, and reading every call back",
     steps: [
       { do: "Settings tab: switch Calling ON when you are ready.", then: "While it is OFF nothing rings — not by hand, not on schedule, not automatically. Individuals stay paused until you allow them." },
-      { do: "Contacts tab: find people with search and filters, or + Add a contact (a consent note is required).", then: "Only a green OK can be called; anything else says what to fix. The sheet stays the contact list." },
+      { do: "Contacts tab: deal with 'Needs a person' first.", then: "Safety, needs review, dial failed, meeting booked, send info, missed schedules — a person acts on these." },
+      { do: "Find people with search and filters, or + Add a contact (a consent note is required).", then: "Only a green OK can be called; anything else says what to fix. The sheet stays the contact list." },
       { do: "Press 📞 on a row, or tick several and press Call now.", then: "What fits in a free line rings at once, the rest is queued — always inside 10:00–18:00 their time." },
-      { do: "Or tick contacts, pick a date and time, and press Schedule.", then: "The Scheduled tab lists them; Cancel takes one off. They are called when due even with automatic calling off." },
+      { do: "Or tick contacts, pick a time (yours) and press Schedule.", then: "A time outside their hours is refused. A schedule missed by over 2 hours is not called — schedule it again." },
       { do: "Call records tab: open any call.", then: "Summary, next action, the recording and the full transcript. Safety flags are pinned in red — call those people back yourself today." },
       { do: "Reports tab: pick 7, 30 or 90 days.", then: "Calls, connection rate, outcomes, meetings, safety flags, cost, and breakdowns by language, type and caller." },
     ],

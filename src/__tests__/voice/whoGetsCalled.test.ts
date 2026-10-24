@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   COLUMNS, STATUS, checkContact, selectDue, userData, writebackFor, helplineFor, normalisePhone,
-  parseSettings, inCallingWindow, elevenLocal, columnLetter,
+  parseSettings, inCallingWindow, elevenLocal, columnLetter, sameContact, missedSchedule, MISSED_SCHEDULE,
   type Contact, type Directory, type Column,
 } from "@/lib/voice/rules";
 
@@ -184,5 +184,34 @@ describe("the sheet itself", () => {
   it("the system column is Y", () => {
     expect(columnLetter("call_id")).toBe("Y");
     expect(columnLetter("status")).toBe("P");
+  });
+});
+
+describe("console actions cannot go astray", () => {
+  it("⛔ a refused dial is never picked again by itself — it used to retry every 5 minutes", () => {
+    const s = selectDue(dir([contact({ status: STATUS.dialFailed })]), TUE_11_IST, { auto: true });
+    expect(s.toCall).toHaveLength(0);
+  });
+
+  it("a scheduled call rings when due", () => {
+    const due = new Date(TUE_11_IST.getTime() - 10 * 60_000).toISOString();
+    const s = selectDue(dir([contact({ status: STATUS.scheduled, follow_up_datetime: due })]), TUE_11_IST, { auto: false });
+    expect(s.toCall).toHaveLength(1);
+  });
+
+  it("⛔ a scheduled call hours late is NOT placed — nobody chose that time", () => {
+    const yesterday = new Date(TUE_11_IST.getTime() - 24 * 3600_000).toISOString();
+    const c = contact({ status: STATUS.scheduled, follow_up_datetime: yesterday });
+    const s = selectDue(dir([c]), TUE_11_IST, { auto: true });
+    expect(s.toCall).toHaveLength(0);
+    expect(s.skipped[0].reason).toBe(MISSED_SCHEDULE);
+    expect(missedSchedule(c, TUE_11_IST)).toBe(true);
+  });
+
+  it("⛔ a row whose phone changed since the page loaded is not the same contact", () => {
+    const c = contact();
+    expect(sameContact(c, "+91 98300 12345")).toBe(true);
+    expect(sameContact(c, "+919830099999")).toBe(false);
+    expect(sameContact(c, "")).toBe(false);
   });
 });

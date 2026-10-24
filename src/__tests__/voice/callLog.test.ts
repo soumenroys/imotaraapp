@@ -134,8 +134,8 @@ describe("a Scheduled call", () => {
   });
 
   it("still respects the person's calling hours", () => {
-    const due = contact({ status: STATUS.scheduled, follow_up_datetime: "2026-10-20T00:00:00Z" });
-    // 20:30 IST — outside 10:00–18:00
+    // Due 30 minutes ago (inside the grace period), but it is now 20:30 IST — outside 10:00–18:00.
+    const due = contact({ status: STATUS.scheduled, follow_up_datetime: "2026-10-21T14:30:00Z" });
     const s = selectDue(dir([due]), new Date("2026-10-21T15:00:00Z"), { auto: true });
     expect(s.toCall).toHaveLength(0);
     expect(s.skipped[0].reason).toMatch(/calling hours/);

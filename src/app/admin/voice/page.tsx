@@ -21,6 +21,10 @@ type Row = {
   tab: string; row: number; name: string; organisation: string; phone: string; language: string;
   status: string; attempts: string; lastCall: string; outcome: string; summary: string; check: string;
   followUp: string; nextAction: string; voice: string; country: string; timeZone: string; teamMember: string; type: string;
+  /** A Scheduled row whose time passed by more than the grace period — it will not be called. */
+  missed?: boolean;
+  /** Safety, Needs review, Dial failed, Meeting booked, Send info — a person acts on these. */
+  needsPerson?: boolean;
 };
 type Settings = { callingEnabled: boolean; autoDispatch: boolean; maxConcurrency: number; dailyCap: number; alertEmails: string[]; allowIndividuals?: boolean };
 type Preview = {
@@ -45,6 +49,9 @@ type Report = {
 type Tab = "contacts" | "scheduled" | "calls" | "reports" | "settings";
 
 const key = (r: { tab: string; row: number }) => `${r.tab}#${r.row}`;
+/** ⛔ Every action names the row AND the phone shown, so a sheet edited meanwhile cannot ring someone else. */
+const ref = (c: Row) => ({ tab: c.tab, row: c.row, phone: c.phone });
+type Ref = ReturnType<typeof ref>;
 const TABS: { id: Tab; label: string }[] = [
   { id: "contacts", label: "Contacts" },
   { id: "scheduled", label: "Scheduled" },
@@ -71,10 +78,19 @@ const toRows = (m: Record<string, number>, label: (k: string) => string = (k) =>
   Object.entries(m).sort((a, b) => b[1] - a[1]).map(([k, v]) => ({ label: label(k), value: v }));
 
 async function post(url: string, body: unknown, method = "POST") {
-  const res = await fetch(url, { method, credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const json = await res.json().catch(() => ({}));
-  return { ok: res.ok, json };
+  try {
+    const res = await fetch(url, { method, credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const json = await res.json().catch(() => ({}));
+    // ⚠️ A failure with no message used to read as "0 ringing now".
+    if (!res.ok && !json.error && !json.reason) json.error = `The server could not do that (${res.status}). Nothing was changed.`;
+    return { ok: res.ok, json };
+  } catch {
+    return { ok: false, json: { error: "Could not reach the server. Check the connection and try again." } };
+  }
 }
+
+const skippedText = (skipped?: { name: string; reason: string }[]) =>
+  skipped?.length ? ` ${skipped.length} not done: ${skipped.map((s) => `${s.name} (${s.reason})`).join("; ")}` : "";
 
 function describeCallNow(j: { placed?: unknown[]; queued?: unknown[]; skipped?: { name: string; reason: string }[]; reason?: string; error?: string }) {
   if (j.reason || j.error) return j.reason ?? j.error!;
@@ -90,6 +106,9 @@ export default function VoicePage() {
   const [data, setData] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  // 🔑 One call log for both tabs: Call records and Reports used to load it separately (10–30 s each).
+  const [days, setDays] = useState(30);
+  const calls = useCalls(days, tab === "calls" || tab === "reports");
 
   const load = useCallback(async () => {
     const res = await fetch("/api/admin/voice/preview", { credentials: "include" });
@@ -134,8 +153,8 @@ export default function VoicePage() {
         )}
         {tab === "contacts" && data?.contacts && <ContactsTab data={data} reload={load} say={setMessage} />}
         {tab === "scheduled" && data?.contacts && <ScheduledTab data={data} reload={load} say={setMessage} />}
-        {tab === "calls" && <CallsTab />}
-        {tab === "reports" && <ReportsTab />}
+        {tab === "calls" && <CallsTab calls={calls} days={days} setDays={setDays} />}
+        {tab === "reports" && <ReportsTab calls={calls} days={days} setDays={setDays} />}
         {tab === "settings" && data && <SettingsTab data={data} reload={load} say={setMessage} />}
       </div>
     </AdminShell>
@@ -178,9 +197,11 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
     (!q || `${c.name} ${c.organisation} ${c.phone}`.toLowerCase().includes(q.toLowerCase())),
   );
   const callable = shown.filter((c) => c.check === "OK");
-  const rowsOf = (keys: Set<string>) => contacts.filter((c) => keys.has(key(c))).map((c) => ({ tab: c.tab, row: c.row }));
+  const rowsOf = (keys: Set<string>) => contacts.filter((c) => keys.has(key(c))).map(ref);
+  const callingOn = !!data.settings?.callingEnabled;
+  const attention = contacts.filter((c) => c.needsPerson || c.missed);
 
-  const callNow = async (rows: { tab: string; row: number }[]) => {
+  const callNow = async (rows: Ref[]) => {
     if (rows.length === 0) return;
     if (!window.confirm(`Call ${rows.length} contact${rows.length === 1 ? "" : "s"} now? What does not fit in a free line is queued.`)) return;
     setBusy(true);
@@ -199,12 +220,16 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
     const { ok, json } = await post("/api/admin/voice/schedule", { rows, at: at.toISOString() });
     setBusy(false);
     setChosen(new Set());
-    say(ok ? `${json.scheduled} scheduled for ${fmtTime(json.at)}. They will be called then if it is within their calling hours.` : json.error);
+    say(ok
+      ? `${json.scheduled} scheduled for ${fmtTime(json.at)} (your time).${skippedText(json.skipped)}${callingOn ? "" : " ⚠️ Calling is OFF — they will only ring if it is ON at that time."}`
+      : json.error);
     void reload();
   };
 
   return (
     <section className="space-y-3">
+      {!callingOn && <CallingOffNote />}
+      {attention.length > 0 && <NeedsAPerson rows={attention} />}
       <div className="flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, organisation, phone" className="w-56 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5" />
         <select value={type} onChange={(e) => setType(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5">
@@ -224,11 +249,13 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
       {adding && <AddContact onDone={(m) => { setAdding(false); say(m); void reload(); }} />}
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 p-3">
-        <button className="rounded-xl bg-emerald-600 px-4 py-1.5 font-semibold text-white disabled:opacity-40" disabled={busy || chosen.size === 0} onClick={() => void callNow(rowsOf(chosen))}>
+        <button className="rounded-xl bg-emerald-600 px-4 py-1.5 font-semibold text-white disabled:opacity-40" disabled={busy || chosen.size === 0 || !callingOn} title={callingOn ? undefined : "Calling is OFF — turn it on in Settings"} onClick={() => void callNow(rowsOf(chosen))}>
           📞 Call {chosen.size || ""} now
         </button>
         <span className="text-zinc-500">or</span>
-        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1" />
+        <label className="flex items-center gap-1 text-zinc-400">at (your time)
+          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-100" />
+        </label>
         <button className="rounded-xl border border-zinc-600 px-3 py-1.5 font-semibold disabled:opacity-40" disabled={busy || chosen.size === 0 || !when} onClick={() => void scheduleChosen()}>
           🗓 Schedule {chosen.size || ""}
         </button>
@@ -262,9 +289,9 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
                 </td>
                 <td>{c.tab}</td>
                 <td>{c.language}{c.voice === "male" ? " ♂" : " ♀"}</td>
-                <td>
+                <td className={c.needsPerson ? "font-semibold text-amber-300" : undefined}>
                   {c.status}
-                  {c.status === "Scheduled" && c.followUp && <div className="text-zinc-400">{fmtTime(c.followUp)}</div>}
+                  {c.status === "Scheduled" && c.followUp && <div className={c.missed ? "text-red-400" : "text-zinc-400"}>{fmtTime(c.followUp)}{c.missed ? " — missed" : ""}</div>}
                   <div className="text-zinc-500">tries {c.attempts || 0}</div>
                 </td>
                 <td className="max-w-xs">{c.outcome}{c.summary ? <div className="text-zinc-400">{c.summary}</div> : null}</td>
@@ -272,9 +299,9 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
                 <td>
                   <button
                     className="rounded-lg border border-emerald-600/60 px-2 py-1 text-emerald-300 disabled:opacity-30"
-                    disabled={busy || c.check !== "OK" || c.status === "Calling"}
-                    onClick={() => void callNow([{ tab: c.tab, row: c.row }])}
-                    title="Call this contact now"
+                    disabled={busy || !callingOn || c.check !== "OK" || c.status === "Calling"}
+                    onClick={() => void callNow([ref(c)])}
+                    title={callingOn ? "Call this contact now" : "Calling is OFF — turn it on in Settings"}
                   >
                     📞
                   </button>
@@ -286,6 +313,34 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
         {shown.length === 0 && <p className="py-6 text-center text-zinc-500">No contacts match.</p>}
       </div>
     </section>
+  );
+}
+
+function CallingOffNote() {
+  return (
+    <div className="rounded-xl border border-amber-400/30 bg-amber-500/10 p-3 text-amber-200">
+      Calling is <b>OFF</b>, so nothing rings — Call now is disabled and scheduled calls wait. Turn it on in the Settings tab when you are ready.
+    </div>
+  );
+}
+
+/** 🔴 What a PERSON must do next — safety first. These were only visible by scanning the sheet. */
+function NeedsAPerson({ rows }: { rows: Row[] }) {
+  const order = (r: Row) => (r.status.startsWith("Safety") ? 0 : r.missed ? 3 : 1);
+  return (
+    <div className="rounded-2xl border border-amber-400/40 p-3">
+      <div className="mb-1 font-semibold">Needs a person ({rows.length})</div>
+      {[...rows].sort((a, b) => order(a) - order(b)).map((c) => (
+        <div key={key(c)} className="flex flex-wrap gap-x-3 border-t border-zinc-800 py-1.5">
+          <span className={c.status.startsWith("Safety") ? "font-bold text-red-400" : "font-semibold text-amber-300"}>
+            {c.missed ? "Missed schedule" : c.status}
+          </span>
+          <span className="font-semibold">{c.name}</span>
+          <span className="text-zinc-400">{c.organisation || c.tab} · {c.phone}</span>
+          <span className="text-zinc-400">{c.missed ? "Its time passed while calling was off — schedule it again or cancel it." : c.nextAction}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -344,7 +399,8 @@ function ScheduledTab({ data, reload, say }: { data: Preview; reload: () => Prom
     .filter((c) => (c.status === "Callback requested" || c.status === "Send info") && c.followUp)
     .sort((a, b) => a.followUp.localeCompare(b.followUp));
 
-  const cancel = async (rows: { tab: string; row: number }[]) => {
+  const auto = !!data.settings?.autoDispatch;
+  const cancel = async (rows: Ref[]) => {
     const { ok, json } = await post("/api/admin/voice/schedule", { rows }, "DELETE");
     say(ok ? `${json.cancelled} taken off the schedule.` : json.error);
     void reload();
@@ -352,21 +408,25 @@ function ScheduledTab({ data, reload, say }: { data: Preview; reload: () => Prom
 
   return (
     <section className="space-y-6">
+      {!data.settings?.callingEnabled && <CallingOffNote />}
       <div>
         <h3 className="mb-2 font-semibold">Scheduled and queued ({upcoming.length})</h3>
         {upcoming.length === 0 && <p className="text-zinc-500">Nothing scheduled. Choose contacts on the Contacts tab and pick a time.</p>}
         {upcoming.map((c) => (
           <div key={key(c)} className="flex flex-wrap items-center gap-3 border-t border-zinc-800 py-2">
-            <span className="w-44 text-zinc-300">{c.status === "Queued" ? "Next free line" : fmtTime(c.followUp)}</span>
+            <span className={`w-44 ${c.missed ? "text-red-400" : "text-zinc-300"}`}>{c.status === "Queued" ? "Next free line" : `${fmtTime(c.followUp)}${c.missed ? " — missed" : ""}`}</span>
             <span className="font-semibold">{c.name}</span>
             <span className="text-zinc-400">{c.organisation} · {c.tab} · {c.language}</span>
             {c.check !== "OK" && <span className="text-red-400">⚠ {c.check}</span>}
-            <button className="ml-auto underline" onClick={() => void cancel([{ tab: c.tab, row: c.row }])}>Cancel</button>
+            <button className="ml-auto underline" onClick={() => void cancel([ref(c)])}>Cancel</button>
           </div>
         ))}
       </div>
       <div>
-        <h3 className="mb-2 font-semibold">Follow-ups the dispatcher will call (automatic mode)</h3>
+        <h3 className="mb-2 font-semibold">Callbacks and send-info follow-ups</h3>
+        <p className="mb-2 text-zinc-400">
+          {auto ? "Automatic calling is ON — these are called at the time shown." : "Automatic calling is OFF — these are NOT called by themselves. Call them from the Contacts tab, or turn automatic on."}
+        </p>
         {followUps.length === 0 && <p className="text-zinc-500">None.</p>}
         {followUps.map((c) => (
           <div key={key(c)} className="flex flex-wrap gap-3 border-t border-zinc-800 py-2">
@@ -380,21 +440,28 @@ function ScheduledTab({ data, reload, say }: { data: Preview; reload: () => Prom
   );
 }
 
-function useCalls(days: number) {
-  const [state, setState] = useState<{ loading: boolean; error?: string; calls: Call[]; report?: Report }>({ loading: true, calls: [] });
+type CallsState = { loading: boolean; error?: string; calls: Call[]; report?: Report; asOf?: string; refresh: () => void };
+
+/** Loads only once a calls tab is opened, then serves both tabs. */
+function useCalls(days: number, wanted: boolean): CallsState {
+  const [state, setState] = useState<Omit<CallsState, "refresh">>({ loading: false, calls: [] });
+  const [loadedFor, setLoadedFor] = useState<number | null>(null);
   const fetchCalls = useCallback(async (fresh: boolean) => {
-    setState((s) => ({ ...s, loading: true }));
-    const to = new Date();
-    const from = new Date(to.getTime() - days * 86400_000);
-    const res = await fetch(`/api/admin/voice/calls?from=${from.toISOString()}&to=${to.toISOString()}${fresh ? "&fresh=1" : ""}`, { credentials: "include" });
-    const json = await res.json().catch(() => ({}));
-    setState(res.ok ? { loading: false, calls: json.calls, report: json.report } : { loading: false, calls: [], error: json.error ?? "Could not load calls." });
+    setState((s) => ({ ...s, loading: true, error: undefined }));
+    try {
+      const res = await fetch(`/api/admin/voice/calls?days=${days}${fresh ? "&fresh=1" : ""}`, { credentials: "include" });
+      const json = await res.json().catch(() => ({}));
+      setState(res.ok ? { loading: false, calls: json.calls, report: json.report, asOf: json.asOf } : { loading: false, calls: [], error: json.error ?? "Could not load calls." });
+    } catch {
+      setState({ loading: false, calls: [], error: "Could not reach the server." });
+    }
+    setLoadedFor(days);
   }, [days]);
-  useEffect(() => { void fetchCalls(false); }, [fetchCalls]);
+  useEffect(() => { if (wanted && loadedFor !== days) void fetchCalls(false); }, [wanted, loadedFor, days, fetchCalls]);
   return { ...state, refresh: () => void fetchCalls(true) };
 }
 
-function RangePicker({ days, setDays, refresh }: { days: number; setDays: (d: number) => void; refresh: () => void }) {
+function RangePicker({ days, setDays, refresh, asOf }: { days: number; setDays: (d: number) => void; refresh: () => void; asOf?: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {[7, 30, 90].map((d) => (
@@ -403,19 +470,21 @@ function RangePicker({ days, setDays, refresh }: { days: number; setDays: (d: nu
         </button>
       ))}
       <button className="underline" onClick={refresh}>Refresh</button>
+      {asOf && <span className="text-zinc-500">as of {fmtTime(asOf)} · reading every agent takes 10–30 s</span>}
     </div>
   );
 }
 
-function CallsTab() {
-  const [days, setDays] = useState(30);
-  const { loading, error, calls, refresh } = useCalls(days);
+type CallsTabProps = { calls: CallsState; days: number; setDays: (d: number) => void };
+
+function CallsTab({ calls: state, days, setDays }: CallsTabProps) {
+  const { loading, error, calls, refresh, asOf } = state;
   const [open, setOpen] = useState<string | null>(null);
   const safety = calls.filter((c) => c.outcome === "safety");
 
   return (
     <section className="space-y-3">
-      <RangePicker days={days} setDays={setDays} refresh={refresh} />
+      <RangePicker days={days} setDays={setDays} refresh={refresh} asOf={asOf} />
       {loading && <p className="text-zinc-400">Loading calls…</p>}
       {error && <p className="text-red-400">{error}</p>}
       {safety.length > 0 && (
@@ -434,7 +503,7 @@ function CallsTab() {
               <span>{c.language} {c.voice === "male" ? "♂" : "♀"}</span>
               <span>{c.status} · {fmtDur(c.durationSec)}</span>
               <span className={c.outcome === "safety" ? "font-bold text-red-400" : ""}>{OUTCOME_LABEL[c.outcome] ?? (c.outcome || "—")}</span>
-              <span className="text-zinc-400">{usd(c.costCents)} · {c.placedBy || "automatic"}</span>
+              <span className="text-zinc-400">{usd(c.costCents)} · {c.placedBy || "not recorded"}</span>
             </button>
             {open === c.id && <CallDetail c={c} />}
           </div>
@@ -474,16 +543,15 @@ function Kpi({ label, value, note }: { label: string; value: string; note?: stri
   );
 }
 
-function ReportsTab() {
-  const [days, setDays] = useState(30);
-  const { loading, error, report, refresh } = useCalls(days);
+function ReportsTab({ calls: state, days, setDays }: CallsTabProps) {
+  const { loading, error, report, refresh, asOf } = state;
   const outcomeSlices = report
     ? toRows(report.byOutcome, (k) => OUTCOME_LABEL[k] ?? k).map((r, i) => ({ ...r, color: COLORS[i % COLORS.length] }))
     : [];
 
   return (
     <section className="space-y-5">
-      <RangePicker days={days} setDays={setDays} refresh={refresh} />
+      <RangePicker days={days} setDays={setDays} refresh={refresh} asOf={asOf} />
       {loading && <p className="text-zinc-400">Loading…</p>}
       {error && <p className="text-red-400">{error}</p>}
       {report && (
@@ -603,8 +671,8 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
         warn="Allow calls to INDIVIDUALS? In India, promotional calls to individuals need TRAI DLT registration and DND scrubbing."
       />
       <div className="flex flex-wrap items-end gap-4 border-t border-zinc-800 py-3">
-        <label>Calls per day (cap)<input className="block w-28 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5" value={cap} onChange={(e) => setCap(e.target.value)} /></label>
-        <label>Lines at once<input className="block w-28 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5" value={lines} onChange={(e) => setLines(e.target.value)} /></label>
+        <label>Calls per 24 hours (1–500)<input type="number" min={1} max={500} className="block w-28 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5" value={cap} onChange={(e) => setCap(e.target.value)} /></label>
+        <label>Lines at once (1–10)<input type="number" min={1} max={10} className="block w-28 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5" value={lines} onChange={(e) => setLines(e.target.value)} /></label>
         <button className="rounded-xl border border-zinc-600 px-4 py-1.5 font-semibold" disabled={busy} onClick={() => void save({ dailyCap: Number(cap), maxConcurrency: Number(lines) })}>
           Save limits
         </button>

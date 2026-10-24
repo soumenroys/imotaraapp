@@ -5,7 +5,7 @@ import { appendContact } from "@/lib/voice/sheets";
 import { callNow } from "@/lib/voice/dispatch";
 import { CONTACT_TABS, STATUS, normalisePhone, type Column, type ContactTab } from "@/lib/voice/rules";
 import { BOLNA_AGENTS } from "@/lib/voice/agents";
-import { voiceAdmin, readJson } from "../_shared";
+import { voiceAdmin, readJson, failed } from "../_shared";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -47,8 +47,12 @@ export async function POST(req: NextRequest) {
     context: t("context"), call_reason: t("call_reason"), status: STATUS.pending, call_attempts: "0",
     voice_gender: t("voice_gender").toLowerCase() === "male" ? "male" : "female",
   };
-  const row = await appendContact(tab, cells);
-  console.log("[admin/voice/contacts] added", { by: a.admin.email, tab, row });
-  const call = b.callNow ? await callNow([{ tab, row }], a.admin.email) : undefined;
-  return NextResponse.json({ added: { tab, row }, call });
+  try {
+    const row = await appendContact(tab, cells);
+    console.log("[admin/voice/contacts] added", { by: a.admin.email, tab, row });
+    const call = b.callNow ? await callNow([{ tab, row, phone }], a.admin.email) : undefined;
+    return NextResponse.json({ added: { tab, row }, call });
+  } catch (e) {
+    return failed(e);
+  }
 }

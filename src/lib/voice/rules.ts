@@ -51,7 +51,21 @@ export const STATUS = {
   review: "Needs review",
   /** An admin chose a time in the console; follow_up_datetime holds it. Called when due, like Queued. */
   scheduled: "Scheduled",
+  /**
+   * The call service refused to place the call. ⛔ Never picked again by itself:
+   * left Queued, a refused dial was retried every 5 minutes, for ever.
+   */
+  dialFailed: "Dial failed",
 } as const;
+
+/** Statuses a person must act on — the console lists them first. */
+export const NEEDS_A_PERSON: readonly string[] = [STATUS.safety, STATUS.review, STATUS.dialFailed, STATUS.meeting, STATUS.sendInfo];
+
+/**
+ * A scheduled call this late is not placed: the admin chose THAT time, and a
+ * call days later (calling was off, the job was down) is a call nobody chose.
+ */
+export const SCHEDULE_GRACE_HOURS = 2;
 
 export type Contact = { tab: ContactTab; row: number; v: Record<Column, string> };
 
@@ -227,6 +241,24 @@ export type Selection = {
   placedToday: number;
 };
 
+export const MISSED_SCHEDULE = "Scheduled time passed - schedule it again";
+
+/** True when a Scheduled row's time is more than the grace period ago. */
+export function missedSchedule(c: Contact, now: Date): boolean {
+  const at = parseTime(c.v.follow_up_datetime);
+  return c.v.status === STATUS.scheduled && at !== null && now.getTime() - at > SCHEDULE_GRACE_HOURS * 3600_000;
+}
+
+/**
+ * ⛔ The console names a row by tab + row number, and the team edits the sheet
+ * while the page is open: a row deleted above shifts everyone below up one, and
+ * "call row 7" would ring someone else. Every action carries the phone the page
+ * showed, and is refused if the row now holds a different number.
+ */
+export function sameContact(c: Contact, phone: string | undefined): boolean {
+  return !!phone && phoneOf(c) === normalisePhone(phone);
+}
+
 export function selectDue(d: Directory, now: Date, opts: { auto: boolean }): Selection {
   const nowMs = now.getTime();
   const active = d.contacts.filter((c) => {
@@ -249,7 +281,12 @@ export function selectDue(d: Directory, now: Date, opts: { auto: boolean }): Sel
     if (status === STATUS.queued) group = 1;
     else if (status === STATUS.scheduled) {
       // An admin's own choice of time ⇒ not gated by autoDispatch, like Queued.
-      if ((parseTime(c.v.follow_up_datetime) ?? Infinity) <= nowMs) group = 1;
+      const at = parseTime(c.v.follow_up_datetime) ?? Infinity;
+      if (at <= nowMs && nowMs - at > SCHEDULE_GRACE_HOURS * 3600_000) {
+        skipped.push({ contact: c, reason: MISSED_SCHEDULE });
+        continue;
+      }
+      if (at <= nowMs) group = 1;
     }
     else if (opts.auto) {
       if ((status === STATUS.callback || status === STATUS.sendInfo) && (parseTime(c.v.follow_up_datetime) ?? Infinity) <= nowMs) group = 0;

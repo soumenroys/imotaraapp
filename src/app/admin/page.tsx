@@ -3653,6 +3653,8 @@ export default function AdminPage() {
       actions={<SignOutButton onSignOut={() => void signOut()} />}
     >
       <PageTutorial id={`admin-${section}`} {...ADMIN_TUTORIALS[section]} />
+      {/* 🔑 Where a To do deep link lands ⇒ _components/scrollToTarget. */}
+      <div id="admin-section-body" className="scroll-mt-4" />
 
       {/* Comments section */}
       {section === "comments" && (

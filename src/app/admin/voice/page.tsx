@@ -17,6 +17,7 @@ import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { LineChart, Bars, Donut } from "@/app/admin/_components/charts";
 import { CallFlow } from "./CallFlow";
+import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 
 type Row = {
   tab: string; row: number; name: string; organisation: string; phone: string; language: string;
@@ -107,6 +108,12 @@ function describeCallNow(j: { placed?: unknown[]; queued?: unknown[]; skipped?: 
 export default function VoicePage() {
   const role = useAdminRole();
   const [tab, setTab] = useState<Tab>("contacts");
+  // 🔑 ?tab=settings (or contacts, …) from the To do page opens that tab, on screen.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    const hit = TABS.find((x) => x.id === t);
+    if (hit) { setTab(hit.id); scrollToTarget("voice-tabs"); }
+  }, []);
   const [data, setData] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -139,7 +146,7 @@ export default function VoicePage() {
         )}
         {data && <StatusStrip data={data} />}
         {data && <CallFlow callingOn={!!data.settings?.callingEnabled} autoOn={!!data.settings?.autoDispatch} />}
-        <nav className="flex flex-wrap gap-2">
+        <nav id="voice-tabs" className="flex scroll-mt-4 flex-wrap gap-2">
           {TABS.map((t) => (
             <button
               key={t.id}

@@ -329,7 +329,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
           const broken = contacts.filter((c) => { const v = checkContact(c, dir); return v !== "OK" && !INTENDED.test(v); });
           items.push(step(3, contacts.length > 0 && broken.length === 0, "Fix the rows the sheet marks ⛔",
             contacts.length === 0 ? "Add contacts first." : broken.length ? `${plural(broken.length, "row")} cannot be contacted yet — the sheet's what_to_do column says what to fix on each.` : "Every row is complete.",
-            "/admin/voice", "See the rows"));
+            "/admin/voice?tab=contacts", "See the rows"));
         }
         return items;
       }));
@@ -363,7 +363,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
       const callOn = Boolean(dir?.settings.callingEnabled && dir?.settings.autoDispatch);
       out.push(step(7, callOn, "Switch Calling and Automatic calling ON",
         callOn ? "Calls go out by themselves in each person's daytime." : `Calling is ${dir?.settings.callingEnabled ? "ON" : "OFF"}, automatic is ${dir?.settings.autoDispatch ? "ON" : "OFF"}.`,
-        "/admin/voice", "Open Voice calls → Settings"));
+        "/admin/voice?tab=settings", "Open Voice calls → Settings"));
       return out;
     },
   };

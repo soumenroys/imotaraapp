@@ -18,6 +18,7 @@ import BroadcastHealth from "./BroadcastHealth";
 import BroadcastRequests from "./BroadcastRequests";
 import BroadcastTemplateUsage from "./BroadcastTemplateUsage";
 import BroadcastAuto from "./BroadcastAuto";
+import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 
 type View =
   | { name: "list" }
@@ -122,6 +123,7 @@ export default function BroadcastSection({ token }: { token: string }) {
     else if (status && uuid.test(status)) setView({ name: "status", id: status });
     else if (v === "requests" || v === "health" || v === "lists" || v === "templates" || v === "auto") setView({ name: v } as View);
     if (review || status || v) {
+      scrollToTarget("admin-section-body");
       ["review", "status", "view"].forEach((k) => sp.delete(k));
       window.history.replaceState(null, "", `${window.location.pathname}?${sp.toString()}`);
     }

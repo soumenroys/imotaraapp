@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  COLUMNS, STATUS, checkContact, selectDue, userData, writebackFor, helplineFor, normalisePhone,
+  COLUMNS, STATUS, checkContact, phoneProblem, selectDue, userData, writebackFor, helplineFor, normalisePhone,
   parseSettings, inCallingWindow, elevenLocal, columnLetter, sameContact, missedSchedule, MISSED_SCHEDULE,
   type Contact, type Directory, type Column,
 } from "@/lib/voice/rules";
@@ -214,4 +214,19 @@ describe("console actions cannot go astray", () => {
     expect(sameContact(c, "+919830099999")).toBe(false);
     expect(sameContact(c, "")).toBe(false);
   });
+});
+
+describe("🔴 a malformed phone is caught, not dialled (live sheet, 24 Oct)", () => {
+  it("no country code (a UK number typed as 01494…)", () => expect(phoneProblem("+01494680873")).toMatch(/no country code/));
+  it("an extra 0 after +44", () => expect(phoneProblem("+4402088634637")).toMatch(/extra 0 after the country code \+44/));
+  it("an extra 0 after +91", () => expect(phoneProblem("+9109830012345")).toMatch(/\+91/));
+  it("good numbers pass", () => {
+    for (const p of ["+442077901222", "+442045272929", "+919830012345", "+14155550123", "+390612345678"]) expect(phoneProblem(p)).toBeNull();
+  });
+  it("too short and too long", () => {
+    expect(phoneProblem("+12345")).toMatch(/country code and number/);
+    expect(phoneProblem("+1234567890123456")).toMatch(/too many/);
+  });
+  it("checkContact refuses it before anything else", () =>
+    expect(checkContact(contact({ phone: "01494680873", consent_note: "" }), dir([]))).toMatch(/no country code/));
 });

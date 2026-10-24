@@ -25,6 +25,9 @@ const day = (iso: string) => {
 
 /** How to fix each "not callable" reason, in the admin's words. */
 const CALL_FIX: [RegExp, string][] = [
+  [/extra 0 after/i, "Remove the 0 straight after the country code in column A — UK 020 8863 4637 is 44 20 8863 4637."],
+  [/no country code/i, "Start the phone in column A with the country code and drop the leading 0 — UK 01494 680873 is 44 1494 680873."],
+  [/too many digits/i, "Check the phone in column A — it has more digits than any real number."],
   [/country code/i, "Type the phone with country code in column A, e.g. 919830012345."],
   [/Missing name/i, "Type the person's name in column C."],
   [/Sample row/i, "Delete this sample row."],

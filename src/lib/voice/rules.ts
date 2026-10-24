@@ -251,12 +251,34 @@ export function phoneOf(c: Contact): string {
   return normalisePhone(c.v.contact_number || c.v.phone);
 }
 
+/**
+ * Countries whose numbers DROP the national trunk 0 after the country code
+ * (UK 020… ⇒ +44 20…, India 098… ⇒ +91 98…). Not Italy (+39 keeps its 0).
+ */
+const DROPS_TRUNK_ZERO = ["44", "91", "61", "64", "49", "33", "81", "86", "27", "234", "254", "880", "92", "94", "977", "971", "65", "60", "62", "63", "66", "353", "31", "32", "41", "46", "47", "45", "34", "1"];
+
+/**
+ * 🔴 What is wrong with a phone number, or null. Found walking the live sheet
+ * 24 Oct: "+01494680873" and "+4402088634637" passed a LENGTH-only check, so a
+ * call would have gone to a wrong or non-existent number.
+ */
+export function phoneProblem(phone: string): string | null {
+  const d = phone.replace("+", "");
+  if (d.length < 10) return "Phone needs country code and number";
+  if (d.length > 15) return "Phone has too many digits";
+  if (d.startsWith("0")) return "Phone has no country code (it starts with 0)";
+  const cc = DROPS_TRUNK_ZERO.find((c) => d.startsWith(c) && d[c.length] === "0");
+  if (cc) return `Phone has an extra 0 after the country code +${cc}`;
+  return null;
+}
+
 export function checkContact(
   c: Contact,
   d: Pick<Directory, "languages" | "dnc"> & { settings?: Pick<Settings, "allowIndividuals"> },
 ): string {
   const phone = phoneOf(c);
-  if (phone.replace("+", "").length < 10) return "Phone needs country code and number";
+  const bad = phoneProblem(phone);
+  if (bad) return bad;
   if (!c.v.name) return "Missing name";
   if (/^sample\b/i.test(c.v.name)) return "Sample row - delete it";
   if (d.dnc.has(phone)) return "On do-not-call list - never call";

@@ -12,6 +12,7 @@ import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { AUDIENCES, AUDIENCE_LABEL, STEPS, STEP_LABEL, type Audience, type StepId } from "@/lib/outreach/sequence";
 import { MailFlow } from "./MailFlow";
+import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 
 type Draft = { subject: string; body: string; status: "needs_review" | "approved"; writtenAt: string; writtenBy: string; approvedAt?: string; approvedBy?: string; findings: string[] };
 type Settings = { enabled: boolean; sendWithoutAsking: boolean; dailyCap: number };
@@ -45,7 +46,7 @@ export default function OutreachPage() {
   const [tab, setTab] = useState<Tab>("emails");
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "settings" || t === "contacts") setTab(t);
+    if (t === "settings" || t === "contacts") { setTab(t); scrollToTarget("outreach-tabs"); }
   }, []);
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export default function OutreachPage() {
         {error && error !== "unauthorized" && <div className="rounded-xl border border-red-400/40 bg-red-500/10 p-3 text-red-200">{error}</div>}
         {data && <StatusStrip d={data} />}
         {data && <MailFlow on={data.settings.enabled} auto={data.settings.sendWithoutAsking} cap={data.settings.dailyCap} />}
-        <nav className="flex flex-wrap gap-2">
+        <nav id="outreach-tabs" className="flex scroll-mt-4 flex-wrap gap-2">
           {(["emails", "contacts", "settings"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`rounded-full px-4 py-1.5 font-semibold ${tab === t ? "bg-white text-zinc-900" : "border border-white/15 text-zinc-300 hover:bg-white/10"}`}>
@@ -152,6 +153,8 @@ function EmailsTab({ d, reload, say }: { d: Overview; reload: () => Promise<void
 
 function DraftCard({ audience, step, draft, reload, say, startOpen = false }: { audience: Audience; step: StepId; draft?: Draft; reload: () => Promise<void>; say: (m: string) => void; startOpen?: boolean }) {
   const [open, setOpen] = useState(startOpen);
+  // 🔑 Opened from a To do link ⇒ bring it on screen (it sits below the guide and the diagram).
+  useEffect(() => { if (startOpen) scrollToTarget(`draft-${audience}-${step}`); }, [startOpen, audience, step]);
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [body, setBody] = useState(draft?.body ?? "");
   const [busy, setBusy] = useState("");
@@ -172,7 +175,7 @@ function DraftCard({ audience, step, draft, reload, say, startOpen = false }: { 
   };
   const tone = !draft ? "border-white/10" : draft.status === "approved" ? "border-emerald-400/40" : "border-amber-400/40";
   return (
-    <div className={`rounded-2xl border ${tone} p-3`}>
+    <div id={`draft-${audience}-${step}`} className={`scroll-mt-4 rounded-2xl border ${tone} p-3`}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="font-semibold">{STEP_LABEL[step]}</span>
         <span className={!draft ? "text-zinc-500" : draft.status === "approved" ? "text-emerald-300" : "text-amber-300"}>

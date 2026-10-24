@@ -19,6 +19,16 @@ import type { Step } from "@/app/admin/_components/PageTutorial";
 export type Tutorial = { title: string; steps: Step[]; footnote?: string };
 
 export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
+  todo: {
+    title: "What is waiting for you",
+    steps: [
+      { do: "Start with Do now, then Today.", then: "Safety calls, broken channels and stopped sends come first." },
+      { do: "Press the blue button on an item to go straight to where you act on it.", then: "Approve the draft, retry the post, review the application." },
+      { do: "Come back: items the system can see finished leave the list by themselves.", then: "A draft approved or a post retried disappears on Refresh." },
+      { do: "For work done outside the system — a call made, a meeting held — press Mark done.", then: "It moves to Done in the last 24 hours, with who and when. Undo is there if it was a mistake." },
+    ],
+    footnote: "If a part of the panel could not be checked, the page says so — an empty list never hides a failure.",
+  },
   comments: {
     title: "Moderating blog comments",
     steps: [

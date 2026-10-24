@@ -58,9 +58,10 @@ describe("one nav, with everything in it", () => {
 });
 
 describe("who sees what", () => {
-  it("a connect reviewer sees only their two screens", () => {
+  it("a connect reviewer sees only their own screens", () => {
     const keys = navFor("connect_reviewer").map((i) => i.key);
-    expect(keys.sort()).toEqual(["comments", "connect"]);
+    // To do is theirs too: it only shows them comments and Connect applications.
+    expect(keys.sort()).toEqual(["comments", "connect", "todo"]);
   });
 
   it("⛔ broadcast is owner-only, because it speaks to everybody at once", () => {

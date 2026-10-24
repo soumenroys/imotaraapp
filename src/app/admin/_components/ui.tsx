@@ -58,7 +58,7 @@ export function useAdminRole(): string | null {
  */
 export type NavKey =
   | "comments" | "licenses" | "organizations" | "connect" | "superadmins"
-  | "broadcast" | "stats" | "analytics" | "crisis" | "social" | "voice" | "outreach";
+  | "broadcast" | "stats" | "analytics" | "crisis" | "social" | "voice" | "outreach" | "todo";
 
 export type NavItem = {
   key: NavKey;
@@ -88,6 +88,7 @@ export const NAV_GROUPS: { id: NavGroup; label: string }[] = [
 ];
 
 export const ADMIN_NAV: NavItem[] = [
+  { key: "todo",          icon: "✅", label: "To do",          href: "/admin?section=todo",          reviewer: true, group: "overview" },
   { key: "stats",         icon: "📊", label: "Dashboard",      href: "/admin?section=stats",         group: "overview" },
   { key: "analytics",     icon: "📈", label: "Activity",       href: "/admin/analytics",      route: true, group: "overview" },
   { key: "crisis",        icon: "🆘", label: "Crisis",         href: "/admin/crisis-events",  route: true, group: "overview" },

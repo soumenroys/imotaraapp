@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import BroadcastSection from "@/components/admin/BroadcastSection";
+import TodoSection from "@/components/admin/TodoSection";
 import Link from "next/link";
 import { useState, useEffect, useCallback, useTransition } from "react";
 import { TIER_ORDER, byTier, type LicenseTier, type LicenseStatusCode } from "@/types/license";
@@ -3445,7 +3446,7 @@ function ConnectSection({ token }: { token: string }) {
 // Main AdminPage
 // ─────────────────────────────────────────────────────────────────────────────
 
-type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stats" | "connect" | "broadcast";
+type Section = "todo" | "comments" | "licenses" | "organizations" | "superadmins" | "stats" | "connect" | "broadcast";
 
 /**
  * ⚠️ The heading for each one, as a lookup rather than the six-deep nested
@@ -3453,6 +3454,7 @@ type Section = "comments" | "licenses" | "organizations" | "superadmins" | "stat
  * title is a compile error instead of the word "Dashboard".
  */
 const SECTION_TITLES: Record<Section, string> = {
+  todo:          "To do",
   comments:      "Blog Comments",
   licenses:      "License Management",
   organizations: "Organisations",
@@ -3471,9 +3473,9 @@ function isSection(v: string | null): v is Section {
 export default function AdminPage() {
   const [token, setToken]     = useState<string | null>(null);
   const [myRole, setMyRole]   = useState<string | null>(null);
-  // 🔑 Opens on the Dashboard (owner, 24 Oct 2026: the menu leads with the overview).
-  // A connect reviewer cannot see it and is moved to Connect once their role is known.
-  const [section, setSection] = useState<Section>("stats");
+  // 🔑 Opens on To do (owner, 24 Oct 2026: "one main page where admin can login and
+  // see his/her immediate action points") — every role, reviewers included.
+  const [section, setSection] = useState<Section>("todo");
   // ⚠️ Starts true so a signed-in admin never sees the login card flash past
   // while we ask the server whether this tab is already authenticated.
   const [checking, setChecking] = useState(true);
@@ -3516,7 +3518,7 @@ export default function AdminPage() {
           setToken(restored);
           if (who.role) {
             setMyRole(who.role);
-            if (who.role === "connect_reviewer") setSection("connect");
+            if (who.role === "connect_reviewer") setSection("todo");
           }
         }
       })
@@ -3562,7 +3564,7 @@ export default function AdminPage() {
         const role = d.admin?.role as string | undefined;
         if (role) {
           setMyRole(role);
-          if (role === "connect_reviewer") setSection("connect");
+          if (role === "connect_reviewer") setSection("todo");
         }
       })
       .catch(() => {});
@@ -3716,6 +3718,7 @@ export default function AdminPage() {
       {section === "connect"       && <ConnectSection       token={token} />}
       {section === "superadmins"   && <SuperAdminsSection   token={token} />}
       {section === "broadcast"     && <BroadcastSection     token={token} />}
+      {section === "todo"          && <TodoSection          token={token} />}
       {section === "stats"         && <StatsSection         token={token} />}
     </AdminShell>
   );

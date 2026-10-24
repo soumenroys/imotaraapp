@@ -42,3 +42,31 @@ describe("the list", () => {
     expect(r.checked).toEqual([]);
   });
 });
+
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+describe("🔗 every To do link goes somewhere real (owner: 'check and approve links … with right url')", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/admin/todoSources.ts"), "utf8");
+  const hrefs = [...src.matchAll(/href: [`"]([^`"]+)[`"]/g)].map((m) => m[1]);
+  it("finds the links", () => expect(hrefs.length).toBeGreaterThan(10));
+  it("each path is a page that exists", () => {
+    for (const h of hrefs) {
+      const path = h.split("?")[0];
+      expect(existsSync(join(process.cwd(), "src/app", path, "page.tsx")), `${h} has no page`).toBe(true);
+    }
+  });
+  it("each /admin section in a link is one the admin page knows", () => {
+    const page = readFileSync(join(process.cwd(), "src/app/admin/page.tsx"), "utf8");
+    for (const h of hrefs) {
+      const section = /section=([a-z]+)/.exec(h)?.[1];
+      if (section) expect(page, `section=${section} is not a section`).toMatch(new RegExp(`\\n  ${section}:\\s+"`));
+    }
+  });
+  it("the deep-link parameters are read by the pages they point at", () => {
+    const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
+    expect(read("src/components/admin/BroadcastSection.tsx")).toMatch(/sp\.get\("review"\)/);
+    expect(read("src/app/admin/outreach/page.tsx")).toMatch(/get\("audience"\)/);
+    expect(read("src/app/admin/social/page.tsx")).toMatch(/get\("open"\)/);
+    expect(read("src/app/admin/page.tsx")).toMatch(/get\("tab"\)/);
+  });
+});

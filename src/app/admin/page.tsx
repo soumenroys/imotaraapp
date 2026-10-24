@@ -2887,6 +2887,7 @@ const LANG_NAMES: Record<string, string> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 type ConnectTab = "pending" | "all" | "payouts" | "sessions";
+const CONNECT_TABS = ["pending", "all", "payouts", "sessions"] as const;
 
 interface ConnectConsultant {
   id: string; display_name: string; gender: string | null; status: string;
@@ -2919,7 +2920,11 @@ interface ActiveSession {
 }
 
 function ConnectSection({ token }: { token: string }) {
-  const [ctab, setCtab]             = useState<ConnectTab>("pending");
+  // 🔑 Deep link from the To do page: /admin?section=connect&tab=payouts.
+  const [ctab, setCtab]             = useState<ConnectTab>(() => {
+    const t = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("tab");
+    return (CONNECT_TABS as readonly string[]).includes(t ?? "") ? (t as ConnectTab) : "pending";
+  });
   const [consultants, setConsultants] = useState<ConnectConsultant[]>([]);
   const [earnings, setEarnings]     = useState<EarningsConsultant[]>([]);
   const [payouts, setPayouts]       = useState<PayoutRecord[]>([]);

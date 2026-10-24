@@ -99,14 +99,19 @@ function missingPicture(gate: { notes?: string[] }, mediaKind?: string | null): 
 }
 
 export default function Today() {
-  const [view, setView] = useState<string>("queue");
+  // 🔑 Deep links from the To do page: ?view=trouble&open=<post id>.
+  const [view, setView] = useState<string>(() => {
+    const v = typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("view");
+    return v && VIEWS.some((x) => x.key === v) ? v : "queue";
+  });
   const [posts, setPosts] = useState<Post[]>([]);
   const [byStatus, setByStatus] = useState<Record<string, number>>({});
   const [scheduleNames, setScheduleNames] = useState<Record<string, string>>({});
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
-  const [open, setOpen] = useState<string>("");
+  const [open, setOpen] = useState<string>(() =>
+    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("open") ?? "");
   const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
   /** The post whose time is being changed, and the value in the field. */
   const [when, setWhen] = useState<{ id: string; value: string } | null>(null);

@@ -109,6 +109,22 @@ export default function BroadcastSection({ token }: { token: string }) {
 
   useEffect(() => { void load(); }, [load]);
 
+  // 🔑 Deep links from the To do page: ?review=<id> opens that draft's approval
+  // screen, ?status=<id> a run's record, ?view=requests the Requests list.
+  // Read once, then removed from the address so a refresh does not re-open it.
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const review = sp.get("review"), status = sp.get("status"), v = sp.get("view");
+    const uuid = /^[0-9a-f-]{36}$/i;
+    if (review && uuid.test(review)) setView({ name: "review", id: review });
+    else if (status && uuid.test(status)) setView({ name: "status", id: status });
+    else if (v === "requests") setView({ name: "requests" });
+    if (review || status || v) {
+      ["review", "status", "view"].forEach((k) => sp.delete(k));
+      window.history.replaceState(null, "", `${window.location.pathname}?${sp.toString()}`);
+    }
+  }, []);
+
   // The composer needs the recipient lists to offer a destination. Loaded here
   // rather than inside the composer so opening a draft does not stall on a
   // second round trip before anything can be typed.

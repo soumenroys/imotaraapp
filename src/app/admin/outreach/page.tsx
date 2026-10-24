@@ -115,7 +115,14 @@ function StatusStrip({ d }: { d: Overview }) {
 }
 
 function EmailsTab({ d, reload, say }: { d: Overview; reload: () => Promise<void>; say: (m: string) => void }) {
-  const [audience, setAudience] = useState<Audience>("ngos");
+  // 🔑 Deep link from the To do page: ?audience=ngos&step=intro opens that email.
+  const [want] = useState(() => {
+    const sp = typeof window === "undefined" ? null : new URLSearchParams(window.location.search);
+    const a = sp?.get("audience") as Audience | null;
+    const st = sp?.get("step") as StepId | null;
+    return { audience: a && AUDIENCES.includes(a) ? a : null, step: st && STEPS.includes(st) ? st : null };
+  });
+  const [audience, setAudience] = useState<Audience>(want.audience ?? "ngos");
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap gap-2">
@@ -132,13 +139,14 @@ function EmailsTab({ d, reload, say }: { d: Overview; reload: () => Promise<void
       <p className="text-zinc-400">
         English for now. {"{{name|there}}"} and {"{{organisation}}"} are filled in for each person when it is sent.
       </p>
-      {STEPS.map((s) => <DraftCard key={`${audience}:${s}`} audience={audience} step={s} draft={d.drafts[`${audience}:${s}`]} reload={reload} say={say} />)}
+      {STEPS.map((s) => <DraftCard key={`${audience}:${s}`} audience={audience} step={s} draft={d.drafts[`${audience}:${s}`]} reload={reload} say={say}
+        startOpen={audience === want.audience && s === want.step} />)}
     </section>
   );
 }
 
-function DraftCard({ audience, step, draft, reload, say }: { audience: Audience; step: StepId; draft?: Draft; reload: () => Promise<void>; say: (m: string) => void }) {
-  const [open, setOpen] = useState(false);
+function DraftCard({ audience, step, draft, reload, say, startOpen = false }: { audience: Audience; step: StepId; draft?: Draft; reload: () => Promise<void>; say: (m: string) => void; startOpen?: boolean }) {
+  const [open, setOpen] = useState(startOpen);
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [body, setBody] = useState(draft?.body ?? "");
   const [busy, setBusy] = useState("");

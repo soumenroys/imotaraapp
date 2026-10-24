@@ -66,7 +66,7 @@ export function outreachSource(supabase: SupabaseClient): TodoSource {
       for (const a of AUDIENCES) for (const st of STEPS) {
         const d = s.drafts[draftKey(a, st)];
         if (d?.status === "needs_review") {
-          out.push({ id: `outreach:${draftKey(a, st)}:${d.writtenAt}`, area: "Outreach mail", urgency: "soon", title: `Approve the ${AUDIENCE_LABEL[a]} “${STEP_LABEL[st]}” email`, detail: `“${d.subject}”${d.findings.length ? ` — ${plural(d.findings.length, "check")} to fix first` : ""}`, href: "/admin/outreach", action: "Read and approve" });
+          out.push({ id: `outreach:${draftKey(a, st)}:${d.writtenAt}`, area: "Outreach mail", urgency: "soon", title: `Approve the ${AUDIENCE_LABEL[a]} “${STEP_LABEL[st]}” email`, detail: `“${d.subject}”${d.findings.length ? ` — ${plural(d.findings.length, "check")} to fix first` : ""}`, href: `/admin/outreach?audience=${a}&step=${st}`, action: "Read and approve" });
         }
       }
       const approved = Object.values(s.drafts).filter((d) => d.status === "approved").length;
@@ -95,9 +95,9 @@ export function broadcastSource(supabase: SupabaseClient): TodoSource {
       const out: TodoItem[] = [];
       for (const b of rows ?? []) {
         if (b.status === "paused") {
-          out.push({ id: `broadcast:paused:${b.id}`, area: "Broadcast mail", urgency: "now", title: `A broadcast stopped part-way: “${b.subject}”`, detail: "Sending hit an error and paused. Open it to read why, then resume.", href: "/admin?section=broadcast", action: "Open and resume" });
+          out.push({ id: `broadcast:paused:${b.id}`, area: "Broadcast mail", urgency: "now", title: `A broadcast stopped part-way: “${b.subject}”`, detail: "Sending hit an error and paused. Open it to read why, then resume.", href: `/admin?section=broadcast&status=${b.id}`, action: "Open and resume" });
         } else if (approvalState(approvals, b.id as string, b) !== "approved") {
-          out.push({ id: `broadcast:approve:${b.id}:${b.updated_at}`, area: "Broadcast mail", urgency: "soon", title: `Approve or discard: “${b.subject || "(no subject)"}”`, detail: "A draft waiting for approval.", href: "/admin?section=broadcast", action: "Read and approve" });
+          out.push({ id: `broadcast:approve:${b.id}:${b.updated_at}`, area: "Broadcast mail", urgency: "soon", title: `Approve or discard: “${b.subject || "(no subject)"}”`, detail: "A draft waiting for approval.", href: `/admin?section=broadcast&review=${b.id}`, action: "Read and approve" });
         }
       }
       return out;
@@ -119,7 +119,7 @@ export function requestsSource(supabase: SupabaseClient): TodoSource {
         .limit(50);
       if (error) throw new Error(error.message);
       const n = data?.length ?? 0;
-      return n === 0 ? [] : [{ id: "requests:new", area: "Requests", urgency: "soon", title: `${plural(n, "person", "people")} asked for updates`, detail: "Confirmed their email on imotara.com. Add them to a list, or ignore.", href: "/admin?section=broadcast", action: "Open Requests" }];
+      return n === 0 ? [] : [{ id: "requests:new", area: "Requests", urgency: "soon", title: `${plural(n, "person", "people")} asked for updates`, detail: "Confirmed their email on imotara.com. Add them to a list, or ignore.", href: "/admin?section=broadcast&view=requests", action: "Open Requests" }];
     },
   };
 }
@@ -164,7 +164,7 @@ export function connectMoneySource(supabase: SupabaseClient): TodoSource {
       const out: TodoItem[] = [];
       const { count: payouts, error: pErr } = await supabase.from("connect_payouts").select("id", { count: "exact", head: true }).in("status", ["pending", "processing"]);
       if (pErr) throw new Error(pErr.message);
-      if (payouts) out.push({ id: "connect:payouts", area: "Connect money", urgency: "today", title: `${plural(payouts, "companion payout")} to complete`, href: "/admin?section=connect", action: "Open payouts" });
+      if (payouts) out.push({ id: "connect:payouts", area: "Connect money", urgency: "today", title: `${plural(payouts, "companion payout")} to complete`, href: "/admin?section=connect&tab=payouts", action: "Open payouts" });
       const { count: refunds, error: rErr } = await supabase.from("imotara_wallet_refund_requests").select("id", { count: "exact", head: true }).in("status", ["pending", "processing"]);
       if (rErr) throw new Error(rErr.message);
       // ⚠️ No admin screen for refunds exists yet — said, rather than linking somewhere that cannot act on it.
@@ -202,12 +202,12 @@ export function socialSource(supabase: SupabaseClient): TodoSource {
       const { data: drafts, error: dErr } = await supabase.from("social_posts").select("id, platform, scheduled_for").eq("status", "needs_review").order("scheduled_for").limit(200);
       if (dErr) throw new Error(dErr.message);
       const soon = (drafts ?? []).filter((p) => Date.parse(p.scheduled_for as string) - now < 24 * 3600_000);
-      if (soon.length) out.push({ id: `social:drafts-soon:${soon.map((p) => p.id).join(",")}`, area: "Social", urgency: "today", title: `${plural(soon.length, "post")} due within a day still need approval`, detail: [...new Set(soon.map((p) => p.platform))].join(", "), href: "/admin/social", action: "Read and approve" });
+      if (soon.length) out.push({ id: `social:drafts-soon:${soon.map((p) => p.id).join(",")}`, area: "Social", urgency: "today", title: `${plural(soon.length, "post")} due within a day still need approval`, detail: [...new Set(soon.map((p) => p.platform))].join(", "), href: "/admin/social?view=queue", action: "Read and approve" });
       const later = (drafts?.length ?? 0) - soon.length;
       if (later > 0) out.push({ id: "social:drafts-later", area: "Social", urgency: "soon", title: `${plural(later, "draft")} waiting for approval`, detail: "Written up to ten days ahead.", href: "/admin/social", action: "Read and approve" });
       const { data: failed, error: fErr } = await supabase.from("social_posts").select("id, platform, subject, last_error").eq("status", "failed").limit(20);
       if (fErr) throw new Error(fErr.message);
-      for (const p of failed ?? []) out.push({ id: `social:failed:${p.id}`, area: "Social", urgency: "today", title: `A ${p.platform} post failed to publish`, detail: `${p.subject ? `“${p.subject}” — ` : ""}${(p.last_error as string)?.slice(0, 160) ?? ""}`, href: "/admin/social", action: "Read why, retry or skip" });
+      for (const p of failed ?? []) out.push({ id: `social:failed:${p.id}`, area: "Social", urgency: "today", title: `A ${p.platform} post failed to publish`, detail: `${p.subject ? `“${p.subject}” — ` : ""}${(p.last_error as string)?.slice(0, 160) ?? ""}`, href: `/admin/social?view=trouble&open=${p.id}`, action: "Read why, retry or skip" });
       const { data: ch, error: cErr } = await supabase.from("social_accounts").select("id, platform, display_name, status, last_error").in("status", ["dead", "expiring"]);
       if (cErr) throw new Error(cErr.message);
       for (const a of ch ?? []) out.push({ id: `social:channel:${a.id}:${a.status}`, area: "Social", urgency: a.status === "dead" ? "now" : "today", title: a.status === "dead" ? `${a.display_name || a.platform} stopped posting — reconnect it` : `${a.display_name || a.platform}'s token expires soon`, detail: (a.last_error as string)?.slice(0, 160), href: "/admin/social/channels", action: "Open Channels" });

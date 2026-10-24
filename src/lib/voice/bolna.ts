@@ -37,12 +37,12 @@ export async function placeCall(agentId: string, phone: string, userData: Record
       signal: AbortSignal.timeout(30_000),
     });
     const text = await res.text();
-    if (!res.ok) return { ok: false, error: `Bolna answered ${res.status}: ${text.slice(0, 300)}` };
+    if (!res.ok) return { ok: false, error: `Imotara calling answered ${res.status}: ${text.slice(0, 300)}` };
     const body = JSON.parse(text || "{}") as Record<string, unknown>;
     const id = String(body.execution_id ?? body.call_id ?? body.id ?? "");
-    return id ? { ok: true, executionId: id } : { ok: false, error: `Bolna gave no execution id: ${text.slice(0, 300)}` };
+    return id ? { ok: true, executionId: id } : { ok: false, error: `Imotara calling gave no call id: ${text.slice(0, 300)}` };
   } catch (e) {
-    return { ok: false, error: `Bolna could not be reached (${(e as Error).message}).` };
+    return { ok: false, error: `Imotara calling could not be reached (${(e as Error).message}).` };
   }
 }
 

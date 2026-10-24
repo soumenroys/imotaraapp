@@ -182,7 +182,7 @@ describe("the sheet itself", () => {
     expect(normalisePhone("+91 98300-12345")).toBe("+919830012345");
   });
   it("the system column is Y", () => {
-    expect(columnLetter("bolna_execution_id")).toBe("Y");
+    expect(columnLetter("call_id")).toBe("Y");
     expect(columnLetter("status")).toBe("P");
   });
 });

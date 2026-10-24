@@ -55,7 +55,7 @@ export async function dispatch(opts: { auto: boolean; dryRun?: boolean; now?: Da
       status: STATUS.calling,
       call_attempts: String((Number(c.v.call_attempts) || 0) + 1),
       last_call_date: now.toISOString(),
-      bolna_execution_id: placed.executionId,
+      call_id: placed.executionId,
     });
     report.placed.push({ tab: c.tab, name: label(c), phone, executionId: placed.executionId });
   }
@@ -111,7 +111,7 @@ export async function callNow(rows: { tab: string; row: number }[], by: string, 
       status: STATUS.calling,
       call_attempts: String((Number(c.v.call_attempts) || 0) + 1),
       last_call_date: now.toISOString(),
-      bolna_execution_id: placed.executionId,
+      call_id: placed.executionId,
     });
     report.placed.push({ ...who, executionId: placed.executionId });
   }
@@ -159,7 +159,7 @@ export async function queue(rows: { tab: string; row: number }[]): Promise<numbe
 
 function findContact(d: Directory, v: ExecutionView): Contact | undefined {
   if (v.executionId) {
-    const byId = d.contacts.find((c) => c.v.bolna_execution_id === v.executionId);
+    const byId = d.contacts.find((c) => c.v.call_id === v.executionId);
     if (byId) return byId;
   }
   const phone = normalisePhone(v.phone);
@@ -186,13 +186,13 @@ export async function applyResult(v: ExecutionView, d?: Directory, now = new Dat
 async function reconcile(d: Directory, now: Date): Promise<number> {
   let n = 0;
   for (const c of d.contacts) {
-    if (c.v.status !== STATUS.calling || !c.v.bolna_execution_id) continue;
+    if (c.v.status !== STATUS.calling || !c.v.call_id) continue;
     const t = Date.parse(c.v.last_call_date);
     if (!Number.isFinite(t) || now.getTime() - t < ACTIVE_CALL_MINUTES * 60_000) continue;
-    const body = await getExecution(c.v.bolna_execution_id);
+    const body = await getExecution(c.v.call_id);
     const view = body ? readExecution(body) : null;
     if (view?.final) {
-      if ((await applyResult({ ...view, executionId: c.v.bolna_execution_id }, d, now)) === "applied") n++;
+      if ((await applyResult({ ...view, executionId: c.v.call_id }, d, now)) === "applied") n++;
     } else if (now.getTime() - t > 3 * 3600_000) {
       if (view?.status === "completed") {
         // ⛔ They DID talk to us — the outcome just never arrived. Calling
@@ -200,7 +200,7 @@ async function reconcile(d: Directory, now: Date): Promise<number> {
         await writeRow(c, {
           status: STATUS.review,
           call_summary: view.summary,
-          next_action: "Call completed but no outcome came back - listen to the recording in Bolna",
+          next_action: "Call completed but no outcome came back - listen to the recording on the Call records tab",
         });
       } else {
         // ⚠️ Three hours with no answer from Bolna: free the line, retry later.

@@ -24,7 +24,7 @@ export const COLUMNS = [
   "phone", "contact_number", "name", "organisation", "organisation_type", "country", "time_zone",
   "language", "source", "consent_note", "team_member", "context", "call_reason", "disclose_upfront",
   "Check", "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action",
-  "follow_up_datetime", "ambassador_notes", "voice_gender", "bolna_execution_id",
+  "follow_up_datetime", "ambassador_notes", "voice_gender", "call_id",
 ] as const;
 export type Column = (typeof COLUMNS)[number];
 
@@ -374,7 +374,7 @@ export function writebackFor(x: Extraction, now: Date, timeZone = "Asia/Kolkata"
     outcome,
     call_summary: x.summary ?? "",
     next_action: x.next_action ?? "",
-    bolna_execution_id: "",
+    call_id: "",
   };
   const w: Writeback = { cells, addToDnc: false, safety: false, meeting: false, sendInfo: false };
   switch (outcome) {

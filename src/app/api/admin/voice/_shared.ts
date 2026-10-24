@@ -16,7 +16,7 @@ export async function voiceAdmin(req: NextRequest): Promise<{ ok: true; admin: V
     return { ok: false, response: NextResponse.json({ error: "unauthorized" }, { status: 401 }) };
   }
   if (!sheetsConfigured() || !bolnaConfigured()) {
-    return { ok: false, response: NextResponse.json({ error: "Voice calling is not set up yet (Google or Bolna access missing)." }, { status: 409 }) };
+    return { ok: false, response: NextResponse.json({ error: "Voice calling is not set up yet (Google or Imotara calling access missing)." }, { status: 409 }) };
   }
   return { ok: true, admin: { email: auth.admin.email, role: auth.admin.role } };
 }

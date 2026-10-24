@@ -153,7 +153,7 @@ function StatusStrip({ data }: { data: Preview }) {
       <span>Individuals: <b>{s?.allowIndividuals ? "allowed" : "paused"}</b></span>
       <span>On a call now: <b>{data.activeCalls ?? 0}</b></span>
       <span className="text-zinc-400">
-        Google {data.setup.sheets ? "✅" : "⛔"} · Bolna {data.setup.bolna ? "✅" : "⛔"} · Results webhook {data.setup.webhookToken ? "✅" : "⛔"}
+        Google {data.setup.sheets ? "✅" : "⛔"} · Imotara calling {data.setup.bolna ? "✅" : "⛔"} · Results webhook {data.setup.webhookToken ? "✅" : "⛔"}
       </span>
       <a href={data.sheetUrl} target="_blank" rel="noreferrer" className="ml-auto underline">Open the contact sheet ↗</a>
       {data.error && <div className="w-full text-red-400">{data.error}</div>}
@@ -416,7 +416,7 @@ function CallsTab() {
   return (
     <section className="space-y-3">
       <RangePicker days={days} setDays={setDays} refresh={refresh} />
-      {loading && <p className="text-zinc-400">Loading calls from Bolna…</p>}
+      {loading && <p className="text-zinc-400">Loading calls…</p>}
       {error && <p className="text-red-400">{error}</p>}
       {safety.length > 0 && (
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-3 text-red-200">
@@ -494,7 +494,7 @@ function ReportsTab() {
             <Kpi label="Avg conversation" value={fmtDur(report.avgDurationSec)} note={`${report.totalMinutes} min in all`} />
             <Kpi label="Meetings booked" value={String(report.meetings)} />
             <Kpi label="Safety flags" value={String(report.safety)} />
-            <Kpi label="Cost" value={usd(report.costCents)} note="Bolna, USD" />
+            <Kpi label="Cost" value={usd(report.costCents)} note="USD" />
           </div>
           {report.perDay.length > 1 && (
             <div className="rounded-2xl border border-zinc-700 p-4">

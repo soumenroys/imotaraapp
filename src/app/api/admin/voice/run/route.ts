@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   if (!auth.ok) return auth.response;
   if (auth.admin.role === "connect_reviewer") return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!sheetsConfigured() || !bolnaConfigured()) {
-    return NextResponse.json({ error: "Voice calling is not set up yet (Google or Bolna access missing)." }, { status: 409 });
+    return NextResponse.json({ error: "Voice calling is not set up yet (Google or Imotara calling access missing)." }, { status: 409 });
   }
 
   let body: { rows?: { tab: string; row: number }[] };

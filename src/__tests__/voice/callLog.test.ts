@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { toCallRecord, summarise, allAgentIds } from "@/lib/voice/calls";
+import { toCallRecord, summarise, allAgentIds, sevenDayWindows, BOLNA_MAX_RANGE_MS } from "@/lib/voice/calls";
 import { BOLNA_AGENTS } from "@/lib/voice/agents";
 import {
   COLUMNS, STATUS, checkContact, selectDue, parseSettings, DEFAULT_SETTINGS,
@@ -139,5 +139,23 @@ describe("a Scheduled call", () => {
     const s = selectDue(dir([due]), new Date("2026-10-21T15:00:00Z"), { auto: true });
     expect(s.toCall).toHaveLength(0);
     expect(s.skipped[0].reason).toMatch(/calling hours/);
+  });
+});
+
+describe("the provider's 7-day limit", () => {
+  // Bolna answers 422 to any from–to range over 7 days — measured on production, 24 Oct.
+  it("splits 30 days into 5 windows, none longer than 7 days, covering the whole range", () => {
+    const to = new Date("2026-10-24T10:00:00Z");
+    const from = new Date(to.getTime() - 30 * 86400_000);
+    const w = sevenDayWindows(from, to);
+    expect(w).toHaveLength(5);
+    for (const [a, b] of w) expect(b.getTime() - a.getTime()).toBeLessThan(BOLNA_MAX_RANGE_MS);
+    expect(w[0][0].getTime()).toBe(from.getTime());
+    expect(w[w.length - 1][1].getTime()).toBe(to.getTime());
+  });
+
+  it("a range under 7 days is one window", () => {
+    const to = new Date("2026-10-24T10:00:00Z");
+    expect(sevenDayWindows(new Date(to.getTime() - 86400_000), to)).toHaveLength(1);
   });
 });

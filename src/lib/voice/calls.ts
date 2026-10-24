@@ -91,7 +91,7 @@ const BASE = () => (process.env.BOLNA_API_BASE?.trim() || "https://api.bolna.ai"
 
 async function agentExecutions(agentId: string, from: string, to: string): Promise<Record<string, unknown>[]> {
   const key = process.env.BOLNA_API_KEY?.trim();
-  if (!key) throw new Error("BOLNA_API_KEY is not set.");
+  if (!key) throw new Error("The calling service is not set up (missing key).");
   const out: Record<string, unknown>[] = [];
   for (let page = 1; page <= 20; page++) {
     const q = new URLSearchParams({ page_number: String(page), page_size: "50", from, to });
@@ -99,7 +99,7 @@ async function agentExecutions(agentId: string, from: string, to: string): Promi
       headers: { authorization: `Bearer ${key}` },
       signal: AbortSignal.timeout(20_000),
     });
-    if (!res.ok) throw new Error(`Bolna answered ${res.status} for agent ${agentId.slice(0, 8)}`);
+    if (!res.ok) throw new Error(`The calling service answered ${res.status} (${(await res.text()).slice(0, 160)})`);
     const body = (await res.json()) as { data?: Record<string, unknown>[]; has_more?: boolean };
     out.push(...(body.data ?? []));
     if (!body.has_more) break;
@@ -107,23 +107,34 @@ async function agentExecutions(agentId: string, from: string, to: string): Promi
   return out;
 }
 
+/** Bolna refuses a `from`–`to` range longer than 7 days (422) ⇒ split it. */
+export const BOLNA_MAX_RANGE_MS = 7 * 86400_000;
+
+export function sevenDayWindows(from: Date, to: Date): [Date, Date][] {
+  const out: [Date, Date][] = [];
+  for (let start = from.getTime(); start < to.getTime(); start += BOLNA_MAX_RANGE_MS) {
+    out.push([new Date(start), new Date(Math.min(start + BOLNA_MAX_RANGE_MS - 1, to.getTime()))]);
+  }
+  return out;
+}
+
 /**
- * Every call in [from, to], newest first. 44 agents ⇒ fetched a few at a time
- * so Bolna is never hit with all of them at once.
+ * Every call in [from, to], newest first. 44 agents × 7-day windows ⇒ fetched
+ * ten requests at a time so the provider is never hit with all of them at once.
  */
 export async function listCalls(from: Date, to: Date): Promise<CallRecord[]> {
-  const ids = allAgentIds();
-  const records: CallRecord[] = [];
+  const tasks = allAgentIds().flatMap((id) => sevenDayWindows(from, to).map(([a, b]) => () => agentExecutions(id, a.toISOString(), b.toISOString())));
+  const records = new Map<string, CallRecord>();
   const errors: string[] = [];
-  for (let i = 0; i < ids.length; i += 6) {
-    const batch = await Promise.allSettled(ids.slice(i, i + 6).map((id) => agentExecutions(id, from.toISOString(), to.toISOString())));
+  for (let i = 0; i < tasks.length; i += 10) {
+    const batch = await Promise.allSettled(tasks.slice(i, i + 10).map((t) => t()));
     for (const r of batch) {
-      if (r.status === "fulfilled") records.push(...r.value.map(toCallRecord));
+      if (r.status === "fulfilled") for (const e of r.value) { const c = toCallRecord(e); records.set(c.id, c); }
       else errors.push((r.reason as Error).message);
     }
   }
-  if (records.length === 0 && errors.length > 0) throw new Error(errors[0]);
-  return records.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  if (records.size === 0 && errors.length > 0) throw new Error(errors[0]);
+  return [...records.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export type CallReport = {

@@ -10,7 +10,7 @@
 
 import { createSign } from "node:crypto";
 import {
-  ADMIN_COLUMNS, CONTACT_TABS, COLUMNS, LAST_COLUMN, columnLetter, parseContacts, parseDnc, parseLanguages, parseSettings, parseTeam,
+  ADMIN_COLUMNS, CONTACT_TABS, COLUMNS, LAST_COLUMN, columnLetter, parseContacts, staleStatusRows, parseDnc, parseLanguages, parseSettings, parseTeam,
   type Column, type Contact, type ContactTab, type Directory,
 } from "@/lib/voice/rules";
 
@@ -110,6 +110,7 @@ export async function readDirectory(): Promise<Directory> {
   const contacts: Contact[] = CONTACT_TABS.flatMap((t, i) => parseContacts(t, values(i)));
   return {
     contacts,
+    staleStatus: CONTACT_TABS.flatMap((t, i) => staleStatusRows(t, values(i))),
     languages: parseLanguages(values(CONTACT_TABS.length)),
     team: parseTeam(values(CONTACT_TABS.length + 1)),
     dnc: parseDnc(values(CONTACT_TABS.length + 2)),
@@ -251,6 +252,7 @@ const WIDTHS: Partial<Record<Column, number>> = {
 
 type SheetMeta = {
   properties: { sheetId: number; title: string };
+  bandedRanges?: { bandedRangeId: number }[];
   protectedRanges?: { protectedRangeId: number; description?: string }[];
   conditionalFormats?: { ranges: { startColumnIndex?: number; endColumnIndex?: number }[] }[];
 };
@@ -262,7 +264,7 @@ function serviceAccountEmail(): string {
 }
 
 export async function protectAndFormat(): Promise<{ tabs: string[]; requests: number }> {
-  const meta = (await google(`?fields=sheets(properties(sheetId,title),protectedRanges(protectedRangeId,description),conditionalFormats(ranges))`)) as { sheets: SheetMeta[] };
+  const meta = (await google(`?fields=sheets(properties(sheetId,title),protectedRanges(protectedRangeId,description),conditionalFormats(ranges),bandedRanges(bandedRangeId))`)) as { sheets: SheetMeta[] };
   const byTitle = new Map(meta.sheets.map((s) => [s.properties.title, s]));
   const sa = serviceAccountEmail();
   const requests: unknown[] = [];
@@ -300,6 +302,10 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
       .filter(({ r }) => r.ranges.some((g) => (g.startColumnIndex ?? 0) >= progressCols[0] && (g.endColumnIndex ?? 0) <= progressCols[1]))
       .reverse()
       .forEach(({ i }) => requests.push({ deleteConditionalFormatRule: { sheetId: id, index: i } }));
+
+    // ⚠️ Alternating row colours paint over cell fills, which hid white-for-you /
+    // grey-for-the-system. Removed on the contact tabs so the two read apart.
+    for (const b of s.bandedRanges ?? []) requests.push({ deleteBanding: { bandedRangeId: b.bandedRangeId } });
 
     // 🔒 Everything locked except the admin's columns, below the header.
     protect(id, `${tab}: only the white columns can be edited`, ADMIN_COLUMNS.map((c) => ({ startRowIndex: 1, startColumnIndex: idx(c), endColumnIndex: idx(c) + 1 })));

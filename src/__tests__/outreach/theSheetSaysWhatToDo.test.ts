@@ -70,3 +70,14 @@ describe("a refused email is retried once the address is corrected", () => {
     expect(dueStep(contact({ mail_status: `${MAIL.failed}: asha@old.org` }), none, TUE_11_IST)).toBe("intro");
   });
 });
+
+import { staleStatusRows } from "@/lib/voice/rules";
+describe("a row emptied of its person loses its status too", () => {
+  it("finds rows with status text but no phone, number or name", () => {
+    const header = [...COLUMNS] as string[];
+    const empty = COLUMNS.map(() => "");
+    const stale = [...empty]; stale[COLUMNS.indexOf("call_progress")] = "⛔ Not callable";
+    const live = [...stale]; live[COLUMNS.indexOf("name")] = "Asha";
+    expect(staleStatusRows("NGOs", [header, stale, live, empty])).toEqual([{ tab: "NGOs", row: 2 }]);
+  });
+});

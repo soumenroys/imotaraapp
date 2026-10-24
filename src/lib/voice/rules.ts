@@ -143,6 +143,8 @@ export type Directory = {
   team: Map<string, string>;
   /** normalised phone numbers on the Do not call tab */
   dnc: Set<string>;
+  /** Empty rows still showing status text ⇒ staleStatusRows. */
+  staleStatus?: { tab: ContactTab; row: number }[];
   settings: Settings;
 };
 
@@ -152,6 +154,23 @@ export type Directory = {
 export function normalisePhone(raw: string): string {
   const digits = String(raw ?? "").replace(/[^0-9]/g, "");
   return digits ? `+${digits}` : "";
+}
+
+/**
+ * Rows that are no longer a contact (no phone, number or name) but still show
+ * status text in the system columns — e.g. a person deleted by clearing their
+ * cells. The status sync blanks them, so the sheet never shows a status for
+ * nobody. ⇒ outreach/syncSheet.
+ */
+export function staleStatusRows(tab: ContactTab, rows: string[][]): { tab: ContactTab; row: number }[] {
+  const at = (c: Column) => COLUMNS.indexOf(c);
+  const out: { tab: ContactTab; row: number }[] = [];
+  rows.slice(1).forEach((r, i) => {
+    const cell = (c: Column) => String(r[at(c)] ?? "").trim();
+    if (cell("phone") || cell("contact_number") || cell("name")) return;
+    if (cell("call_progress") || cell("mail_progress") || cell("what_to_do")) out.push({ tab, row: i + 2 });
+  });
+  return out;
 }
 
 export function parseContacts(tab: ContactTab, rows: string[][]): Contact[] {

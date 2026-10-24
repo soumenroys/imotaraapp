@@ -220,7 +220,7 @@ describe("a metered channel may not be run daily", () => {
     const [p] = cadenceProblems(["x"], EVERY_DAY);
     expect(p.platform).toBe("x");
     expect(p.asked).toBe(7);
-    expect(p.allowed).toBe(1);
+    expect(p.allowed).toBe(2);
     expect(p.why).toMatch(/charges for every post/);
     // ⚠️ And says what to do, not only what is wrong.
     expect(p.why).toMatch(/Choose fewer days|its own schedule/);
@@ -229,6 +229,12 @@ describe("a metered channel may not be run daily", () => {
   it("allows a weekly one", async () => {
     const { cadenceProblems } = await import("@/lib/social/platforms");
     expect(cadenceProblems(["x"], [2])).toEqual([]);
+  });
+
+  it("allows twice a week — Thursday and Sunday (owner, 24 Oct 2026) — and refuses a third day", async () => {
+    const { cadenceProblems } = await import("@/lib/social/platforms");
+    expect(cadenceProblems(["x"], [4, 0])).toEqual([]);
+    expect(cadenceProblems(["x"], [4, 0, 2])[0]?.asked).toBe(3);
   });
 
   it("⛔ catches X hidden inside a multi-channel daily schedule", async () => {

@@ -416,7 +416,8 @@ export function platformSpec(id: string): PlatformSpec {
  * ⛔ X IS THE ONLY ONE, and only since 19 Oct, when the owner moved it to
  * pay-per-use: the free tier is gone and both subscription plans are closed
  * to new signups, so each post is charged. The owner, the same day: "as X is
- * paid, we will post in X weekly, not daily."
+ * paid, we will post in X weekly, not daily." Raised to TWICE a week on
+ * 24 Oct 2026 (owner: "make it twice weekly … every Thursday and Sunday").
  *
  * ⚠️ WHY THIS IS A RULE IN CODE AND NOT A NOTE. There is no X schedule yet,
  * so the instruction has nothing to attach to — and an instruction with
@@ -424,7 +425,7 @@ export function platformSpec(id: string): PlatformSpec {
  * a schedule is made, this refuses the daily one.
  */
 export const MAX_DAYS_PER_WEEK: Partial<Record<PlatformId, number>> = {
-  x: 1,
+  x: 2,
 };
 
 export type CadenceProblem = { platform: PlatformId; allowed: number; asked: number; why: string };

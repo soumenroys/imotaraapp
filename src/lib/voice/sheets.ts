@@ -396,6 +396,7 @@ export async function verifySystemCanWrite(): Promise<void> {
 export async function updateGuide(): Promise<void> {
   const t = quote("Start here");
   const data = [
+    { range: `${t}!B2`, values: [["Contacts for Imotara's calls and outreach email. You fill the white (teal-header) columns; the system fills the grey ones."]] },
     { range: `${t}!B5`, values: [["White (teal header): you and your team fill these — phone, name, organisation, type, country, time zone, language, source, consent note, team member, context, call reason, ambassador notes, voice_gender, email, do_not_contact. These are the only columns you can edit."]] },
     { range: `${t}!B6`, values: [["Grey (slate header): the system fills these after each call and email — status, attempts, outcome, summary, next action, mail status, and the three status columns. Locked."]] },
     { range: `${t}!B23:B29`, values: [

@@ -86,3 +86,22 @@ describe("🧭 urgent first, then set-up in order (owner, 24 Oct)", () => {
     expect(r.items).toHaveLength(1);
   });
 });
+
+describe("📄 sheet links open the tab and row to fix (owner, 25 Oct)", () => {
+  it("a known tab and row ⇒ #gid and range", async () => {
+    const { sheetLink, sheetId } = await import("@/lib/voice/sheets");
+    expect(sheetLink({ Eldercare: 123 }, "Eldercare", 8)).toBe(`https://docs.google.com/spreadsheets/d/${sheetId()}/edit#gid=123&range=A8`);
+    expect(sheetLink({ "Start here": 9 }, "Start here")).toBe(`https://docs.google.com/spreadsheets/d/${sheetId()}/edit#gid=9`);
+  });
+  it("an unknown tab, or no tab ids at all, still opens the sheet", async () => {
+    const { sheetLink, sheetId } = await import("@/lib/voice/sheets");
+    expect(sheetLink(null, "Eldercare", 8)).toBe(`https://docs.google.com/spreadsheets/d/${sheetId()}/edit`);
+    expect(sheetLink({}, "Nope")).toBe(`https://docs.google.com/spreadsheets/d/${sheetId()}/edit`);
+  });
+  it("every call item, and set-up steps 2 and 3, carry one", () => {
+    const src = readFileSync(join(process.cwd(), "src/lib/admin/todoSources.ts"), "utf8");
+    expect(src).toMatch(/const base = \{ area: "Calls", href: "\/admin\/voice", sheet: sheetLink\(gids, c\.tab, c\.row\) \}/);
+    expect(src).toMatch(/items\[0\]\.sheet = sheetLink/);
+    expect(src).toMatch(/\.sheet = sheetLink\(gids, broken\[0\]\.tab, broken\[0\]\.row\)/);
+  });
+});

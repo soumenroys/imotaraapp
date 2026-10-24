@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 
-type Item = { id: string; area: string; urgency: "now" | "setup" | "today" | "soon"; title: string; detail?: string; href: string; action: string; manual?: boolean; step?: number; done?: boolean };
+type Item = { id: string; area: string; urgency: "now" | "setup" | "today" | "soon"; title: string; detail?: string; href: string; action: string; manual?: boolean; step?: number; done?: boolean; sheet?: string };
 type Done = { id: string; by: string; at: string; title: string };
 type Data = { items: Item[]; problems: { area: string; error: string }[]; checked: string[]; recentlyDone: Done[]; asOf: string };
 
@@ -133,6 +133,9 @@ function ItemRow({ i, tone, busy, mark }: { i: Item; tone: string; busy: string 
       </div>
       <div className="flex shrink-0 flex-wrap gap-2">
         <a href={i.href} className="rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20">{i.action} →</a>
+        {i.sheet && (
+          <a href={i.sheet} target="_blank" rel="noreferrer" className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-500/20">Open in sheet ↗</a>
+        )}
         {i.manual && (
           <button disabled={busy === i.id} onClick={() => void mark(i, true)}
             className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-40">
@@ -178,6 +181,9 @@ function SetupChecklist({ items, checkFailed }: { items: Item[]; checkFailed: bo
             </div>
             {!s.done && (
               <a href={s.href} className="shrink-0 rounded-lg border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20">{s.action} →</a>
+            )}
+            {!s.done && s.sheet && (
+              <a href={s.sheet} target="_blank" rel="noreferrer" className="shrink-0 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-medium text-sky-300 hover:bg-sky-500/20">Open in sheet ↗</a>
             )}
           </li>
         ))}

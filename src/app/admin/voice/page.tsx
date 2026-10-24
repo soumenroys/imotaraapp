@@ -20,7 +20,7 @@ import { CallFlow } from "./CallFlow";
 import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 
 type Row = {
-  tab: string; row: number; name: string; organisation: string; phone: string; language: string;
+  tab: string; row: number; sheetLink: string; name: string; organisation: string; phone: string; language: string;
   status: string; attempts: string; lastCall: string; outcome: string; summary: string; check: string;
   followUp: string; nextAction: string; voice: string; country: string; timeZone: string; teamMember: string; type: string;
   /** A Scheduled row whose time passed by more than the grace period — it will not be called. */
@@ -328,7 +328,7 @@ function ContactsTab({ data, reload, say }: { data: Preview; reload: () => Promi
                   <div className="text-zinc-500">tries {c.attempts || 0}</div>
                 </td>
                 <td className="max-w-xs">{c.outcome}{c.summary ? <div className="text-zinc-400">{c.summary}</div> : null}</td>
-                <td className={c.check === "OK" ? "text-emerald-400" : "text-red-400"}>{c.check}</td>
+                <td className={c.check === "OK" ? "text-emerald-400" : "text-red-400"}>{c.check}{c.check !== "OK" && <div><a href={c.sheetLink} target="_blank" rel="noreferrer" className="whitespace-nowrap text-xs text-sky-300 underline">{"open row ↗"}</a></div>}</td>
                 <td>
                   <button
                     className="rounded-lg border border-emerald-600/60 px-2 py-1 text-emerald-300 disabled:opacity-30"
@@ -371,6 +371,7 @@ function NeedsAPerson({ rows, retry, handled }: { rows: Row[]; retry: (r: Row) =
           <span className="font-semibold">{c.name}</span>
           <span className="text-zinc-400">{c.organisation || c.tab} · {c.phone}</span>
           <span className="text-zinc-400">{c.missed ? "Its time passed while calling was off — schedule it again or cancel it." : c.nextAction}</span>
+          <a href={c.sheetLink} target="_blank" rel="noreferrer" className="text-sky-300 underline">open row ↗</a>
           {(c.status === "Dial failed" || c.status === "Wrong number" || c.missed) && (
             <button className="ml-auto underline" onClick={() => retry(c)} title="Back to Pending, so it can be called or scheduled again">
               {c.missed ? "Clear" : "Retry"}
@@ -461,7 +462,7 @@ function ScheduledTab({ data, reload, say }: { data: Preview; reload: () => Prom
             <span className={`w-44 ${c.missed ? "text-red-400" : "text-zinc-300"}`}>{c.status === "Queued" ? "Next free line" : `${fmtTime(c.followUp)}${c.missed ? " — missed" : ""}`}</span>
             <span className="font-semibold">{c.name}</span>
             <span className="text-zinc-400">{c.organisation} · {c.tab} · {c.language}</span>
-            {c.check !== "OK" && <span className="text-red-400">⚠ {c.check}</span>}
+            {c.check !== "OK" && <span className="text-red-400">⚠ {c.check} <a href={c.sheetLink} target="_blank" rel="noreferrer" className="ml-1 whitespace-nowrap text-xs text-sky-300 underline">{"open row ↗"}</a></span>}
             <button className="ml-auto underline" onClick={() => void cancel([ref(c)])}>Cancel</button>
           </div>
         ))}

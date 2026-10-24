@@ -6,7 +6,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TodoItem, TodoSource } from "@/lib/admin/todo";
-import { readDirectory, sheetsConfigured } from "@/lib/voice/sheets";
+import { readDirectory, sheetLink, sheetsConfigured, tabGids } from "@/lib/voice/sheets";
 import { STATUS, checkContact, missedSchedule, phoneOf } from "@/lib/voice/rules";
 import { AUDIENCES, AUDIENCE_LABEL, AUDIENCE_OF, STEPS, STEP_LABEL, emailOf, mailCheck } from "@/lib/outreach/sequence";
 import { draftKey, readOutreach } from "@/lib/outreach/store";
@@ -41,13 +41,13 @@ export function voiceSource(): TodoSource {
     roles: "admins",
     read: async () => {
       if (!sheetsConfigured()) return [];
-      const d = await readDirectory();
+      const [d, gids] = await Promise.all([readDirectory(), tabGids().catch(() => null)]);
       const now = new Date();
       const out: TodoItem[] = [];
       for (const c of d.contacts) {
         const who = `${c.v.name || phoneOf(c)}${c.v.organisation ? ` (${c.v.organisation})` : ""}`;
         const id = (kind: string) => voiceTodoId(c, kind);
-        const base = { area: "Calls", href: "/admin/voice" };
+        const base = { area: "Calls", href: "/admin/voice", sheet: sheetLink(gids, c.tab, c.row) };
         switch (c.v.status) {
           case STATUS.safety:
             out.push({ ...base, id: id("safety"), urgency: "now", manual: true, title: `🔴 Call ${who} back yourself — today`, detail: "They said on a call that they are not okay. They are never called automatically again.", action: "Mark done once you have called" });
@@ -322,6 +322,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
       }));
 
       let d: Awaited<ReturnType<typeof readDirectory>> | null = null;
+      const gids = sheetsConfigured() ? await tabGids().catch(() => null) : null;
       let contacts: Awaited<ReturnType<typeof readDirectory>>["contacts"] = [];
       out.push(...await checked(2, "Add your contacts to the Call Directory sheet", "/admin/voice", "Open the sheet", async () => {
         d = sheetsConfigured() ? await readDirectory() : null;
@@ -329,6 +330,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
         const items = [step(2, contacts.length > 0, "Add your contacts to the Call Directory sheet",
           contacts.length ? `${plural(contacts.length, "contact")} in the sheet.` : "The sheet is empty. Fill the white columns: phone, name, organisation, language, time zone, consent note — and email for outreach mail.",
           "/admin/voice", "Open the sheet")];
+        items[0].sheet = sheetLink(gids, contacts.length ? contacts[0].tab : "Start here");
         if (d) {
           const dir = d;
           // ⚠️ Only rows somebody must FIX. A row that is meant not to be called (ended, do-not-call,
@@ -337,6 +339,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
           items.push(step(3, contacts.length > 0 && broken.length === 0, "Fix the rows the sheet marks ⛔",
             contacts.length === 0 ? "Add contacts first." : broken.length ? `${plural(broken.length, "row")} cannot be contacted yet — the sheet's what_to_do column says what to fix on each.` : "Every row is complete.",
             "/admin/voice?tab=contacts", "See the rows"));
+          if (broken.length) items[items.length - 1].sheet = sheetLink(gids, broken[0].tab, broken[0].row);
         }
         return items;
       }));

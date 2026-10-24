@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/app/api/admin/_auth";
-import { readDirectory, sheetsConfigured, sheetId } from "@/lib/voice/sheets";
+import { readDirectory, sheetLink, sheetsConfigured, sheetId, tabGids } from "@/lib/voice/sheets";
 import { bolnaConfigured } from "@/lib/voice/bolna";
 import { NEEDS_A_PERSON, checkContact, missedSchedule, phoneOf, selectDue } from "@/lib/voice/rules";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   if (!setup.sheets) return NextResponse.json({ setup, sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId()}` });
 
   try {
-    const [d, done] = await Promise.all([readDirectory(), readDone(getSupabaseAdmin()).catch(() => ({} as Record<string, unknown>))]);
+    const [d, done, gids] = await Promise.all([readDirectory(), readDone(getSupabaseAdmin()).catch(() => ({} as Record<string, unknown>)), tabGids().catch(() => null)]);
     const now = new Date();
     const auto = selectDue(d, now, { auto: true });
     return NextResponse.json({
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       sheetUrl: `https://docs.google.com/spreadsheets/d/${sheetId()}`,
       settings: d.settings,
       contacts: d.contacts.map((c) => ({
-        tab: c.tab, row: c.row, name: c.v.name, organisation: c.v.organisation, phone: phoneOf(c),
+        tab: c.tab, row: c.row, sheetLink: sheetLink(gids, c.tab, c.row), name: c.v.name, organisation: c.v.organisation, phone: phoneOf(c),
         language: c.v.language, status: c.v.status || "Pending", attempts: c.v.call_attempts,
         lastCall: c.v.last_call_date, outcome: c.v.outcome, summary: c.v.call_summary, check: checkContact(c, d), missed: missedSchedule(c, now),
         needsPerson: NEEDS_A_PERSON.includes(c.v.status),

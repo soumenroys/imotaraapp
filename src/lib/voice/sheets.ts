@@ -88,6 +88,30 @@ async function google(path: string, init?: RequestInit): Promise<unknown> {
   return text ? JSON.parse(text) : {};
 }
 
+// ── Links that open the sheet AT the thing to fix ─────────────────────────────
+// 🔑 Owner, 25 Oct 2026: "share the required google sheet links in all places
+// where admin may need those to fill up or verification". A link to the sheet's
+// first page made the admin hunt for the tab and the row; these open both.
+
+let gidCache: { at: number; gids: Record<string, number> } | null = null;
+
+/** Each tab's id as it appears in the sheet's own links (#gid=…), cached 10 minutes. */
+export async function tabGids(): Promise<Record<string, number>> {
+  if (gidCache && Date.now() - gidCache.at < 10 * 60_000) return gidCache.gids;
+  const meta = (await google("?fields=sheets(properties(sheetId,title))")) as { sheets?: { properties: { sheetId: number; title: string } }[] };
+  const gids = Object.fromEntries((meta.sheets ?? []).map((s) => [s.properties.title, s.properties.sheetId]));
+  gidCache = { at: Date.now(), gids };
+  return gids;
+}
+
+/** Open the sheet at a tab and, if given, a row. Falls back to the sheet itself when the tab's id is unknown. */
+export function sheetLink(gids: Record<string, number> | null | undefined, tab?: string, row?: number): string {
+  const base = `https://docs.google.com/spreadsheets/d/${sheetId()}/edit`;
+  const gid = tab ? gids?.[tab] : undefined;
+  if (gid === undefined) return base;
+  return `${base}#gid=${gid}${row ? `&range=A${row}` : ""}`;
+}
+
 const quote = (tab: string) => `'${tab.replace(/'/g, "''")}'`;
 
 /** Every tab in one request. ⚠️ A missing Settings tab is normal ⇒ safe defaults. */

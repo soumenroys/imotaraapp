@@ -1,7 +1,7 @@
 // GET /api/admin/outreach — the mailer's switches, its drafts, and every contact's email state.
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { readDirectory, sheetsConfigured, sheetId } from "@/lib/voice/sheets";
+import { readDirectory, sheetLink, sheetsConfigured, sheetId, tabGids } from "@/lib/voice/sheets";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isResendConfigured } from "@/lib/broadcast/resendClient";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
@@ -20,14 +20,14 @@ export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabaseAdmin();
     const now = new Date();
-    const [state, d, suppressed, budget, sender] = await Promise.all([
-      readOutreach(supabase), readDirectory(), suppressedEmails(supabase), getBudget(supabase, now), senderIdentity(supabase),
+    const [state, d, suppressed, budget, sender, gids] = await Promise.all([
+      readOutreach(supabase), readDirectory(), suppressedEmails(supabase), getBudget(supabase, now), senderIdentity(supabase), tabGids().catch(() => null),
     ]);
     const today = new Date(now); today.setUTCHours(0, 0, 0, 0);
     const contacts = d.contacts
       .filter((c) => emailOf(c) || c.v.mail_status)
       .map((c) => ({
-        tab: c.tab, row: c.row, audience: AUDIENCE_OF[c.tab], name: c.v.name, organisation: c.v.organisation,
+        tab: c.tab, row: c.row, sheetLink: sheetLink(gids, c.tab, c.row), audience: AUDIENCE_OF[c.tab], name: c.v.name, organisation: c.v.organisation,
         email: emailOf(c), mailStatus: c.v.mail_status, mailStep: Number(c.v.mail_step) || 0, lastSent: c.v.mail_last_sent,
         callStatus: c.v.status, check: mailCheck(c, suppressed, d.dnc), due: dueStep(c, suppressed, now, d.dnc),
       }));

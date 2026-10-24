@@ -17,7 +17,7 @@ import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 type Draft = { subject: string; body: string; status: "needs_review" | "approved"; writtenAt: string; writtenBy: string; approvedAt?: string; approvedBy?: string; findings: string[] };
 type Settings = { enabled: boolean; sendWithoutAsking: boolean; dailyCap: number };
 type ContactRow = {
-  tab: string; row: number; audience: Audience; name: string; organisation: string; email: string; mailStatus: string;
+  tab: string; row: number; sheetLink: string; audience: Audience; name: string; organisation: string; email: string; mailStatus: string;
   mailStep: number; lastSent: string; callStatus: string; check: string; due: StepId | null;
 };
 type Overview = {
@@ -233,7 +233,7 @@ function ContactsTab({ d }: { d: Overview }) {
         <span className="text-zinc-400">{d.contacts.length} with an email in the sheet</span>
       </div>
       {d.contacts.length === 0 && (
-        <p className="text-zinc-400">Nobody has an email in the sheet yet. Add it in the <b>email</b> column (with a consent note) and press Refresh.</p>
+        <p className="text-zinc-400">Nobody has an email in the sheet yet. Add it in the <b>email</b> column (with a consent note) and press Refresh. <a href={d.sheetUrl} target="_blank" rel="noreferrer" className="text-sky-300 underline">Open the sheet ↗</a></p>
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-left">
@@ -247,6 +247,7 @@ function ContactsTab({ d }: { d: Overview }) {
                 <td>{fmtTime(c.lastSent)}</td>
                 <td className={c.due ? "text-emerald-300" : c.check === "OK" ? "text-zinc-300" : "text-red-300"}>
                   {c.due ? `Due now: ${STEP_LABEL[c.due]}` : c.check === "OK" ? "Waiting for its day or their daytime" : c.check}
+                  {!c.due && c.check !== "OK" && <div><a href={c.sheetLink} target="_blank" rel="noreferrer" className="whitespace-nowrap text-xs text-sky-300 underline">{"open row ↗"}</a></div>}
                 </td>
               </tr>
             ))}

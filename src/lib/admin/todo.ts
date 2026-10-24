@@ -38,6 +38,11 @@ export type TodoItem = {
   action: string;
   /** Needs a person to say it is done (nothing in the system can see it). */
   manual?: boolean;
+  /**
+   * A second link, opening the Google Sheet AT the tab and row to fix (owner, 25 Oct:
+   * "share the required google sheet links in all places where admin may need those").
+   */
+  sheet?: string;
   /** Set-up steps: their place in the sequence, and whether they are already done. */
   step?: number;
   done?: boolean;

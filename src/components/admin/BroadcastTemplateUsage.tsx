@@ -32,7 +32,60 @@ type Row = {
     lastUsed: string | null;
 };
 
+/** One automatic outreach email (audience × step) — written and approved in /admin/outreach. */
+type OutreachRow = {
+    key: string; audienceLabel: string; step: string; subject: string | null;
+    status: "approved" | "needs_review" | "not_written"; versions: number;
+    sent: number; delivered: number; bounced: number; complained: number; bounceRate: number | null; lastSent: string | null;
+};
+
+const OUTREACH_STATUS: Record<OutreachRow["status"], { label: string; tone: string }> = {
+    approved: { label: "Approved", tone: "text-emerald-300" },
+    needs_review: { label: "Waiting for approval", tone: "text-amber-300" },
+    not_written: { label: "Not written yet", tone: "text-zinc-500" },
+};
+
+/** 🔑 The automatic outreach emails beside the hand-picked templates (owner, 24 Oct 2026). */
+function OutreachTemplates({ rows }: { rows: OutreachRow[] }) {
+    if (rows.length === 0) return null;
+    const approved = rows.filter((r) => r.status === "approved").length;
+    const fmt = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short" }) : "—");
+    return (
+        <div className="mt-8 space-y-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h3 className="text-sm font-semibold text-zinc-200">Automatic outreach emails</h3>
+                <a href="/admin/outreach" className="text-xs text-indigo-300 underline">Read, edit and approve them in Outreach mail →</a>
+            </div>
+            <p className="text-[11px] text-zinc-500">
+                {approved} of {rows.length} approved. Sent from the Call Directory sheet: introduction, day-7 follow-up, day-21 note,
+                and the details a call asked for. Each one also appears in Broadcasts as “Outreach · …”.
+            </p>
+            <div className="overflow-x-auto rounded-xl border border-white/8 bg-white/3">
+                <table className="w-full text-left text-xs">
+                    <thead className="text-[10px] uppercase tracking-widest text-zinc-600">
+                        <tr><th className="px-3 py-2">Audience</th><th>Email</th><th>Status</th><th>Sent</th><th>Delivered</th><th>Bounced</th><th>Last sent</th></tr>
+                    </thead>
+                    <tbody>
+                        {rows.map((r) => (
+                            <tr key={r.key} className="border-t border-white/5 align-top">
+                                <td className="px-3 py-2 text-zinc-300">{r.audienceLabel}</td>
+                                <td className="py-2 text-zinc-300">{r.step}{r.subject && <div className="text-[10px] text-zinc-500">“{r.subject}”</div>}</td>
+                                <td className={`py-2 ${OUTREACH_STATUS[r.status].tone}`}>{OUTREACH_STATUS[r.status].label}{r.versions > 1 && <div className="text-[10px] text-zinc-500">{r.versions} versions</div>}</td>
+                                <td className="py-2 tabular-nums text-zinc-300">{r.sent}</td>
+                                <td className="py-2 tabular-nums text-emerald-300">{r.delivered}</td>
+                                <td className="py-2 tabular-nums text-amber-300">{r.bounced}{r.bounceRate !== null && <span className="text-zinc-500"> ({r.bounceRate}%)</span>}</td>
+                                <td className="py-2 text-zinc-500">{fmt(r.lastSent)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 export default function BroadcastTemplateUsage({ token }: { token: string }) {
+    const [outreach, setOutreach] = useState<OutreachRow[]>([]);
     const [rows, setRows] = useState<Row[] | null>(null);
     const [migrationNeeded, setMigrationNeeded] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -50,6 +103,7 @@ export default function BroadcastTemplateUsage({ token }: { token: string }) {
             if (!res.ok) { setError(j.error ?? `HTTP ${res.status}`); return; }
             setMigrationNeeded(Boolean(j.migrationNeeded));
             setRows(j.usage ?? []);
+            setOutreach(j.outreach ?? []);
         } catch {
             setError("Could not reach the server");
         }
@@ -201,6 +255,7 @@ export default function BroadcastTemplateUsage({ token }: { token: string }) {
                 counts those whose wording still matched it when saved — a template that is always
                 edited is one worth rewriting.
             </p>
+            <OutreachTemplates rows={outreach} />
         </div>
     );
 }

@@ -19,6 +19,52 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { TEMPLATES, AUDIENCE_LABEL } from "@/lib/broadcast/templates";
+import { AUDIENCES, AUDIENCE_LABEL as OUTREACH_AUDIENCE, STEPS, STEP_LABEL } from "@/lib/outreach/sequence";
+import { draftKey, readOutreach } from "@/lib/outreach/store";
+import { OUTREACH_PREFIX } from "@/lib/outreach/record";
+
+/**
+ * 🔑 The automatic outreach emails, beside the hand-picked templates (owner,
+ * 24 Oct 2026). Every approved version is a broadcasts row whose subject starts
+ * "Outreach · <audience> · <email> —", so all versions are counted, not only
+ * the current one.
+ */
+async function outreachUsage(supabase: ReturnType<typeof getSupabaseAdmin>) {
+    const state = await readOutreach(supabase);
+    const { data: versions } = await supabase.from("broadcasts").select("id, subject").ilike("subject", `${OUTREACH_PREFIX}%`);
+    const ids = (versions ?? []).map((v) => v.id as string);
+    const tally = new Map<string, { sent: number; delivered: number; bounced: number; complained: number; last: string | null }>();
+    if (ids.length) {
+        const { data: sends } = await supabase.from("broadcast_sends").select("broadcast_id, status, sent_at").in("broadcast_id", ids);
+        for (const x of sends ?? []) {
+            const t = tally.get(x.broadcast_id as string) ?? { sent: 0, delivered: 0, bounced: 0, complained: 0, last: null };
+            if (x.status !== "skipped") t.sent++;
+            if (x.status === "delivered") t.delivered++;
+            if (x.status === "bounced") t.bounced++;
+            if (x.status === "complained") t.complained++;
+            if (x.sent_at && (!t.last || (x.sent_at as string) > t.last)) t.last = x.sent_at as string;
+            tally.set(x.broadcast_id as string, t);
+        }
+    }
+    return AUDIENCES.flatMap((a) => STEPS.map((st) => {
+        const d = state.drafts[draftKey(a, st)];
+        const prefix = `${OUTREACH_PREFIX}${OUTREACH_AUDIENCE[a]} · ${STEP_LABEL[st]} —`;
+        const mine = (versions ?? []).filter((v) => (v.subject as string).startsWith(prefix)).map((v) => tally.get(v.id as string));
+        const sum = (k: "sent" | "delivered" | "bounced" | "complained") => mine.reduce((n, t) => n + (t?.[k] ?? 0), 0);
+        const sent = sum("sent");
+        return {
+            key: draftKey(a, st),
+            audienceLabel: OUTREACH_AUDIENCE[a],
+            step: STEP_LABEL[st],
+            subject: d?.subject ?? null,
+            status: d ? d.status : "not_written",
+            versions: mine.length,
+            sent, delivered: sum("delivered"), bounced: sum("bounced"), complained: sum("complained"),
+            bounceRate: sent > 0 ? Math.round((sum("bounced") / sent) * 1000) / 10 : null,
+            lastSent: mine.map((t) => t?.last ?? "").sort().at(-1) || null,
+        };
+    }));
+}
 
 /** Postgres: column does not exist. Means the migration has not been run yet. */
 const UNDEFINED_COLUMN = "42703";
@@ -109,6 +155,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
         migrationNeeded: false,
         usage,
+        outreach: await outreachUsage(supabase).catch((e) => { console.error("[broadcast/templates] outreach:", (e as Error).message); return []; }),
         // ⚠️ Counted separately: broadcasts predating templates, or written from
         // scratch, carry template_id NULL and are not attributable to anything.
         totalTemplated: used.length,

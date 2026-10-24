@@ -12,6 +12,7 @@ import { enqueueBroadcast, previewEnqueue } from "@/lib/broadcast/enqueue";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
 import { isResendConfigured, canSendFrom, sendingDomain } from "@/lib/broadcast/resendClient";
+import { approvalBlocker, approvalState, readApprovals } from "@/lib/broadcast/approval";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   const { data: b } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, status, list_id, from_email")
+    .select("id, subject, body_html, body_text, header_text, message_type, status, list_id, from_email")
     .eq("id", id)
     .maybeSingle();
 
@@ -58,6 +59,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       { status: 409 },
     );
   }
+
+  // ⛔ Approval first — checked here, at the moment it would go, against the
+  // content as it is NOW. An approval for different words is no approval.
+  const notApproved = approvalBlocker(approvalState(await readApprovals(supabase), b.id, b));
+  if (notApproved) return NextResponse.json({ error: notApproved }, { status: 409 });
 
   // ── Preflight ──────────────────────────────────────────────────────────────
   const blockers: string[] = [];

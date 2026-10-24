@@ -16,6 +16,8 @@ import type { ListRow } from "./BroadcastLists";
 type Submission = {
   id: string; email: string; name: string | null; message: string | null;
   ip: string | null; status: string; created_at: string; suppressed: boolean;
+  /** Lists this address is already on (outreach lists included), and emails it has had. */
+  lists?: string[]; mailed?: number;
   confirmed_at: string | null;
 };
 
@@ -107,6 +109,12 @@ export default function BroadcastRequests({ token, lists }: { token: string; lis
                     {new Date(r.created_at).toLocaleString()} · {r.ip ?? "no address recorded"} ·{" "}
                     {r.status === "new" ? "waiting" : r.status.replace(/_/g, " ")}
                   </p>
+                  {((r.lists?.length ?? 0) > 0 || (r.mailed ?? 0) > 0) && (
+                    <p className="mt-1 text-[10px] text-indigo-300">
+                      {(r.lists?.length ?? 0) > 0 ? `Already on: ${r.lists!.join(", ")}` : "On no list yet"}
+                      {(r.mailed ?? 0) > 0 && ` · ${r.mailed} email${r.mailed === 1 ? "" : "s"} sent to them`}
+                    </p>
+                  )}
                   {r.message && (
                     <p className="mt-1.5 max-w-prose text-[11px] leading-relaxed text-zinc-400">
                       &ldquo;{r.message}&rdquo;

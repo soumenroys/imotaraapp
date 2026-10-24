@@ -12,6 +12,7 @@ import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
 import { isResendConfigured, canSendFrom, sendingDomain } from "@/lib/broadcast/resendClient";
 import { availableIdentities } from "@/lib/broadcast/identities";
+import { approvalBlocker, approvalState, readApprovals } from "@/lib/broadcast/approval";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const { data: b } = await supabase
     .from("broadcasts")
-    .select("id, subject, body_html, body_text, message_type, status, from_email, from_name, reply_to, list_id")
+    .select("id, subject, body_html, body_text, header_text, message_type, status, from_email, from_name, reply_to, list_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -54,6 +55,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   if (b.message_type === "broadcast" && !isUnsubscribeConfigured()) {
     blockers.push("Unsubscribe signing is not configured — a broadcast cannot go out without it");
   }
+  // 🔑 Approval, like the social scheduler. A paused run was approved before it started.
+  const approvals = await readApprovals(supabase);
+  const approval = b.status === "paused" ? "approved" : approvalState(approvals, b.id, b);
+  const approvalProblem = approvalBlocker(approval);
+  if (approvalProblem) blockers.push(approvalProblem);
 
   const counts = b.list_id
     ? await previewEnqueue(supabase, b.list_id)
@@ -73,7 +79,10 @@ export async function GET(req: NextRequest, { params }: Params) {
       messageType: b.message_type,
       from: b.from_name ? `${b.from_name} <${b.from_email}>` : b.from_email,
       replyTo: b.reply_to ?? b.from_email,
+      bodyHtml: b.body_html,
+      bodyText: b.body_text,
     },
+    approval: { state: approval, ...(approvals[b.id] ? { approvedBy: approvals[b.id].approvedBy, approvedAt: approvals[b.id].approvedAt } : {}) },
     counts,
     budget,
     exceedsTodaysBudget: counts.queued > budget.remaining,

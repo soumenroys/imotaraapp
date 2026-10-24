@@ -19,6 +19,7 @@ import { AUDIENCE_OF, MAIL, emailOf, selectMail, afterSent, type Audience, type 
 import { draftKey, readOutreach, sendableDraft, updateOutreach } from "@/lib/outreach/store";
 import { sendOutreach, senderIdentity, suppressedEmails } from "@/lib/outreach/send";
 import { writeMailDraft } from "@/lib/outreach/writer";
+import { createVersion, recordSend } from "@/lib/outreach/record";
 
 /** At most this many sends per pass, so one run stays well inside its time limit. */
 export const PER_RUN = 10;
@@ -82,9 +83,16 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
     const draft = sendableDraft(state, AUDIENCE_OF[contact.tab], step);
     if (!draft) { if (!report.waitingForApproval.includes(k)) report.waitingForApproval.push(k); continue; }
     const email = emailOf(contact);
-    const out = await sendOutreach(draft, { email, name: contact.v.name, organisation: contact.v.organisation }, from);
+    // 🔑 Every version sent is a broadcast on the Broadcast screens ⇒ outreach/record.
+    if (!draft.broadcastId) {
+      const id = await createVersion(supabase, { audience: AUDIENCE_OF[contact.tab], step, subject: draft.subject, body: draft.body, from });
+      state = await updateOutreach(supabase, (s) => { if (s.drafts[k]) s.drafts[k].broadcastId = id; });
+      draft.broadcastId = id;
+    }
+    const out = await sendOutreach(draft, { email, name: contact.v.name, organisation: contact.v.organisation }, from, draft.broadcastId);
     if (out.ok) {
       await writeRow(contact, afterSent(contact, step, now));
+      await recordSend(supabase, { broadcastId: draft.broadcastId, audience: AUDIENCE_OF[contact.tab], contact, email, resendId: out.id, now });
       report.sent.push({ email, step });
       left--;
     } else if (out.kind === "recipient") {

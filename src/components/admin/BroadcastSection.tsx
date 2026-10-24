@@ -38,12 +38,16 @@ type Row = {
   id: string;
   subject: string;
   messageType: "broadcast" | "operational";
-  status: "draft" | "sending" | "sent" | "failed" | "paused";
+  status: "draft" | "scheduled" | "sending" | "sent" | "failed" | "paused";
   from: string;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;
   tallies: Tallies;
+  /** For a draft: approved as it stands, edited since, or not approved ⇒ lib/broadcast/approval. */
+  approval?: "approved" | "changed" | "none" | null;
+  /** Recorded by the automatic outreach mailer rather than composed here. */
+  outreach?: boolean;
 };
 
 type Summary = {
@@ -54,6 +58,7 @@ type Summary = {
 
 const STATUS_STYLE: Record<Row["status"], string> = {
   draft:    "border-white/10 bg-white/5 text-zinc-300",
+  scheduled: "border-sky-400/30 bg-sky-500/10 text-sky-300",
   sending:  "border-indigo-400/30 bg-indigo-500/10 text-indigo-300",
   sent:     "border-emerald-400/25 bg-emerald-500/10 text-emerald-300",
   paused:   "border-amber-400/30 bg-amber-500/10 text-amber-300",
@@ -278,6 +283,14 @@ export default function BroadcastSection({ token }: { token: string }) {
         </div>
       )}
 
+      {/* 🔑 Like the social scheduler: what is waiting for you comes first. */}
+      {rows.some((r) => r.status === "draft" && r.approval !== "approved") && (
+        <div className="mb-4 rounded-xl border border-amber-400/30 bg-amber-500/8 px-4 py-3 text-xs text-amber-200">
+          <b>{rows.filter((r) => r.status === "draft" && r.approval !== "approved").length} waiting for approval.</b>{" "}
+          Open one, read it on the review screen and press Approve — then send it or schedule it.
+        </div>
+      )}
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-baseline gap-2">
           <h2 className="text-sm font-semibold text-zinc-200">Your broadcasts</h2>
@@ -366,7 +379,7 @@ export default function BroadcastSection({ token }: { token: string }) {
 
                 <div>
                   <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${STATUS_STYLE[r.status]}`}>
-                    {r.status}
+                    {r.status === "draft" && r.approval === "approved" ? "approved" : r.status === "draft" ? "waiting for approval" : r.outreach ? "outreach" : r.status}
                   </span>
                   {t.skipped > 0 && (
                     <span className="ml-1.5 text-[10px] text-zinc-600">{t.skipped} skipped</span>

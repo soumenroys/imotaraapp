@@ -27,6 +27,8 @@ export type Draft = {
   approvedBy?: string;
   /** What the word and house-style checks said when it was written or edited. */
   findings: string[];
+  /** The broadcasts row recording THIS version — set when it is approved or first sent ⇒ outreach/record. */
+  broadcastId?: string;
 };
 
 export type OutreachSettings = {

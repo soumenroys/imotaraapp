@@ -15,6 +15,7 @@ import BroadcastIdentities from "./BroadcastIdentities";
 type Identity = { name: string; email: string };
 
 type Health = {
+  outreach: { enabled: boolean; dailyCap: number; sentToday: number; approved: number; waiting: number } | null;
   sender: { email: string; name: string | null };
   identities: Identity[];
   sendingDomain: string;
@@ -85,6 +86,25 @@ export default function BroadcastHealth({ token }: { token: string }) {
             fifteen minutes. That is longer than the every-minute schedule or any ordinary rate
             limit, so something is wrong rather than slow — most often the cron not running, or
             Resend refusing every attempt. Open the broadcast to see the reason on the failing rows.
+          </p>
+        </div>
+      )}
+
+      {/* ── Automatic outreach mail (shares this domain and this allowance) ── */}
+      {h.outreach && (
+        <div className="rounded-xl border border-white/8 bg-white/3 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Automatic outreach mail</p>
+            <a href="/admin/outreach" className="text-[11px] text-indigo-300 underline">Open Outreach mail →</a>
+          </div>
+          <p className="mt-1.5 text-xs text-zinc-300">
+            <span className={h.outreach.enabled ? "font-semibold text-emerald-300" : "font-semibold text-rose-300"}>{h.outreach.enabled ? "ON" : "OFF"}</span>
+            {" · "}{h.outreach.sentToday} / {h.outreach.dailyCap} sent today
+            {" · "}{h.outreach.approved} of 20 emails approved
+            {h.outreach.waiting > 0 && <span className="text-amber-300"> · {h.outreach.waiting} waiting for your approval</span>}
+          </p>
+          <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
+            It counts against the same daily allowance below, so a broadcast and outreach never together exceed what the domain can safely send.
           </p>
         </div>
       )}

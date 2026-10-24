@@ -11,6 +11,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { readOutreach } from "@/lib/outreach/store";
+import { OUTREACH_PREFIX } from "@/lib/outreach/record";
 import { getBudget } from "@/lib/broadcast/warmup";
 import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
 import { isResendConfigured, sendingDomain } from "@/lib/broadcast/resendClient";
@@ -63,7 +65,23 @@ export async function GET(req: NextRequest) {
     .select("id", { count: "exact", head: true })
     .eq("status", "queued");
 
+  // 🔑 The automatic outreach mailer shares this domain and this budget ⇒ lib/outreach.
+  const outreachState = await readOutreach(supabase).catch(() => null);
+  const { data: outreachVersions } = await supabase.from("broadcasts").select("id").ilike("subject", `${OUTREACH_PREFIX}%`);
+  const outreachIds = (outreachVersions ?? []).map((v) => v.id as string);
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const { count: outreachToday } = outreachIds.length
+    ? await supabase.from("broadcast_sends").select("id", { count: "exact", head: true }).in("broadcast_id", outreachIds).gte("sent_at", today.toISOString())
+    : { count: 0 };
+
   return NextResponse.json({
+    outreach: outreachState ? {
+      enabled: outreachState.settings.enabled,
+      dailyCap: outreachState.settings.dailyCap,
+      sentToday: outreachToday ?? 0,
+      approved: Object.values(outreachState.drafts).filter((d) => d.status === "approved").length,
+      waiting: Object.values(outreachState.drafts).filter((d) => d.status === "needs_review").length,
+    } : null,
     sender: { email: auth.admin.email, name: auth.admin.name },
     // What this admin can actually send as. Empty means their login is off the
     // verified domain and no fallback is configured — the one state where the

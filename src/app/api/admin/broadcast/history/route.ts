@@ -8,6 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwner } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { approvalState, readApprovals, type ApprovalState } from "@/lib/broadcast/approval";
+import { OUTREACH_PREFIX } from "@/lib/outreach/record";
 
 type Tally = {
   broadcast_id: string;
@@ -50,6 +52,18 @@ export async function GET(req: NextRequest) {
     ((tallies ?? []) as Tally[]).map((t) => [t.broadcast_id, t]),
   );
 
+  // 🔑 Whether each DRAFT is approved as it stands — the list shows what is waiting for you.
+  const approvals = await readApprovals(supabase);
+  const draftIds = (broadcasts ?? []).filter((b) => b.status === "draft").map((b) => b.id as string);
+  const approvalOf = new Map<string, ApprovalState>();
+  if (draftIds.length > 0) {
+    const { data: drafts } = await supabase
+      .from("broadcasts")
+      .select("id, subject, body_html, body_text, header_text, list_id, from_email, message_type")
+      .in("id", draftIds);
+    for (const d of drafts ?? []) approvalOf.set(d.id as string, approvalState(approvals, d.id as string, d));
+  }
+
   const rows = (broadcasts ?? []).map((b) => {
     const t = byId.get(b.id);
     return {
@@ -63,6 +77,9 @@ export async function GET(req: NextRequest) {
       startedAt: b.started_at,
       finishedAt: b.finished_at,
       tallies: t ? { ...ZERO, ...t } : { ...ZERO },
+      approval: approvalOf.get(b.id) ?? null,
+      /** Recorded from the automatic outreach mailer, not composed here ⇒ lib/outreach/record. */
+      outreach: typeof b.subject === "string" && b.subject.startsWith(OUTREACH_PREFIX),
     };
   });
 

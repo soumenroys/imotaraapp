@@ -41,8 +41,27 @@ export async function GET(req: NextRequest) {
     for (const s of sup ?? []) suppressed.add(s.email as string);
   }
 
+  // 🔑 Where each requester already is: which lists (outreach lists included)
+  // and how many emails they have had — so nobody is added twice or mailed blind.
+  const onLists = new Map<string, string[]>();
+  const mailed = new Map<string, number>();
+  if (emails.length > 0) {
+    const { data: rec } = await supabase.from("broadcast_recipients").select("email, broadcast_lists(name)").in("email", emails);
+    for (const r of (rec ?? []) as { email: string; broadcast_lists: { name: string } | { name: string }[] | null }[]) {
+      const names = Array.isArray(r.broadcast_lists) ? r.broadcast_lists.map((l) => l.name) : r.broadcast_lists ? [r.broadcast_lists.name] : [];
+      onLists.set(r.email, [...(onLists.get(r.email) ?? []), ...names]);
+    }
+    const { data: sent } = await supabase.from("broadcast_sends").select("email").in("email", emails).neq("status", "skipped");
+    for (const x of sent ?? []) mailed.set(x.email as string, (mailed.get(x.email as string) ?? 0) + 1);
+  }
+
   return NextResponse.json({
-    submissions: (data ?? []).map((r) => ({ ...r, suppressed: suppressed.has(r.email as string) })),
+    submissions: (data ?? []).map((r) => ({
+      ...r,
+      suppressed: suppressed.has(r.email as string),
+      lists: onLists.get(r.email as string) ?? [],
+      mailed: mailed.get(r.email as string) ?? 0,
+    })),
   }, { status: 200 });
 }
 

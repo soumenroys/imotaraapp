@@ -6,6 +6,8 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { AUDIENCES, STEPS, type Audience, type StepId } from "@/lib/outreach/sequence";
 import { draftKey, readOutreach, updateOutreach } from "@/lib/outreach/store";
 import { checkDraft, writeMailDraft } from "@/lib/outreach/writer";
+import { createVersion } from "@/lib/outreach/record";
+import { senderIdentity } from "@/lib/outreach/send";
 import { outreachAdmin, failed } from "../_shared";
 
 export const runtime = "nodejs";
@@ -40,7 +42,10 @@ export async function POST(req: NextRequest) {
       if (!cur) return NextResponse.json({ error: "There is no draft to approve yet." }, { status: 400 });
       const findings = checkDraft(cur.subject, cur.body);
       if (findings.length) return NextResponse.json({ error: `Fix these first: ${findings.join(" ")}` }, { status: 400 });
-      const s = await updateOutreach(supabase, (st) => { st.drafts[k] = { ...cur, findings, status: "approved", approvedAt: now, approvedBy: a.email }; });
+      // 🔑 The approved version becomes a broadcast on the Broadcast screens (history, status, templates).
+      const from = await senderIdentity(supabase);
+      const broadcastId = cur.broadcastId ?? (from ? await createVersion(supabase, { audience, step, subject: cur.subject, body: cur.body, from }) : undefined);
+      const s = await updateOutreach(supabase, (st) => { st.drafts[k] = { ...cur, findings, status: "approved", approvedAt: now, approvedBy: a.email, broadcastId }; });
       console.log("[admin/outreach/drafts] approved", { by: a.email, k });
       return NextResponse.json({ draft: s.drafts[k] });
     }

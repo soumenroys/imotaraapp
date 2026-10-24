@@ -15,7 +15,7 @@ import { unsubscribeFooterHtml, unsubscribeFooterText, unsubscribeHeaders } from
 import { availableIdentities } from "@/lib/broadcast/identities";
 import type { Draft } from "@/lib/outreach/store";
 
-/** The id outreach unsubscribes are recorded against in broadcast_suppressions.source_broadcast_id. */
+/** Fallback id for unsubscribes (a test send, which is recorded nowhere); a real send uses its version's broadcast id. */
 export const OUTREACH_ID = "0e7e0000-0000-4000-8000-00000000c0de";
 
 export type Recipient = { email: string; name: string; organisation: string };
@@ -25,17 +25,17 @@ function withOrganisation(text: string, organisation: string): string {
   return text.replace(/( ?)\{\{organisation\}\}/g, (_w, lead: string) => (organisation ? `${lead}${organisation}` : ""));
 }
 
-export function buildMessage(draft: Pick<Draft, "subject" | "body">, to: Recipient, from: { name: string; email: string }): BroadcastMessage {
+export function buildMessage(draft: Pick<Draft, "subject" | "body">, to: Recipient, from: { name: string; email: string }, broadcastId = OUTREACH_ID): BroadcastMessage {
   const fields = { name: to.name, email: to.email };
   const body = withOrganisation(draft.body, to.organisation);
   return {
     from: from.name ? `${from.name} <${from.email}>` : from.email,
     to: to.email,
     subject: mergeFields(withOrganisation(draft.subject, to.organisation), fields, false),
-    html: emailDocument(mergeFields(renderHtml(body), fields, true), unsubscribeFooterHtml(to.email, OUTREACH_ID), headerHtml("")),
-    text: mergeFields(renderText(body), fields, false) + unsubscribeFooterText(to.email, OUTREACH_ID),
+    html: emailDocument(mergeFields(renderHtml(body), fields, true), unsubscribeFooterHtml(to.email, broadcastId), headerHtml("")),
+    text: mergeFields(renderText(body), fields, false) + unsubscribeFooterText(to.email, broadcastId),
     replyTo: from.email,
-    headers: unsubscribeHeaders("broadcast", to.email, OUTREACH_ID),
+    headers: unsubscribeHeaders("broadcast", to.email, broadcastId),
   };
 }
 
@@ -49,8 +49,9 @@ export async function sendOutreach(
   draft: Pick<Draft, "subject" | "body">,
   to: Recipient,
   from: { name: string; email: string },
+  broadcastId?: string,
 ): Promise<SendOutcome> {
-  return sendOne(buildMessage(draft, to, from));
+  return sendOne(buildMessage(draft, to, from, broadcastId));
 }
 
 /** Everyone who must never be emailed: unsubscribed, hard-bounced, complained. */

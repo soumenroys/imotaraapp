@@ -18,7 +18,8 @@ import { useCallback, useEffect, useState } from "react";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 
 type Preview = {
-  broadcast: { id: string; subject: string; status: string; messageType: string; from: string };
+  broadcast: { id: string; subject: string; status: string; messageType: string; from: string; bodyHtml?: string; bodyText?: string };
+  approval?: { state: "approved" | "changed" | "none"; approvedBy?: string; approvedAt?: string };
   counts: {
     total: number; queued: number; skipped: number;
     skippedByReason: { unsubscribed: number; hard_bounce: number; complaint: number };
@@ -61,6 +62,18 @@ export default function BroadcastReview({
   }, [token, id]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const [approving, setApproving] = useState(false);
+  async function setApproval(on: boolean) {
+    setApproving(true); setError(null);
+    try {
+      const res = await fetch(`/api/admin/broadcast/broadcasts/${id}/approve`, adminFetchOpts(token, { method: on ? "POST" : "DELETE" }));
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { setError(j.error ?? `Could not ${on ? "approve" : "withdraw"} (HTTP ${res.status}).`); return; }
+      await load();
+    } catch { setError("Network error."); }
+    finally { setApproving(false); }
+  }
 
   async function send() {
     if (!p || sending) return;
@@ -188,6 +201,46 @@ export default function BroadcastReview({
           </label>
         )}
       </div>
+
+      {/* ── Approval — like the social scheduler: a person reads it first ─── */}
+      {p.approval && p.broadcast.status === "draft" && (
+        <div className={`mb-4 rounded-xl border px-4 py-3 ${p.approval.state === "approved" ? "border-emerald-400/25 bg-emerald-500/8" : "border-amber-400/30 bg-amber-500/8"}`}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400">Approval</p>
+            <span className={`text-xs font-semibold ${p.approval.state === "approved" ? "text-emerald-300" : "text-amber-300"}`}>
+              {p.approval.state === "approved"
+                ? `Approved by ${p.approval.approvedBy} · ${new Date(p.approval.approvedAt ?? "").toLocaleString()}`
+                : p.approval.state === "changed" ? "Edited after it was approved — approve it again" : "Waiting for approval"}
+            </span>
+          </div>
+          <p className="mt-1.5 text-[11px] leading-relaxed text-zinc-400">
+            Read exactly what recipients will get. Nothing can be sent or scheduled until it is approved, and any later edit
+            to the subject, message, list or sender asks for approval again.
+          </p>
+          {p.broadcast.bodyHtml ? (
+            <iframe title="What recipients will read" sandbox="" srcDoc={p.broadcast.bodyHtml}
+              className="mt-2 h-72 w-full rounded-lg border border-white/10 bg-white" />
+          ) : (
+            <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-[11px] text-zinc-200">{p.broadcast.bodyText}</pre>
+          )}
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {p.approval.state !== "approved" ? (
+              <button onClick={() => void setApproval(true)} disabled={approving}
+                className="rounded-lg border border-emerald-500/30 bg-emerald-500/12 px-4 py-2 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/20 disabled:opacity-40">
+                {approving ? "Approving…" : "Approve this content"}
+              </button>
+            ) : (
+              <button onClick={() => void setApproval(false)} disabled={approving}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] text-zinc-400 transition hover:text-zinc-200 disabled:opacity-40">
+                Withdraw approval
+              </button>
+            )}
+            <button onClick={onEdit} className="rounded-lg border border-white/10 px-3 py-1.5 text-[11px] text-zinc-400 transition hover:text-zinc-200">
+              Change the words
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Blockers ──────────────────────────────────────────────────── */}
       {p.blockers.length > 0 && (

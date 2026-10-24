@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { activeTrends } from "@/lib/social/trends";
 import { prepareGenerated, nextLanguage, type ScheduleShape, type ContentType } from "@/lib/social/pipeline";
 import { liveDeps, savePreparedPost, toScheduleShape, postCountFor, type ScheduleRow } from "@/lib/social/store";
 
@@ -89,6 +90,7 @@ export async function POST(req: NextRequest) {
       platform,
       language,
       postsSoFar: Math.floor(Math.random() * Math.max(1, shape.topicPool.length)),
+      trends: await activeTrends(getSupabaseAdmin()).catch(() => []),
     });
     if (!result.ok) {
       return NextResponse.json({ error: result.reason, rejected: result.rejected }, { status: 422 });
@@ -146,7 +148,7 @@ export async function POST(req: NextRequest) {
   }
 
   const deps = await liveDeps();
-  const result = await prepareGenerated(deps, { schedule, platform, language, postsSoFar });
+  const result = await prepareGenerated(deps, { schedule, platform, language, postsSoFar, trends: await activeTrends(db).catch(() => []) });
 
   if (!result.ok) {
     // 🔑 The rejected drafts come back too. "Three drafts were written and all

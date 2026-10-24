@@ -33,6 +33,17 @@ import {
 import { missingSlots, slotKey, HORIZON_DAYS, MAX_PER_RUN } from "@/lib/social/horizon";
 import { angleScores, angleReport } from "@/lib/social/learning";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { activeTrends, type TrendNote } from "@/lib/social/trends";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
+
+/** This week's trends, read at most once per run; a failure means no trending angle, never a failed post. */
+let trendCache: { at: number; notes: TrendNote[] } | null = null;
+async function trendsFor(): Promise<TrendNote[]> {
+  if (trendCache && Date.now() - trendCache.at < 60_000) return trendCache.notes;
+  const notes = await activeTrends(getSupabaseAdmin()).catch(() => []);
+  trendCache = { at: Date.now(), notes };
+  return notes;
+}
 import { sendQueueAlert } from "@/lib/social/alert";
 import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
 import { postsWantingACard, attachCard, type CardUpgrade } from "@/lib/social/store";
@@ -217,6 +228,8 @@ export async function GET(req: NextRequest) {
         // 🔑 WHICH DAY this post is for, so the angle can avoid what the other
         // channels already said that day ⇒ pipeline.poolsLeftForToday.
         scheduledFor: want.scheduledFor,
+        // 🔑 This week's vetted moments, read once per run ⇒ trends.ts.
+        trends: await trendsFor(),
       });
       if (!prepared.ok) {
         /**

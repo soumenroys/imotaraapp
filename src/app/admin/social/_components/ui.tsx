@@ -96,6 +96,8 @@ export function Explain({ q, children }: { q: string; children: React.ReactNode 
 const TABS = [
   { href: "/admin/social", label: "Today" },
   { href: "/admin/social/schedules", label: "Schedules" },
+  // 🔑 Added 24 Oct with the page, for the reason the notes below give.
+  { href: "/admin/social/trends", label: "Trends" },
   { href: "/admin/social/compose", label: "Write a post" },
   { href: "/admin/social/channels", label: "Channels" },
   { href: "/admin/social/languages", label: "Languages" },

@@ -11,6 +11,7 @@ import { STATUS, missedSchedule, phoneOf } from "@/lib/voice/rules";
 import { AUDIENCES, AUDIENCE_LABEL, STEPS, STEP_LABEL } from "@/lib/outreach/sequence";
 import { draftKey, readOutreach } from "@/lib/outreach/store";
 import { approvalState, readApprovals } from "@/lib/broadcast/approval";
+import { readAuto } from "@/lib/broadcast/autoBroadcast";
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -92,12 +93,23 @@ export function broadcastSource(supabase: SupabaseClient): TodoSource {
         .limit(100);
       if (error) throw new Error(error.message);
       const approvals = await readApprovals(supabase);
+      // 🔑 The monthly newsletter's drafts say so, with their send time ⇒ autoBroadcast.ts.
+      const auto = await readAuto(supabase).catch(() => null);
+      const sendAtOf = new Map<string, string>();
+      for (const r of Object.values(auto?.runs ?? {})) for (const id of r.broadcastIds) sendAtOf.set(id, r.sendAt);
       const out: TodoItem[] = [];
       for (const b of rows ?? []) {
         if (b.status === "paused") {
           out.push({ id: `broadcast:paused:${b.id}`, area: "Broadcast mail", urgency: "now", title: `A broadcast stopped part-way: “${b.subject}”`, detail: "Sending hit an error and paused. Open it to read why, then resume.", href: `/admin?section=broadcast&status=${b.id}`, action: "Open and resume" });
         } else if (approvalState(approvals, b.id as string, b) !== "approved") {
-          out.push({ id: `broadcast:approve:${b.id}:${b.updated_at}`, area: "Broadcast mail", urgency: "soon", title: `Approve or discard: “${b.subject || "(no subject)"}”`, detail: "A draft waiting for approval.", href: `/admin?section=broadcast&review=${b.id}`, action: "Read and approve" });
+          const due = sendAtOf.get(b.id as string);
+          out.push({
+            id: `broadcast:approve:${b.id}:${b.updated_at}`, area: "Broadcast mail",
+            urgency: due && Date.parse(due) - Date.now() < 2 * 86_400_000 ? "today" : "soon",
+            title: due ? `Approve this month's newsletter: “${b.subject}”` : `Approve or discard: “${b.subject || "(no subject)"}”`,
+            detail: due ? `It goes out by itself on ${new Date(due).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })} IST once approved.` : "A draft waiting for approval.",
+            href: `/admin?section=broadcast&review=${b.id}`, action: "Read and approve",
+          });
         }
       }
       return out;

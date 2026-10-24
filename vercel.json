@@ -45,6 +45,14 @@
       "schedule": "0 14 * * *"
     },
     {
+      "path": "/api/cron/social-trends",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/cron/auto-broadcast",
+      "schedule": "20 * * * *"
+    },
+    {
       "path": "/api/cron/social-health",
       "schedule": "30 3 * * *"
     },

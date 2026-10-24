@@ -249,6 +249,17 @@ export const TOPIC_POOLS: TopicPool[] = [
       "unless it genuinely belongs. The word is the post.",
   },
   {
+    // 🔑 Added 24 Oct (owner: content driven by "latest trends … aligned with
+    // imotara interest"). ⛔ Only offered when a vetted trend is handed over
+    // ⇒ lib/social/trends.ts; the writer never picks one.
+    id: "trending",
+    label: "What people are talking about this week",
+    eyebrow: "This week",
+    angle:
+      "This week's moment — HANDED TO YOU below, with why it matters and Imotara's angle on it. Connect " +
+      "the moment to that ONE true thing, warmly and plainly. ⛔ Add no facts about the event itself.",
+  },
+  {
     id: "the-unsaid",
     label: "The thing nobody said",
     eyebrow: "Left unsaid",

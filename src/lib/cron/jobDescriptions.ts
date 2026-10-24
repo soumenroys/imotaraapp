@@ -45,6 +45,10 @@ export const CRON_DESCRIPTIONS: Record<string, string> = {
     "Checks every social channel's token, and the queue: alerts if a token is dying or a slot passed unpublished.",
   "/api/cron/voice-dispatch":
     "Places queued voice calls from the Call Directory sheet as lines free up, and catches results that never arrived. Calls due contacts by itself only when the sheet's Settings switch it on.",
+  "/api/cron/auto-broadcast":
+    "Hourly. Writes the monthly newsletter three days before its send day (one theme a month) and, on the day, sends the drafts that were approved. Does nothing while switched off.",
+  "/api/cron/social-trends":
+    "Every morning, gathers this week's moments for social posts — awareness days, and trending searches that pass a word filter and a judgement check for a wellbeing brand.",
   "/api/cron/outreach-mail":
     "Sends the outreach emails due from the Call Directory sheet (introduction, day-7 follow-up, day-21 note, and details a call asked for) using approved drafts, writing any missing draft for review. Does nothing while outreach email is off.",
 };

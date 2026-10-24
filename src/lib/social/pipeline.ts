@@ -26,6 +26,7 @@ import { judgeSubject, subjectHash, exclusionList } from "@/lib/social/subjects"
 import { pickRecipe, headlineFor, supportFromBody, type Recipe } from "@/lib/social/visualRecipe";
 import { unshapableScripts, unshapableNote } from "@/lib/social/shaping";
 import { pickWord, untranslatablePoolReady, vettedWords } from "@/lib/social/untranslatableWords";
+import { pickTrend, type TrendNote } from "@/lib/social/trends";
 import { angleScores, turnsFor, weightedCycle, type PostOutcome } from "@/lib/social/learning";
 import {
   pickMistake,
@@ -118,6 +119,11 @@ export type WriteRequest = {
    * ⇒ src/lib/social/productMistakes.ts.
    */
   mistake?: ProductMistake;
+  /**
+   * This week's moment, when the angle is "trending" — chosen and vetted
+   * OUTSIDE the writer ⇒ lib/social/trends.ts. ⛔ The writer adds no facts about it.
+   */
+  trend?: { topic: string; why: string; angle: string };
 };
 
 export type Written = {
@@ -801,6 +807,8 @@ export async function prepareGenerated(
     postsSoFar: number;
     /** When this post is FOR — the day whose angles must not be repeated. */
     scheduledFor?: string;
+    /** This week's vetted moments ⇒ trends.ts. None ⇒ the "trending" angle stands down. */
+    trends?: TrendNote[];
   },
 ): Promise<PrepareResult> {
   const language = assertPostableLanguage(args.language);
@@ -852,7 +860,15 @@ export async function prepareGenerated(
    */
 
 
-  const available = usablePools(args.schedule.topicPool, await deps.poolUsage(), undefined, args.platform);
+  /**
+   * ⚠️ A moment is only usable for a post going out INSIDE its window: posts are
+   * written up to ten days ahead, and today's trend in next week's post is stale.
+   * No moment for this post's day ⇒ "trending" stands down and the others carry on.
+   */
+  const when = Date.parse(args.scheduledFor ?? "") || Date.now();
+  const trends = (args.trends ?? []).filter((t) => Date.parse(t.activeFrom) <= when && when < Date.parse(t.expiresAt));
+  const available = usablePools(args.schedule.topicPool, await deps.poolUsage(), undefined, args.platform)
+    .filter((p) => p !== "trending" || trends.length > 0);
 
   /**
    * ⛔ NARROWED BY WHAT THE OTHER CHANNELS ALREADY SAID TODAY, before the
@@ -898,9 +914,10 @@ export async function prepareGenerated(
       shape: a?.shape ?? shapeFor(args.schedule, args.postsSoFar),
       word: p === "untranslatable" ? pickWord(args.postsSoFar) : null,
       mistake: p === "built-wrong" ? pickMistake(args.postsSoFar) : null,
+      trend: p === "trending" ? pickTrend(trends, args.postsSoFar) : null,
     };
   };
-  let { brief, shape, word, mistake } = contextFor(pool);
+  let { brief, shape, word, mistake, trend } = contextFor(pool);
   let angleIndex = 0;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -925,6 +942,7 @@ export async function prepareGenerated(
       contentType: shape,
       word: word ?? undefined,
       mistake: mistake ?? undefined,
+      trend: trend ? { topic: trend.topic, why: trend.why, angle: trend.angle } : undefined,
       avoid: exclusionList(recent),
       previousObjections: objections.length ? [...objections] : undefined,
     });
@@ -994,7 +1012,7 @@ export async function prepareGenerated(
       if (angleIndex + 1 < order.length) {
         angleIndex++;
         pool = order[angleIndex];
-        ({ brief, shape, word, mistake } = contextFor(pool));
+        ({ brief, shape, word, mistake, trend } = contextFor(pool));
         objections.push(`Moving to the angle "${pool}" — the last one's subjects are used up.`);
       }
       continue;

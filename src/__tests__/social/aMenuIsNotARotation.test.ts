@@ -129,7 +129,8 @@ describe("exactly one angle reaches the writer", () => {
   });
 
   it("decides the word before the retry loop, not per attempt", () => {
-    const decided = pipeline.indexOf("let { brief, shape, word, mistake } = contextFor(pool);");
+    // ⚠️ 24 Oct: the trend joined the word and the mistake as something decided once, before the loop.
+    const decided = pipeline.indexOf("let { brief, shape, word, mistake, trend } = contextFor(pool);");
     const loop = pipeline.indexOf("for (let attempt = 1;");
     /**
      * ⚠️ THE `> -1` IS THE WHOLE TEST. `indexOf` returns -1 when the line is

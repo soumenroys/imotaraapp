@@ -53,6 +53,7 @@ const EXCLUDED: Record<string, string> = {
     "/admin/crisis-events": "staff only", "/admin/guide": "staff only",
     "/admin/voice": "staff only",
     "/admin/outreach": "staff only",
+    "/admin/social/trends": "staff only",
     // Social posting. ⛔ Staff only, and its own layout sets
     // robots: { index: false } as well — belt and braces, because an admin
     // screen appearing in search would expose the shape of the queue.

@@ -226,6 +226,8 @@ export function buildPrompt(req: WriteRequest): string {
    */
   const word = req.word ?? null;
   const angles = word ? chosen : chosen.filter((p) => p.id !== "untranslatable");
+  // ⛔ The "trending" angle only exists with a vetted moment handed over ⇒ trends.ts.
+  const offered = req.trend ? angles : angles.filter((p) => p.id !== "trending");
 
   const spec = req.platform ? platformSpec(req.platform) : null;
   /**
@@ -246,7 +248,7 @@ export function buildPrompt(req: WriteRequest): string {
     `THE BRIEF FOR THIS SCHEDULE\n${req.brief}`,
     "",
     `CHOOSE ONE OF THESE ANGLES AND STAY INSIDE IT\n` +
-      angles.map((p) => `- ${p.label}: ${p.angle}`).join("\n"),
+      offered.map((p) => `- ${p.label}: ${p.angle}`).join("\n"),
     ...(req.mistake
       ? [
           "",
@@ -258,6 +260,18 @@ export function buildPrompt(req: WriteRequest): string {
             `detail that is not in the two lines above, and do not make it sound bigger or smaller ` +
             `than it was. ⚠️ The first time this angle ran it invented a history that never ` +
             `happened, so anything you add here is a false statement about a real company.`,
+        ]
+      : []),
+    ...(req.trend
+      ? [
+          "",
+          `⛔ IF YOU CHOOSE "${TOPIC_POOLS.find((p) => p.id === "trending")?.label}", THE MOMENT IS ALREADY CHOSEN:\n` +
+            `  the moment: ${req.trend.topic}\n` +
+            `  why people care now: ${req.trend.why}\n` +
+            `  Imotara's honest connection: ${req.trend.angle}\n` +
+            `⛔ Use exactly this moment. Add NO facts about it — no dates, numbers, names, places, results or ` +
+            `claims beyond the lines above; you cannot check them and a wrong one is public. Name the moment, ` +
+            `connect it to that one true thing about Imotara, and stop. Never make it sad or dramatic.`,
         ]
       : []),
     ...(word

@@ -170,6 +170,15 @@ const BENIGN_HOSTS = new Set([
      */
     "graph.facebook.com",
     /**
+     * Google's public daily-trends RSS, read SERVER-SIDE once a morning by
+     * src/lib/social/trends.ts (added 24 Oct 2026).
+     *
+     * ✅ Benign: an anonymous GET of a public feed from the Vercel function.
+     * Nothing about any person is sent — no visitor, no user, no content of ours.
+     * ⛔ It stops being benign if anything user-derived is ever added to the request.
+     */
+    "trends.google.com",
+    /**
      * LinkedIn's REST API, called SERVER-SIDE by the same scheduler
      * ⇒ src/lib/social/adapters/linkedin.ts.
      *

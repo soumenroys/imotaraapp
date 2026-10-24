@@ -17,6 +17,7 @@ import BroadcastStatus from "./BroadcastStatus";
 import BroadcastHealth from "./BroadcastHealth";
 import BroadcastRequests from "./BroadcastRequests";
 import BroadcastTemplateUsage from "./BroadcastTemplateUsage";
+import BroadcastAuto from "./BroadcastAuto";
 
 type View =
   | { name: "list" }
@@ -24,6 +25,7 @@ type View =
   | { name: "health" }
   | { name: "templates" }
   | { name: "requests" }
+  | { name: "auto" }
   | { name: "recipients"; list: ListRow }
   | { name: "compose"; draft: Draft }
   | { name: "review"; id: string }
@@ -188,6 +190,7 @@ export default function BroadcastSection({ token }: { token: string }) {
         [{ name: "requests" }, "Requests"],
         [{ name: "health" }, "Sending status"],
         [{ name: "templates" }, "Templates"],
+        [{ name: "auto" }, "Automatic"],
       ] as [View, string][]).map(([target, label]) => {
         const k = target.name;
         return (
@@ -206,6 +209,10 @@ export default function BroadcastSection({ token }: { token: string }) {
 
   if (view.name === "requests") {
     return <div>{subnav}<BroadcastRequests token={token} lists={lists} /></div>;
+  }
+
+  if (view.name === "auto") {
+    return <div>{subnav}<BroadcastAuto token={token} lists={lists} /></div>;
   }
 
   if (view.name === "health") {

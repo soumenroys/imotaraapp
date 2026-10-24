@@ -185,8 +185,11 @@ describe("the writer is not trusted to pick the word", () => {
    * in the list at all.
    */
   it("the angle list is built from the filtered pools, not the raw ones", () => {
-    expect(writer).toMatch(/angles\.map\(\(p\) => `- \$\{p\.label\}: \$\{p\.angle\}`\)/);
+    // ⚠️ 24 Oct: the list is narrowed once more (the trending angle needs a vetted moment) —
+    // still built FROM the word-filtered angles, never from the raw pools.
+    expect(writer).toMatch(/offered\.map\(\(p\) => `- \$\{p\.label\}: \$\{p\.angle\}`\)/);
     expect(writer).toMatch(/const angles = word \? chosen :/);
+    expect(writer).toMatch(/const offered = req\.trend \? angles : angles\.filter/);
   });
 });
 

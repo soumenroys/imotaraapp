@@ -115,7 +115,7 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
       { do: "On the review screen, read it and press Approve.", then: "Nothing is sent or scheduled unapproved; editing it later asks for approval again." },
       { do: "Send now or pick a time, then watch the delivery figures.", then: "Bounces matter more than opens — a rising bounce rate costs the domain its reputation." },
     ],
-    footnote: "⛔ Owner only. Automatic outreach emails appear here too, as “Outreach · …”.",
+    footnote: "⛔ Owner only. The Automatic tab writes a monthly newsletter for your approval. Outreach emails appear here too.",
   },
 
   stats: {

@@ -299,8 +299,10 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     qr: true,
     tagsDriveDiscovery: false,
     requiresPicture: false,
-    canPublish: false,
-    blockedBy: "X's API is paid, and the account has 2 followers — worth asking whether it is worth it.",
+    // Owner, 24 Oct 2026: build it, post WEEKLY (decided 19 Oct; cadenceProblems enforces it).
+    // Pay-per-use: ~$0.015 a post without a link ⇒ linksInBody stays false.
+    canPublish: true,
+    blockedBy: "",
   },
 
   youtube: {

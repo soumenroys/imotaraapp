@@ -21,6 +21,7 @@ import { loadChannelCredential, loadCredentialFor } from "@/lib/social/channelCr
 import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
 import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
 import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
+import { publishToX, uploadXMedia } from "@/lib/social/adapters/x";
 import { renderPostPictureBytes, type PictureSource } from "@/lib/social/renderPicture";
 import { publicOrigin, videoUrlFor } from "@/lib/social/cardUrl";
 import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
@@ -197,7 +198,10 @@ export async function GET(req: NextRequest) {
              * channels decrypt once — fewer chances to mishandle a credential.
              */
             ? await loadCredentialFor(db, account.id as string, "youtube", publicOrigin())
-            : await loadChannelCredential(db, account.id as string)
+            : platform === "x"
+              // 🔴 X mints per use too, and ROTATES its refresh token ⇒ loadCredentialFor stores the new one.
+              ? await loadCredentialFor(db, account.id as string, "x", publicOrigin())
+              : await loadChannelCredential(db, account.id as string)
           : { ok: false, reason: `No ${platform} channel is connected.` },
       );
     }
@@ -554,6 +558,44 @@ export async function GET(req: NextRequest) {
         message: post.body as string,
         picture,
       });
+    } else if (platform === "x") {
+      let mediaId: string | undefined;
+      let failed: PublishResult | null = null;
+      if (post.media_kind === "graphic") {
+        const rendered = await renderPostPictureBytes({
+          platform,
+          language: post.language as string,
+          subject: post.subject as string | null,
+          body: post.body as string,
+          media_kind: post.media_kind as string | null,
+          visual_recipe: post.visual_recipe,
+          topic_pool: post.topic_pool as string | null,
+          illustration: post.illustration as PictureSource["illustration"],
+        });
+        if (!rendered.ok) {
+          await db
+            .from("social_posts")
+            .update({ status: "approved", last_error: rendered.failure.error, updated_at: new Date().toISOString() })
+            .eq("id", post.id);
+          outcomes.push({
+            id: post.id as string,
+            platform,
+            language: post.language as string,
+            result: "failed",
+            detail: `The picture could not be rendered, so nothing was posted: ${rendered.failure.error}`,
+          });
+          continue;
+        }
+        const up = await uploadXMedia({ token: cred.token, bytes: rendered.bytes, contentType: "image/png" });
+        if (up.ok) mediaId = up.mediaId;
+        else failed = { ok: false, kind: up.kind, message: `The card could not be uploaded to X: ${up.message}` };
+      }
+      if (failed) {
+        result = failed;
+      } else {
+        const r = await publishToX({ token: cred.token, text: post.body as string, mediaId });
+        result = r.ok ? { ok: true, postId: r.postId, url: r.url } : { ok: false, kind: r.kind, message: r.message };
+      }
     } else {
       /**
        * ⛔ A CHANNEL THAT SAYS IT CAN PUBLISH AND HAS NO BRANCH HERE.

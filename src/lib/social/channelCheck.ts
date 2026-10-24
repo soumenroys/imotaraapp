@@ -77,6 +77,16 @@ export async function checkChannel(
    * us at connect time, and a token revoked at the other end would still read
    * fine ⇒ which is why `pending` exists as a status at all.
    */
+  if (cred.platform === "x") {
+    // Same reasoning as YouTube: loadCredentialFor already exchanged (and
+    // re-stored) the rotating refresh token, so reaching here proves the grant.
+    return {
+      ok: true,
+      canPost: true,
+      note: "X exchanged the stored refresh token for a live access token (and the new refresh token was saved).",
+    };
+  }
+
   return {
     ok: false,
     kind: "unknown",
@@ -90,5 +100,5 @@ export async function checkChannel(
  *  where the answer changes what a screen says, so "not checked" is never
  *  shown as "broken". */
 export function channelCanBeChecked(platform: string): boolean {
-  return platform === "facebook" || platform === "instagram" || platform === "youtube";
+  return platform === "facebook" || platform === "instagram" || platform === "youtube" || platform === "x";
 }

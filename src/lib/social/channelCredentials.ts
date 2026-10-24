@@ -12,7 +12,8 @@
 // log is a token in a log aggregator, a screenshot and a support thread.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { decryptToken, tokenAad, tokenStorageReady } from "@/lib/social/tokenCrypto";
+import { decryptToken, encryptToken, tokenAad, tokenStorageReady, tokenTail, tokenFingerprint } from "@/lib/social/tokenCrypto";
+import { xOAuthConfig, refreshXAccessToken } from "@/lib/social/adapters/xAuth";
 import {
   youtubeOAuthConfig,
   refreshYouTubeAccessToken,
@@ -172,6 +173,7 @@ export async function loadCredentialFor(
   platform: string,
   origin?: string,
 ): Promise<ChannelCredential> {
+  if (platform === "x") return loadXCredential(db, accountId, origin);
   if (platform !== "youtube") return loadChannelCredential(db, accountId);
 
   const stored = await loadChannelRefreshToken(db, accountId);
@@ -203,3 +205,54 @@ export async function loadCredentialFor(
     token: minted.accessToken,
   };
 }
+
+/**
+ * 🔴 X ROTATES ITS REFRESH TOKEN ⇒ xAuth.ts. Every mint returns a new one and
+ * the old one stops working, so the new one is stored HERE, before the access
+ * token is handed to anyone. If storing fails, the post still goes out with the
+ * token already minted, but the row is marked so the next run does not fail
+ * silently on a dead token.
+ */
+async function loadXCredential(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+  accountId: string,
+  origin?: string,
+): Promise<ChannelCredential> {
+  const stored = await loadChannelRefreshToken(db, accountId);
+  if (!stored.ok) return stored;
+  const config = xOAuthConfig(process.env, origin);
+  if (!config.ok) return { ok: false, reason: config.message };
+
+  const minted = await refreshXAccessToken({ config: config.config, refreshToken: stored.refreshToken });
+  if (!minted.ok) return { ok: false, reason: minted.message };
+
+  if (minted.refreshToken !== stored.refreshToken) {
+    const aad = tokenAad(stored.platform, stored.externalId);
+    const { error } = await db
+      .from("social_accounts")
+      .update({
+        refresh_token: encryptToken(minted.refreshToken, aad),
+        token_tail: tokenTail(minted.refreshToken),
+        token_fingerprint: tokenFingerprint(minted.refreshToken),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", stored.id);
+    if (error) {
+      await db
+        .from("social_accounts")
+        .update({ status: "dead", last_error: `X issued a new refresh token that could not be saved (${error.message}). Re-connect X.` })
+        .eq("id", stored.id);
+    }
+  }
+
+  return {
+    ok: true,
+    id: stored.id,
+    platform: stored.platform,
+    externalId: stored.externalId,
+    displayName: stored.displayName,
+    token: minted.accessToken,
+  };
+}
+

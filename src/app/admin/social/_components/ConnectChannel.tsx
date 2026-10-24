@@ -37,7 +37,7 @@ const HOW: Record<string, string> = {
     "instagram_content_publish added (and instagram_manage_insights, for saves and reach). " +
     "⚠️ Whatever is ticked is ALL the new token gets, so leave the three pages_* permissions and " +
     "read_insights ticked or Facebook posting breaks. ⛔ Not the messaging permissions.",
-  x: "X developer portal → a project with write access. ⚠️ The API is paid.",
+  x: "Press Connect X below while signed in to X as @ImotaraOfficial. ⚠️ The API is pay-per-use (~$0.015 a post).",
   youtube: "Google Cloud console → YouTube Data API → OAuth for the channel's own account.",
 };
 
@@ -162,6 +162,24 @@ export function ConnectChannel({
           </div>
         ) : null}
 
+        {platform === "x" ? (
+          <div className="space-y-2 sm:col-span-2">
+            <p className="text-[11px] leading-relaxed text-zinc-400">
+              X is connected by asking X, not by pasting. Its tokens last two hours and the refresh
+              token changes on every use, so nothing here could be pasted that would keep working.
+            </p>
+            <a
+              href="/api/admin/social/x/connect"
+              className="inline-block rounded-md bg-emerald-600/90 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-600"
+            >
+              Connect X
+            </a>
+            <p className="text-[11px] leading-relaxed text-zinc-500">
+              ⚠️ Be signed in to X as <span className="font-mono">@ImotaraOfficial</span> — any other account is refused.
+            </p>
+          </div>
+        ) : null}
+
         <div className="space-y-2">
           <label htmlFor="cc-name" className={label}>What to call it here</label>
           <input id="cc-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
@@ -191,7 +209,7 @@ export function ConnectChannel({
         ) : null}
       </div>
 
-      <div className="space-y-2" hidden={platform === "youtube"}>
+      <div className="space-y-2" hidden={platform === "youtube" || platform === "x"}>
         <label htmlFor="cc-token" className={label}>The token</label>
         <input id="cc-token" type="password" autoComplete="off" value={accessToken}
           onChange={(e) => setAccessToken(e.target.value)} className={`${field} font-mono`} />

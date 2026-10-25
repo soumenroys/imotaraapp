@@ -98,7 +98,12 @@ export function buildNudge(
   // of a mental-health app to the person they are trying to get away from.
   //
   // The weekday is the hook: unmistakable to them, meaningless to a bystander.
-  const day = localisedWeekday(lastMessageAt ?? new Date(), lang);
+  // 🔴 Until 26 Oct 2026 the cron never passed lastMessageAt, so this fell to
+  // `new Date()` and named TODAY — "Something from Sunday has stayed with me"
+  // on a Sunday, for a conversation on Wednesday. No date ⇒ the generic nudge,
+  // never a guessed day.
+  if (!lastMessageAt || Number.isNaN(lastMessageAt.getTime())) return generic;
+  const day = localisedWeekday(lastMessageAt, lang);
   if (!day) return generic;
   return { title: L.pt, body: pick(L.rb(day)) };
 }
@@ -204,11 +209,17 @@ export async function GET(req: Request) {
   // 🔑 …and the whole fetched window per user, because the crisis decision in
   // buildNudge is about the CONVERSATION, not just the sentence we quote.
   const lastMessageMap = new Map<string, string>();
+  // …and WHEN that message was written — the day the nudge names.
+  const lastMessageAtMap = new Map<string, Date>();
   const recentMessagesMap = new Map<string, string[]>();
   for (const msg of (chatRes.data ?? [])) {
     const text = msg.content?.trim();
     if (!text) continue;
-    if (!lastMessageMap.has(msg.user_scope)) lastMessageMap.set(msg.user_scope, text);
+    if (!lastMessageMap.has(msg.user_scope)) {
+      lastMessageMap.set(msg.user_scope, text);
+      const at = new Date(msg.created_at);
+      if (!Number.isNaN(at.getTime())) lastMessageAtMap.set(msg.user_scope, at);
+    }
     const bucket = recentMessagesMap.get(msg.user_scope);
     if (bucket) bucket.push(text);
     else recentMessagesMap.set(msg.user_scope, [text]);
@@ -284,6 +295,7 @@ export async function GET(req: Request) {
       const lang = langMap.get(row.user_id);
       const nudge = buildNudge(
         lastUserMessage, lang, recentMessagesMap.get(row.user_id) ?? [],
+        lastMessageAtMap.get(row.user_id),
       );
 
       const result = await sendPushNotification(sub, {

@@ -173,19 +173,21 @@ export default function BlogListClient({
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recent, setRecent] = useState<RecentComment[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
+  const [recentFailed, setRecentFailed] = useState(false);
 
   useEffect(() => {
     if (posts.length === 0) return;
     const slugList = posts.map((p) => p.slug).join(",");
+    // A failed count leaves the badges at their "Comment" call to action.
     fetch(`/api/blog/comments?slugs=${slugList}`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => setCounts(d.counts ?? {}))
       .catch(() => {});
 
     fetch("/api/blog/comments?recent=8")
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => setRecent(d.comments ?? []))
-      .catch(() => {})
+      .catch(() => setRecentFailed(true))
       .finally(() => setLoadingRecent(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -393,6 +395,10 @@ export default function BlogListClient({
               <div key={i} className="h-14 animate-pulse rounded-xl bg-white/5" />
             ))}
           </div>
+        ) : recentFailed ? (
+          <p className="mb-5 text-xs text-zinc-600">
+            Couldn&apos;t load recent comments just now.
+          </p>
         ) : recent.length === 0 ? (
           <p className="mb-5 text-xs text-zinc-600">
             No comments yet — be the first to share your thoughts below.

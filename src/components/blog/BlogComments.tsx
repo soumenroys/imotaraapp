@@ -24,6 +24,8 @@ function timeAgo(iso: string): string {
 export default function BlogComments({ slug }: { slug: string }) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  // A failed load must not read as "No comments yet — be the first".
+  const [loadFailed, setLoadFailed] = useState(false);
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
@@ -31,9 +33,9 @@ export default function BlogComments({ slug }: { slug: string }) {
 
   useEffect(() => {
     fetch(`/api/blog/comments?slug=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((d) => setComments(d.comments ?? []))
-      .catch(() => setComments([]))
+      .catch(() => { setComments([]); setLoadFailed(true); })
       .finally(() => setLoading(false));
   }, [slug]);
 
@@ -72,6 +74,10 @@ export default function BlogComments({ slug }: { slug: string }) {
       {/* Existing comments */}
       {loading ? (
         <p className="text-xs text-zinc-600">Loading comments…</p>
+      ) : loadFailed ? (
+        <p className="text-xs text-zinc-600">
+          Couldn&apos;t load comments just now — please refresh to see them.
+        </p>
       ) : comments.length === 0 ? (
         <p className="text-xs text-zinc-600">
           No comments yet — be the first to share your thoughts.

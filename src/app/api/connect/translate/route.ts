@@ -49,12 +49,12 @@ export async function POST(req: NextRequest) {
   if (!SUPPORTED_LANGS.includes(targetLang)) {
     return NextResponse.json({ ok: false, error: "Unsupported targetLang" }, { status: 400 });
   }
-  if (rawSource !== "auto" && !SUPPORTED_LANGS.includes(rawSource)) {
-    return NextResponse.json({ ok: false, error: "Unsupported sourceLang" }, { status: 400 });
-  }
-
-  const sourceLang = rawSource === "auto" ? detectScript(text) : rawSource;
-  const guessed = rawSource === "auto";
+  // A source language is a HINT (the sender's own session language). An
+  // unrecognised one (e.g. a future "en-IN") falls back to the content guess —
+  // refusing would make a bad hint worse than no hint at all.
+  const hinted = rawSource !== "auto" && SUPPORTED_LANGS.includes(rawSource);
+  const sourceLang = hinted ? rawSource : detectScript(text);
+  const guessed = !hinted;
 
   if (sourceLang === targetLang) {
     // 🔴 THIS RETURNS THE UNTRANSLATED ORIGINAL AS A SUCCESS. That is correct

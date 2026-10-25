@@ -224,8 +224,12 @@ export default function SessionChatPage() {
     const s = sessionLangRef.current;
     if (!s) return undefined;
     if (senderId === s.userId) return s.userLang ?? undefined;
-    if (senderId === s.consultantId) return s.consultantLang ?? undefined;
-    return undefined;
+    // 🔴 Until 25 Oct 2026 this compared senderId with s.consultantId — but that is
+    // connect_consultants.id (the PROFILE row), while sender_id is the consultant's
+    // auth user id. They never matched, so every consultant message fell back to
+    // the content guess. A session has exactly two participants: anyone who is not
+    // the user is the consultant.
+    return s.consultantLang ?? undefined;
   }
 
   // ── Close lang picker on outside click ────────────────────────────────────

@@ -66,7 +66,10 @@ describe("🔴 U6 — a GUESSED source is reported as a guess", () => {
   const s = raw(TRANSLATE);
 
   it("the response says what the source was and whether it was guessed", () => {
-    expect(s).toMatch(/const guessed = rawSource === "auto";/);
+    // RE-POINTED 25 Oct 2026: an unrecognised sourceLang hint is now ignored (not
+    // a 400), so "guessed" = "no USABLE hint", not just "no hint sent".
+    expect(s).toMatch(/const guessed = !hinted;/);
+    expect(s).toMatch(/const sourceLang = hinted \? rawSource : detectScript\(text\);/);
     expect(s).toMatch(/sourceWasGuessed: guessed,/);
     expect(s).toMatch(/unchanged: true,/);
   });

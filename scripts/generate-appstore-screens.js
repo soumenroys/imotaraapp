@@ -19,6 +19,9 @@
  *   status bar there — Play showed iPhone captures until Oct 2026. `crop` cuts
  *   the status bar (time, Dynamic Island, battery: y < 186) and the empty strip
  *   under the tab bar off the same real captures.
+ * 📐 Google Play tablet (7" and 10"): same rules ⇒ 2560x1440 landscape, from
+ *   REAL Android tablet captures (Pixel Tablet emulator, 1.6.0, 25 Oct), not
+ *   phone screens stretched — the Android status bar and gesture strip cropped.
  *
  * ⛔ Captions follow the banner copy rules (generate-youtube-banner.js): no
  * clinical titles, no prices, no other platforms' logos.
@@ -32,7 +35,7 @@ const path = require("path");
 const { execFileSync } = require("child_process");
 
 const ROOT = path.join(__dirname, "..");
-const RAW = path.join(ROOT, "docs", "brand", "appstore", "raw-2026-10-22");
+const RAW_DIR = (name) => path.join(ROOT, "docs", "brand", "appstore", name);
 const OUT = path.join(ROOT, "docs", "brand", "appstore", "screens");
 const CHROME = process.env.CHROME_PATH || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
@@ -48,17 +51,20 @@ const SIZES = {
   "duo-outer": { w: 1398, h: 2034, head: 78, sub: 42, top: 130, phoneW: 0.52 },
   "duo-inner": { w: 2007, h: 2853, head: 104, sub: 56, top: 200, phoneW: 0.56 },
   "play-phone": { w: 1080, h: 1920, head: 66, sub: 36, top: 110, phoneW: 0.70, crop: { top: 186, bottom: 100 } },
+  "play-tablet": { w: 2560, h: 1440, head: 84, sub: 46, top: 80, phoneW: 0.70, crop: { top: 40, bottom: 60 },
+    raw: { dir: "raw-2026-10-25-tablet", w: 2560, h: 1600 } },
 };
 
-const RAW_W = 1206, RAW_H = 2622;
+const PHONE_RAW = { dir: "raw-2026-10-22", w: 1206, h: 2622 };
 
 function html(sz, s, shot) {
+  const raw = sz.raw || PHONE_RAW;
   const sw = Math.round(sz.w * sz.phoneW);
   // Frameless: the real screen, cropped, in a plain rounded card.
   const device = sz.crop
-    ? `<div class="card"><img src="data:image/png;base64,${shot}" style="display:block;width:100%;margin-top:${-Math.round(sz.crop.top * sw / RAW_W)}px"></div>`
+    ? `<div class="card"><img src="data:image/png;base64,${shot}" style="display:block;width:100%;margin-top:${-Math.round(sz.crop.top * sw / raw.w)}px"></div>`
     : `<div class="phone"><div class="screen"></div></div>`;
-  const cardH = sz.crop ? Math.round((RAW_H - sz.crop.top - sz.crop.bottom) * sw / RAW_W) : 0;
+  const cardH = sz.crop ? Math.round((raw.h - sz.crop.top - sz.crop.bottom) * sw / raw.w) : 0;
   return `<!doctype html><html><head><meta charset="utf-8">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -89,7 +95,7 @@ function main() {
     const dir = path.join(OUT, label);
     fs.mkdirSync(dir, { recursive: true });
     SCREENS.forEach((s, i) => {
-      const shot = fs.readFileSync(path.join(RAW, s.file)).toString("base64");
+      const shot = fs.readFileSync(path.join(RAW_DIR((sz.raw || PHONE_RAW).dir), s.file)).toString("base64");
       const tmp = path.join(dir, ".tmp.html");
       const out = path.join(dir, `${i + 1}-${s.name}.png`);
       fs.writeFileSync(tmp, html(sz, s, shot));

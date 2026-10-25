@@ -1932,7 +1932,7 @@ export async function POST(req: Request) {
     if (!nowFollowUp) {
       if (finalHasQuestion) {
         // pick the last question sentence (handles newlines too)
-        const qs = finalTextNoQ.match(/[^?؟؟]*[?؟？]/g);
+        const qs = finalTextNoQ.match(/[^?؟？]*[?؟？]/g);
         const lastQ = (qs && qs.length ? qs[qs.length - 1] : "")?.trim();
         if (lastQ) (result as any).followUp = lastQ;
       } else {

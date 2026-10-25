@@ -2380,12 +2380,12 @@ export function formatImotaraReply(input: FormatReplyInput): string {
   // let it pass through for emotional / conversational turns.
   // Keep formatter structure for greeting / return / practical flows,
   // where deterministic shaping is still useful.
-  const rawSentenceCount = (insight.match(/[.!?؟؟।۔。！]/g) ?? []).length;
+  const rawSentenceCount = (insight.match(/[.!?؟？।۔。！]/g) ?? []).length;
 
   const modelReplyLooksComplete =
     insight &&
     insight.length > 15 &&
-    /[.!?؟؟।۔。！]$/.test(insight.trim());
+    /[.!?؟？।۔。！]$/.test(insight.trim());
 
   const modelReplyLooksNaturallyConversational =
     insight &&
@@ -2721,7 +2721,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .trim()
       .toLowerCase()
       // ignore trailing punctuation differences
-      .replace(/[\s\.!?؟؟…।۔。！]+$/g, "");
+      .replace(/[\s\.!?؟？…।۔。！]+$/g, "");
 
   const phase3Norm = normForDedupe(phase3);
   const lastPhase2SentenceNorm = normForDedupe(
@@ -2742,7 +2742,7 @@ export function formatImotaraReply(input: FormatReplyInput): string {
       .replace(/\s+/g, " ")
       .trim()
       .toLowerCase()
-      .replace(/[\s\.!?؟؟…।۔。！]+$/g, "");
+      .replace(/[\s\.!?؟？…।۔。！]+$/g, "");
 
   out = out
     .split("\n")

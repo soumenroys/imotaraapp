@@ -208,3 +208,30 @@ describe("averagePolarity — the NGO trend line", () => {
     expect(averagePolarity(["sadness"])).toBe(averagePolarity(["sad"]));
   });
 });
+
+describe("English: a heavy or 'a lot' day is not neutral (25 Oct 2026)", () => {
+    // Both real messages from the 22 Oct screenshot session read as NEUTRAL,
+    // so the NGO/EDU trend showed nothing after a genuinely heavy day.
+    it.each([
+        ["Long day. I feel heavy and I can't really say why.", "sad"],
+        ["Work has been a lot lately and I feel like I'm not doing enough.", "sad"],
+        ["my heart feels heavy", "sad"],
+        ["I've been so low this week", "sad"],
+        ["it's all too much right now", "stressed"],
+        ["so much on my plate, I'm swamped", "stressed"],
+    ])("%s → %s", (text, label) => {
+        expect(deriveAnalyticsEmotion(text)).toBe(label);
+    });
+
+    // ⛔ Precision: "heavy"/"low"/"enough" count only when FELT.
+    it.each([
+        "heavy rain today, stuck at home",
+        "I lifted something heavy at the gym",
+        "the price is low",
+        "I'm low on cash till Friday",
+        "there's not enough time to cook",
+        "the battery has been low all day",
+    ])("%s stays neutral", (text) => {
+        expect(deriveAnalyticsEmotion(text)).toBe("neutral");
+    });
+});

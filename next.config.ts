@@ -170,6 +170,14 @@ const nextConfig: NextConfig = {
       // redirect(), and 308 tells a browser or crawler it is permanent, which
       // rendering a component never did.
       { source: "/reflect", destination: "/grow", permanent: true },
+
+      // /open/* is the App Links / Universal Links path (public/.well-known):
+      // with the app installed, the phone opens the app and this never runs.
+      // Without it, the same link must still land somewhere real — it 404'd
+      // (found 26 Oct 2026). Temporary, not permanent: a cached 308 would
+      // outlive any page we later build here.
+      { source: "/open", destination: "/", permanent: false },
+      { source: "/open/:path*", destination: "/:path*", permanent: false },
     ];
   },
 };

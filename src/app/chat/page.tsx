@@ -56,6 +56,17 @@ import { runAnalysisWithConsent } from "@/lib/imotara/runAnalysisWithConsent";
 import { runRespondWithConsent } from "@/lib/imotara/runRespondWithConsent";
 import { detectLangFromRomanHints } from "@/lib/imotara/respondRemote";
 import { saveSample } from "@/lib/imotara/history";
+import { warmWelcomeBody } from "@/lib/imotara/warmWelcome";
+
+/** ⛔ "auto" is not a language — before anything is typed it means the browser's own. */
+function welcomeLang(preferred?: string | null): string {
+  if (preferred && preferred !== "auto") return preferred;
+  try {
+    return (typeof navigator !== "undefined" && navigator.language ? navigator.language : "en").split(/[-_]/)[0];
+  } catch {
+    return "en";
+  }
+}
 import type { Emotion } from "@/types/history";
 import { getUserScopeId as getSharedScopeId } from "@/lib/imotara/userScope";
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
@@ -5140,9 +5151,16 @@ function EmptyState({ onChipSelect, lang = "en", threads = [] }: { onChipSelect:
   const [intakeStep, setIntakeStep] = useState<0 | 1 | 2 | 3>(0);
   const [intakeAnswers, setIntakeAnswers] = useState<[string, string, string]>(["", "", ""]);
 
-  const depthLine = DEPTH_COMPANION_LINE[getConversationDepth(threads).level];
+  // A first conversation hears the warm welcome in the person's own language
+  // (the depth lines are English and the level-0 one repeated the step card's
+  // question) ⇒ lib/imotara/warmWelcome, the same words as the phone.
+  // Set after mount, like the greeting: welcomeLang reads navigator.language,
+  // which the server pre-render does not have.
+  const depthLevel = getConversationDepth(threads).level;
+  const [welcomeLine, setWelcomeLine] = useState("");
+  const depthLine = depthLevel === 0 ? welcomeLine : DEPTH_COMPANION_LINE[depthLevel];
 
-  useEffect(() => { setGreeting(getGreeting(lang)); }, [lang]);
+  useEffect(() => { setGreeting(getGreeting(lang)); setWelcomeLine(warmWelcomeBody(welcomeLang(lang))); }, [lang]);
 
   useEffect(() => {
     try {

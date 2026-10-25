@@ -1034,6 +1034,16 @@ export async function POST(req: Request) {
           "In Arabic/Hebrew use the least gendered form available."
         );
       }
+    } else {
+      // Measured 26 Oct 2026: with no gender set, an Arabic reply began in the
+      // masculine and switched to the feminine (تلاحظين، كنتِ) halfway through.
+      genderLines.push(
+        "USER GENDER: not given. In gendered languages (Arabic, Hebrew, Russian, Hindi, Spanish, French, Portuguese and others): " +
+        "if the user's own words show their gender — Arabic 'أنا متعبة' (f) / 'أنا متعب' (m), Hebrew 'אני עייפה' (f) / 'אני עייף' (m), " +
+        "Russian 'я устала' (f) / 'я устал' (m), Hindi 'thak gayi' (f) / 'thak gaya' (m) — follow it. " +
+        "If they do not, prefer phrasing that avoids gendered forms. " +
+        "Whatever form you use, keep it the SAME through the whole reply — never switch between masculine and feminine mid-reply."
+      );
     }
     if (cg && cg !== "prefer_not" && cg !== "other") {
       if (cg === "female") {

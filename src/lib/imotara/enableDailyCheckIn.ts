@@ -20,8 +20,18 @@ function timeZone(): string | undefined {
     }
 }
 
+/**
+ * ⛔ OFF until web push has a home (25 Oct 2026). The server stored subscriptions in
+ * user_memory, whose live constraints reject them (confidence 1, type "push") — and
+ * user_memory is loaded whole into the AI's context, so it is the wrong table anyway.
+ * No subscription was ever saved. Until a dedicated table exists, the invite would ask
+ * for permission and then fail; it is better not shown at all.
+ */
+export const WEB_PUSH_READY = false;
+
 /** Can this browser receive the check-in at all, and has the person not already said no to it? */
 export function pushPossible(): boolean {
+    if (!WEB_PUSH_READY) return false;
     if (typeof window === "undefined") return false;
     if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) return false;
     return Notification.permission !== "denied" && Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY);

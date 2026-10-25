@@ -46,6 +46,10 @@ A global **SyncStatusStrip** overlays the top of the app ("Syncing…", "Synced 
 
 **Deep linking** — scheme `imotara://` maps `imotara://chat|history|trends|settings|connect` to the tabs. The same scheme is central to the OAuth relay (§3).
 
+**Verified links (App Links / Universal Links, step 1 shipped in 1.6.1)** — the app claims **only** `https://www.imotara.com/open/*` and `https://www.imotara.com/auth/app-callback*` (Android `autoVerify` intent filter, iOS `applinks:www.imotara.com`), proven by `public/.well-known/assetlinks.json` (Play app-signing cert `CE:14:…:5A:30`) and `apple-app-site-association` (team `MY64TKZ69W`) on the web. ⛔ `www` only — the apex 308-redirects and Android will not follow a redirect when verifying. **Why:** on Android the OAuth relay hands tokens back through `imotara://`, which any app can register. **Step 2 (not yet done):** once 1.6.1 is verified on real phones, move the Android handoff to `https://www.imotara.com/auth/app-callback` with `imotara://` as fallback.
+
+**First screen** — an empty conversation opens with a **warm welcome bubble** from the companion (`src/lib/welcome/warmWelcome.ts`, 22 languages, e.g. "Hi, Asha — I'm glad you're here. What's on your mind today?"); `"auto"` resolves to the device locale. Display only: never saved to History, never sent to the model.
+
 ## 3. Auth (`src/auth/AuthContext.tsx`, `src/lib/supabase/client.ts`)
 
 Supabase client persists the session in **SecureStore** (Keychain/Keystore) via `ExpoSecureStoreAdapter` — `autoRefreshToken: true`, `persistSession: true`, `detectSessionInUrl: false` (required in RN). On start it restores the persisted session, then subscribes to `onAuthStateChange`.
@@ -109,7 +113,9 @@ Local-first with best-effort cloud sync. History is stored in AsyncStorage under
 
 Uses `expo-notifications` via a lazy `require` (so Expo Go/Simulator builds without the native module don't crash).
 - **Daily check-in reminder** — `scheduleCheckInReminder(hour=20, minute=0, ...)` with a DAILY trigger; stored under `imotara.checkin.*` keys.
-- **Inactivity nudge** — one-shot after `inactivityHours` (default 48). Localized "we miss you" copy in ~22 languages (generic + personalized variants referencing the user's last topic).
+- **Inactivity nudge ("win-back")** — one-shot after `inactivityHours` (**default 72 since 1.6.1**; 24/48/72/168 in Settings — a chosen value is kept), rescheduled — never stacked — every time the app goes to the background. Localized "we miss you" copy in 22 languages; the personalized variant names the **day** of the last conversation, never what was said (lock screens). Since 1.6.1 it reads the permission **status only** (it used to pop the system prompt as the app was closing), stays silent while reminders are **paused**, and resolves `"auto"` to the settings/device language instead of English.
+- **Check-in invite** — one-time card under a reply after 3+ user messages, never if the conversation showed distress (`src/notifications/checkInInvite.ts`, 22 languages).
+- **Rating prompt (1.6.1)** — `src/feedback/ratingPrompt.ts`, `expo-store-review`: the OS's own review sheet, asked ~6 s after a reply only when ≥3 days since first use, ≥90 days since the last ask, 3+ user messages, no distress in the conversation, no check-in invite that turn, not hands-free, app in foreground. Apple/Google may still show nothing; we record the ask, not the outcome.
 - **Connect push tokens** — `ConnectScreen` registers the device's Expo push token with the server (`POST /api/connect/user/push-token`) so consultants/users get accept/decline/force-close notifications.
 
 ## 8. Payments on mobile

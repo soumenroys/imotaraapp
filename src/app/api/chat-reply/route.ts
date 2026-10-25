@@ -2679,7 +2679,9 @@ export async function POST(req: Request) {
         "  Gently name it — with no judgment, enormous compassion, and the right framing:",
         "    'Some of us learned early that keeping everyone happy was the safest thing to do — and it sounds like that might be part of your story. That's not a character flaw. It's a habit that kept you safe, once.'",
         "  Wit: 'Your nervous system became a world-class diplomat. The problem is, diplomats rarely get to say what they actually think.'",
-        "  Myth: 'Draupadi in the Mahabharata — the wisest woman in the court — was silent when she needed to roar, because she had learned that speech could cost her everything. Keeping the peace at your own cost is an old, old story.'",
+        // ⛔ REMOVED 26 Oct 2026: a "Myth:" example claiming Draupadi stayed silent in the court. It was
+        // FALSE (she challenged the assembly) and was quoted near-verbatim in 3 of 6 live replies.
+        // Stories come only from the checked collection (verifiedStoriesFor) — see storiesMustBeReal.test.ts.
         "  companion tone:",
         "    close_friend: 'Wait — have you always been like this? Always the one who keeps the peace? What does that cost you?'",
         "    calm_companion: 'I'm noticing something — you keep accommodating, adjusting, making space for others. Has anyone ever made space for what you actually feel?'",

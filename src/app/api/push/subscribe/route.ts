@@ -4,6 +4,7 @@
 
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
+import { PUSH_REMINDERS_TABLE } from "@/lib/reminders/snooze";
 
 async function getAuthedUserId(req: Request): Promise<string | null> {
   const admin = getSupabaseAdmin();
@@ -60,16 +61,14 @@ export async function POST(req: Request) {
   const admin = getSupabaseAdmin();
   const now = new Date().toISOString();
 
-  const { error } = await admin.from("user_memory").upsert(
-    {
-      user_id: userId,
-      type: "push",
-      key: "subscription",
-      value: JSON.stringify(subscription),
-      confidence: 0.9, // ⛔ NOT 1: the live user_memory_confidence_check rejects it — every subscription since build 63 failed and none was saved (25 Oct 2026)
-      updated_at: now,
-    },
-    { onConflict: "user_id,type,key" },
+  // 🔴 push_reminders, NOT user_memory (25 Oct 2026). user_memory's live
+  // constraints rejected every subscription — none was ever saved, so the web
+  // check-in never reached anyone — and user_memory is loaded whole into the
+  // AI's context. Only the subscription changes here: a snooze or off the
+  // person chose earlier stays. ⇒ docs/sql/push_reminders.sql
+  const { error } = await admin.from(PUSH_REMINDERS_TABLE).upsert(
+    { user_id: userId, subscription, updated_at: now },
+    { onConflict: "user_id" },
   );
 
   if (error) {
@@ -107,11 +106,11 @@ export async function DELETE(req: Request) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = getSupabaseAdmin();
+  // Forget the subscription; keep the person's snooze/off choice.
   await admin
-    .from("user_memory")
-    .delete()
-    .eq("user_id", userId)
-    .eq("type", "push");
+    .from(PUSH_REMINDERS_TABLE)
+    .update({ subscription: null, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
 
   return NextResponse.json({ ok: true });
 }

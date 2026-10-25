@@ -15,9 +15,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import {
-    SNOOZE_MEMORY_TYPE,
-    SNOOZE_MEMORY_KEY,
-    DISABLED_MEMORY_KEY,
+    PUSH_REMINDERS_TABLE,
     controlForTier,
     isValidSnoozeDays,
     snoozeUntil,
@@ -57,18 +55,12 @@ export async function POST(req: NextRequest) {
         .maybeSingle();
     const control = controlForTier(lic?.tier);
 
-    const write = (key: string, value: string | null) =>
-        value === null
-            ? admin
-                  .from("user_memory")
-                  .delete()
-                  .eq("user_id", userId)
-                  .eq("type", SNOOZE_MEMORY_TYPE)
-                  .eq("key", key)
-            : admin.from("user_memory").upsert(
-                  { user_id: userId, type: SNOOZE_MEMORY_TYPE, key, value },
-                  { onConflict: "user_id,type,key" },
-              );
+    // 🔑 One row per person in push_reminders — never user_memory ⇒ lib/reminders/snooze.
+    const write = (fields: { snoozed_until?: string | null; disabled?: boolean }) =>
+        admin.from(PUSH_REMINDERS_TABLE).upsert(
+            { user_id: userId, ...fields, updated_at: new Date().toISOString() },
+            { onConflict: "user_id" },
+        );
 
     if (action === "disable") {
         if (control !== "can_disable") {
@@ -79,17 +71,16 @@ export async function POST(req: NextRequest) {
                 { status: 403 },
             );
         }
-        const { error } = await write(DISABLED_MEMORY_KEY, "1");
+        const { error } = await write({ disabled: true, snoozed_until: null });
         if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-        await write(SNOOZE_MEMORY_KEY, null);
         return NextResponse.json({ ok: true, state: "disabled" });
     }
 
     if (action === "resume") {
         // Always permitted, for every tier. Turning reminders back ON must
         // never be gated — only turning them off is.
-        await write(SNOOZE_MEMORY_KEY, null);
-        await write(DISABLED_MEMORY_KEY, null);
+        const { error } = await write({ disabled: false, snoozed_until: null });
+        if (error) return NextResponse.json({ error: error.message }, { status: 500 });
         return NextResponse.json({ ok: true, state: "active" });
     }
 
@@ -100,7 +91,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "invalid days" }, { status: 400 });
     }
     const until = snoozeUntil(body.days);
-    const { error } = await write(SNOOZE_MEMORY_KEY, until);
+    const { error } = await write({ snoozed_until: until });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     return NextResponse.json({

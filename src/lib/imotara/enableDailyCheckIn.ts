@@ -21,13 +21,12 @@ function timeZone(): string | undefined {
 }
 
 /**
- * ⛔ OFF until web push has a home (25 Oct 2026). The server stored subscriptions in
- * user_memory, whose live constraints reject them (confidence 1, type "push") — and
- * user_memory is loaded whole into the AI's context, so it is the wrong table anyway.
- * No subscription was ever saved. Until a dedicated table exists, the invite would ask
- * for permission and then fail; it is better not shown at all.
+ * ✅ ON again (25 Oct 2026) now that web push has its own table, push_reminders.
+ * It was off while subscriptions lived in user_memory — whose live constraints
+ * rejected every one (none was ever saved) and which the AI reads whole.
+ * Kept as a switch: if push breaks again, false hides the invite at once.
  */
-export const WEB_PUSH_READY = false;
+export const WEB_PUSH_READY = true;
 
 /** Can this browser receive the check-in at all, and has the person not already said no to it? */
 export function pushPossible(): boolean {

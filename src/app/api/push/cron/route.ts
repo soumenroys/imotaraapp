@@ -17,12 +17,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { sendPushNotification } from "@/lib/imotara/webpush";
 import { getNudgeLang, pick } from "@/lib/imotara/nudgeStrings";
 import { isCrisisTier2 } from "@/lib/emotion/keywordMaps";
-import {
-  SNOOZE_MEMORY_TYPE,
-  SNOOZE_MEMORY_KEY,
-  DISABLED_MEMORY_KEY,
-  isSuppressed,
-} from "@/lib/reminders/snooze";
+import { PUSH_REMINDERS_TABLE, isSuppressed } from "@/lib/reminders/snooze";
 import { isDueNow, DEFAULT_REMINDER_HOUR } from "@/lib/reminders/schedule";
 import { markCronFired } from "@/lib/cron/heartbeat";
 
@@ -139,12 +134,15 @@ export async function GET(req: Request) {
 
   const admin = getSupabaseAdmin();
 
-  // Fetch all push subscriptions
+  // Fetch all push subscriptions — with their last-sent time and the person's
+  // snooze/off choice, all in one row.
+  // 🔴 push_reminders, NOT user_memory (25 Oct 2026): user_memory's live
+  // constraints rejected every subscription (none was ever saved), and it is
+  // loaded whole into the AI's context. ⇒ docs/sql/push_reminders.sql
   const { data: rows, error } = await admin
-    .from("user_memory")
-    .select("user_id, value")
-    .eq("type", "push")
-    .eq("key", "subscription");
+    .from(PUSH_REMINDERS_TABLE)
+    .select("user_id, subscription, last_notified_at, snoozed_until, disabled")
+    .not("subscription", "is", null);
 
   if (error) {
     console.error("[push/cron] fetch error:", error.message);
@@ -157,14 +155,7 @@ export async function GET(req: Request) {
   const now = Date.now();
 
   // Fetch last_notified_at, recent activity, chat messages, and preferred language in parallel
-  const [notifiedRes, activityRes, chatRes, langRes, suppressRes, whenRes] = await Promise.all([
-    admin
-      .from("user_memory")
-      .select("user_id, value")
-      .eq("type", "push")
-      .eq("key", "last_notified_at")
-      .in("user_id", userIds),
-
+  const [activityRes, chatRes, langRes, whenRes] = await Promise.all([
     // Recent chat_reply events. ⚠️ The window is wider than the old 48h
     // inactivity cutoff because the daily check-in asks a different question:
     // "did they use Imotara during THEIR day", which needs the timestamp, not a
@@ -194,16 +185,6 @@ export async function GET(req: Request) {
       .eq("key", "preferred_lang")
       .in("user_id", userIds),
 
-    // ⛔ Snooze and permanent-off MUST be enforced here. The nudge is a server
-    // push, so a client-side flag cannot stop it — the person would tap
-    // "snooze", see nothing change, and rightly conclude the control is fake.
-    admin
-      .from("user_memory")
-      .select("user_id, key, value")
-      .eq("type", SNOOZE_MEMORY_TYPE)
-      .in("key", [SNOOZE_MEMORY_KEY, DISABLED_MEMORY_KEY])
-      .in("user_id", userIds),
-
     // Timezone and chosen hour, so the nudge lands in the person's own evening
     // rather than at one absolute instant for the whole world.
     admin
@@ -215,7 +196,7 @@ export async function GET(req: Request) {
   ]);
 
   const lastNotifiedMap = new Map(
-    (notifiedRes.data ?? []).map((r) => [r.user_id, new Date(r.value).getTime()]),
+    rows.filter((r) => r.last_notified_at).map((r) => [r.user_id, new Date(r.last_notified_at as string).getTime()]),
   );
 
 
@@ -256,14 +237,14 @@ export async function GET(req: Request) {
   }
 
   // Suppression state per user: an active snooze, or a paid user's permanent off.
+  // ⛔ Snooze and permanent-off MUST be enforced here. The nudge is a server
+  // push, so a client-side flag cannot stop it — the person would tap
+  // "snooze", see nothing change, and rightly conclude the control is fake.
   const snoozedUntilMap = new Map<string, string>();
   const disabledSet = new Set<string>();
-  for (const r of (suppressRes.data ?? [])) {
-    if (r.key === SNOOZE_MEMORY_KEY && typeof r.value === "string") {
-      snoozedUntilMap.set(r.user_id, r.value);
-    } else if (r.key === DISABLED_MEMORY_KEY && r.value) {
-      disabledSet.add(r.user_id);
-    }
+  for (const r of rows) {
+    if (typeof r.snoozed_until === "string") snoozedUntilMap.set(r.user_id, r.snoozed_until);
+    if (r.disabled) disabledSet.add(r.user_id);
   }
 
   // Preferred language per user (e.g. "hi", "bn", "ta")
@@ -295,8 +276,9 @@ export async function GET(req: Request) {
         lastActiveMs: lastActiveMap.get(row.user_id) ?? null,
       })) return;
 
-      let sub: any;
-      try { sub = JSON.parse(row.value); } catch { return; }
+      // jsonb comes back as an object; a string is tolerated, never trusted blindly.
+      let sub: any = row.subscription;
+      if (typeof sub === "string") { try { sub = JSON.parse(sub); } catch { return; } }
 
       const lastUserMessage = lastMessageMap.get(row.user_id);
       const lang = langMap.get(row.user_id);
@@ -312,17 +294,10 @@ export async function GET(req: Request) {
 
       if (result.ok) {
         sent++;
-        const { error: upsertErr } = await admin.from("user_memory").upsert(
-          {
-            user_id: row.user_id,
-            type: "push",
-            key: "last_notified_at",
-            value: new Date().toISOString(),
-            confidence: 0.9, // ⛔ not 1 — the live check constraint rejects it (push/subscribe)
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id,type,key" },
-        );
+        const { error: upsertErr } = await admin
+          .from(PUSH_REMINDERS_TABLE)
+          .update({ last_notified_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("user_id", row.user_id);
         if (upsertErr) console.error("[push/cron] upsert last_notified_at failed:", upsertErr.message);
       } else if (result.gone) {
         stale.push(row.user_id);
@@ -332,10 +307,11 @@ export async function GET(req: Request) {
 
   // Remove stale/expired subscriptions
   if (stale.length) {
+    // The push service said this subscription is gone: forget it, but keep the
+    // person's snooze/off choice for when they subscribe again.
     const { error: deleteErr } = await admin
-      .from("user_memory")
-      .delete()
-      .eq("type", "push")
+      .from(PUSH_REMINDERS_TABLE)
+      .update({ subscription: null, updated_at: new Date().toISOString() })
       .in("user_id", stale);
     if (deleteErr) console.error("[push/cron] delete stale subs failed:", deleteErr.message);
   }

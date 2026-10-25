@@ -24,11 +24,16 @@ export type ReminderControl = "snooze_only" | "can_disable";
 export const SNOOZE_DAYS = [3, 5] as const;
 export type SnoozeDays = (typeof SNOOZE_DAYS)[number];
 
-/** `user_memory` coordinates. */
-export const SNOOZE_MEMORY_TYPE = "push";
-export const SNOOZE_MEMORY_KEY = "snoozed_until";
-/** Set when a Plus user turns reminders off for good. */
-export const DISABLED_MEMORY_KEY = "reminders_disabled";
+/**
+ * Where the snooze and the permanent off live: one row per person in
+ * push_reminders (columns snoozed_until, disabled), beside the subscription.
+ *
+ * 🔴 NOT user_memory (25 Oct 2026). These used to be user_memory rows of type
+ * "push"; the live constraints rejected them, so no snooze or off was ever
+ * saved — and user_memory is loaded whole into the AI's context.
+ * ⇒ docs/sql/push_reminders.sql
+ */
+export const PUSH_REMINDERS_TABLE = "push_reminders";
 
 /**
  * What this tier is allowed to do.

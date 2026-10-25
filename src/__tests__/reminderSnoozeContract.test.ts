@@ -134,10 +134,13 @@ describe("the cron actually enforces the choice", () => {
         expect(suppressAt).toBeLessThan(dueAt);
     });
 
-    it("reads both the snooze and the permanent-off key", () => {
+    it("reads both the snooze and the permanent-off — from push_reminders, never user_memory", () => {
+        // ⚠️ Moved 25 Oct 2026: as user_memory rows they were rejected by the live
+        // constraints, so no snooze or off was ever saved ⇒ docs/sql/push_reminders.sql.
         const cron = read("src/app/api/push/cron/route.ts");
-        expect(cron).toMatch(/SNOOZE_MEMORY_KEY/);
-        expect(cron).toMatch(/DISABLED_MEMORY_KEY/);
+        expect(cron).toMatch(/select\("user_id, subscription, last_notified_at, snoozed_until, disabled"\)/);
+        expect(cron).toMatch(/snoozedUntilMap\.set\(r\.user_id, r\.snoozed_until\)/);
+        expect(cron).toMatch(/if \(r\.disabled\) disabledSet\.add\(r\.user_id\)/);
     });
 });
 

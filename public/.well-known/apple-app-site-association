@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["MY64TKZ69W.com.imotara.imotara"],
+        "components": [
+          { "/": "/open/*", "comment": "Links that should open the app" },
+          { "/": "/auth/app-callback*", "comment": "Sign-in handoff back to the app" }
+        ]
+      }
+    ]
+  }
+}

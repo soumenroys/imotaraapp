@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.imotara.imotara",
+      "sha256_cert_fingerprints": [
+        "CE:14:BA:1A:43:54:A6:0A:0A:31:D8:87:FB:7E:49:0F:00:69:4E:C2:3F:3B:59:46:A0:FE:ED:71:62:1B:5A:30"
+      ]
+    }
+  }
+]

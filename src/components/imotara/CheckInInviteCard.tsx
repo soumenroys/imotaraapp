@@ -35,7 +35,10 @@ export default function CheckInInviteCard(props: {
     const chip = "rounded-xl px-3.5 py-2 text-[12px] font-semibold transition disabled:opacity-50";
     return (
         <div className="flex justify-start animate-fade-in px-1" dir={rtl ? "rtl" : "ltr"}>
-            <div className="w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-zinc-100 dark:bg-[#1e1028] p-4 shadow-lg">
+            {/* ⚠️ im-quota-card: the site's own light theme overrides this card's dark background,
+                as it does for the quota card. Without it, a dark-mode computer showing the light
+                site drew dark text on a dark box (seen live, 25 Oct). */}
+            <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-zinc-100 dark:bg-[#1e1028] p-4 shadow-lg">
                 <p className="text-[14px] font-medium text-zinc-800 dark:text-zinc-200">🌙 {s.q}</p>
                 <p className="mt-1.5 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">{s.sub}</p>
                 <div className="mt-3 flex flex-wrap gap-2">

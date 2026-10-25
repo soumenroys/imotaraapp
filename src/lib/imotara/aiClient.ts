@@ -10,6 +10,8 @@
 
 "use server";
 
+import { aiKeyFor, type AIFeature } from "@/lib/imotara/aiKeys";
+
 import nodemailer from "nodemailer";
 
 
@@ -77,18 +79,6 @@ export type CallImotaraAIOptions = {
   feature?: AIFeature;
 };
 
-export type AIFeature = "social" | "trends" | "outreach" | "newsletter";
-
-/**
- * The key for one provider and feature: the feature's own key when it is set,
- * otherwise the shared one. A blank feature key counts as unset, so clearing it
- * in Vercel falls back instead of breaking the feature.
- */
-export function aiKeyFor(provider: "openai" | "gemini", feature?: AIFeature): string | undefined {
-  const shared = provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
-  const own = feature ? process.env[`${shared}_${feature.toUpperCase()}`]?.trim() : undefined;
-  return own || process.env[shared];
-}
 
 export type ImotaraAIResponse = {
   text: string;

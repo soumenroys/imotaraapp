@@ -35,7 +35,7 @@ export {
   type StyleTone,
 } from "@/lib/social/illustrationStyles";
 
-import { aiKeyFor } from "@/lib/imotara/aiClient";
+import { aiKeyFor } from "@/lib/imotara/aiKeys";
 import {
   ILLUSTRATION_STYLES,
   illustrationPrompt,

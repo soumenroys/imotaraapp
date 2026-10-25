@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import fs from "fs";
 import path from "path";
-import { aiKeyFor } from "@/lib/imotara/aiClient";
+import { aiKeyFor } from "@/lib/imotara/aiKeys";
 
 /**
  * Owner, 26 Oct 2026: separate AI keys per background feature, so each one's
@@ -63,6 +63,15 @@ describe("every background feature names itself; chat never does", () => {
         expect(src).not.toMatch(/const apiKey = process\.env\.(OPENAI|GEMINI)_API_KEY;/);
         expect(src.match(/aiKeyFor\("openai", options\.feature\)/g)).toHaveLength(2);
         expect(src.match(/aiKeyFor\("gemini", options\.feature\)/g)).toHaveLength(2);
+    });
+
+    it("⛔ aiClient.ts is \"use server\": it exports no plain (non-async) function", () => {
+        // A sync export there failed the production build on 26 Oct 2026; vitest
+        // and tsc both passed. The helper lives in aiKeys.ts instead.
+        const src = read("src/lib/imotara/aiClient.ts");
+        expect(src).toMatch(/^"use server";/m);
+        expect(src).not.toMatch(/^export function /m);
+        expect(src).not.toMatch(/^export const \w+ = \(/m);
     });
 
     it("⛔ chat replies never pass a feature, so they keep the shared key", () => {

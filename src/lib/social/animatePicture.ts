@@ -16,7 +16,7 @@
 // owner sees one clip and decides, priced first: ~$0.10 per second at 720p
 // (Gemini API pricing page, read 21 Oct 2026).
 
-import { aiKeyFor } from "@/lib/imotara/aiClient";
+import { aiKeyFor } from "@/lib/imotara/aiKeys";
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 

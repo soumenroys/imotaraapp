@@ -50,9 +50,11 @@ describe("its words in 22 languages — the same as the phone's", () => {
     }
     expect(getInviteStrings("bn-IN").q).toBe(INVITE.bn.q);
   });
-  it.runIf(hasMobileRepo())("identical to imotara-mobile's (when that repo sits beside this one)", () => {
+  // Runs wherever the phone's file exists — CI checks out imotara-mobile's main, which gains it with 1.6.1.
+  const mobileInvite = hasMobileRepo() ? readMobileFile("src/notifications/checkInInvite.ts") : null;
+  it.runIf(mobileInvite !== null)("identical to imotara-mobile's (when that repo sits beside this one)", () => {
     const web = src("src/lib/imotara/checkInInviteStrings.ts");
     const block = (t: string) => t.slice(t.indexOf("export const INVITE"), t.indexOf("export function getInviteStrings"));
-    expect(block(web)).toBe(block(readMobileFile("src/notifications/checkInInvite.ts") ?? ""));
+    expect(block(web)).toBe(block(mobileInvite ?? ""));
   });
 });

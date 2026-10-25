@@ -403,27 +403,60 @@ export default function SettingsPage() {
   );
 }
 
+// ── Loading a settings form ───────────────────────────────────────────────────
+// 🔴 A form whose LOAD failed must not be saved. Its fields then hold defaults,
+// not the org's values, and Save would write those blanks over the real SSO
+// config / allowed domains / residency. Until 25 Oct each load was
+// `.then(r => r.json())` with no r.ok check and a `?? ""` default, so a 401/500
+// rendered exactly like "nothing configured" — to the admin and to us.
+// ⇒ loadSettings answers null on ANY failure; the form says so and disables Save.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadSettings(url: string): Promise<any | null> {
+  try {
+    const r = await fetch(url, { credentials: "same-origin" });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  }
+}
+
+type LoadState = "loading" | "ok" | "failed";
+const LOAD_FAILED_MSG = "Couldn't load your current settings. Reload the page before saving — saving now could overwrite them.";
+
+function SaveNote({ load, msg, error }: { load: LoadState; msg: string; error: boolean }) {
+  if (load === "failed") return <p className="text-xs text-rose-400">{LOAD_FAILED_MSG}</p>;
+  if (!msg) return null;
+  return <p className={`text-xs ${error ? "text-rose-400" : "text-emerald-400"}`}>{msg}</p>;
+}
+
 // ── SSO / SAML ────────────────────────────────────────────────────────────────
 function SsoSection({ orgTier }: { orgTier: string }) {
   const [saml, setSaml]     = useState<Record<string,string> | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg]       = useState("");
   const [fields, setFields] = useState({ entity_id: "", sso_url: "", certificate: "", email_domain: "" });
+  const [load, setLoad]     = useState<LoadState>("loading");
+  const [msgError, setMsgError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/org/dashboard/sso", { credentials: "same-origin" })
-      .then((r) => r.json()).then((j) => {
-        setSaml(j.saml);
-        if (j.saml) setFields({ entity_id: j.saml.entity_id ?? "", sso_url: j.saml.sso_url ?? "", certificate: j.saml.certificate ?? "", email_domain: j.saml.email_domain ?? "" });
-      }).catch(() => {});
+    loadSettings("/api/org/dashboard/sso").then((j) => {
+      if (!j) { setLoad("failed"); return; }
+      setSaml(j.saml);
+      if (j.saml) setFields({ entity_id: j.saml.entity_id ?? "", sso_url: j.saml.sso_url ?? "", certificate: j.saml.certificate ?? "", email_domain: j.saml.email_domain ?? "" });
+      setLoad("ok");
+    });
   }, []);
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setMsg("");
-    const r = await fetch("/api/org/dashboard/sso", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) });
-    const j = await r.json();
+    e.preventDefault();
+    if (load !== "ok") return;
+    setSaving(true); setMsg("");
+    const r = await fetch("/api/org/dashboard/sso", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) }).catch(() => null);
+    const j = r ? await r.json().catch(() => ({})) : {};
     setSaving(false);
-    if (r.ok) { setSaml(j.saml); setMsg("Saved — contact info@imotara.com to activate SSO for your org."); }
+    if (r?.ok) { setSaml(j.saml); setMsgError(false); setMsg("Saved — contact info@imotara.com to activate SSO for your org."); }
+    else { setMsgError(true); setMsg(j.error ?? "Couldn't save — nothing was changed. Please try again."); }
   }
 
   const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
@@ -453,8 +486,8 @@ function SsoSection({ orgTier }: { orgTier: string }) {
           <span className="block text-xs text-zinc-400 mb-1">X.509 Certificate</span>
           <textarea rows={3} value={fields.certificate} onChange={(e) => setFields((p) => ({ ...p, certificate: e.target.value }))} placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" className={`${inputCls} resize-none font-mono text-[11px]`} />
         </label>
-        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
-        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+        <SaveNote load={load} msg={msg} error={msgError} />
+        <button type="submit" disabled={saving || load !== "ok"} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
           {saving ? "Saving…" : "Save SSO config"}
         </button>
       </form>
@@ -467,21 +500,28 @@ function EmbedSection({ orgTier }: { orgTier: string }) {
   const [residency, setResidency] = useState("");
   const [saving, setSaving]       = useState(false);
   const [msg, setMsg]             = useState("");
+  const [load, setLoad]           = useState<LoadState>("loading");
+  const [msgError, setMsgError]   = useState(false);
 
   useEffect(() => {
-    fetch("/api/org/dashboard/settings", { credentials: "same-origin" })
-      .then((r) => r.json()).then((j) => {
-        const s = j.org?.org_settings as Record<string,unknown> ?? {};
-        setResidency((s.data_residency as string) ?? "");
-      }).catch(() => {});
+    loadSettings("/api/org/dashboard/settings").then((j) => {
+      if (!j) { setLoad("failed"); return; }
+      const s = j.org?.org_settings as Record<string,unknown> ?? {};
+      setResidency((s.data_residency as string) ?? "");
+      setLoad("ok");
+    });
   }, []);
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setMsg("");
+    e.preventDefault();
+    if (load !== "ok") return;
+    setSaving(true); setMsg("");
     // Only dataResidency — this form no longer edits embed domains (see EmbedSection).
-    await fetch("/api/org/dashboard/embed", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dataResidency: residency || null }) });
-    setSaving(false); setMsg("Saved ✓");
+    const r = await fetch("/api/org/dashboard/embed", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dataResidency: residency || null }) }).catch(() => null);
+    setSaving(false);
+    if (r?.ok) { setMsgError(false); setMsg("Saved ✓"); }
+    else { setMsgError(true); setMsg((r ? (await r.json().catch(() => ({}))).error : null) ?? "Couldn't save — nothing was changed. Please try again."); }
   }
 
   const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
@@ -511,8 +551,8 @@ function EmbedSection({ orgTier }: { orgTier: string }) {
           {residency && <p className="mt-1 text-[11px] text-amber-400">Preference saved. Email info@imotara.com to request data migration to this region.</p>}
         </div>
 
-        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
-        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+        <SaveNote load={load} msg={msg} error={msgError} />
+        <button type="submit" disabled={saving || load !== "ok"} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
           {saving ? "Saving…" : "Save"}
         </button>
       </form>
@@ -621,26 +661,33 @@ function VerificationSection() {
   const [msg, setMsg]               = useState("");
   const [reviewNote, setReviewNote] = useState<string | null>(null);
 
+  const [load, setLoad]             = useState<LoadState>("loading");
+  const [msgError, setMsgError]     = useState(false);
+
   useEffect(() => {
-    fetch("/api/org/dashboard/verification", { credentials: "same-origin" })
-      .then((r) => r.json()).then((j) => {
-        setStatus(j.verificationStatus ?? "unverified");
-        setDocUrl(j.verificationDocUrl ?? "");
-        setReviewNote(j.reviewNote ?? null);
-      })
-      .catch(() => setStatus("unverified"));
+    // ⛔ A failed load used to show "Not submitted" — inviting a duplicate
+    // submission from an org that is already under review or verified.
+    loadSettings("/api/org/dashboard/verification").then((j) => {
+      if (!j) { setLoad("failed"); return; }
+      setStatus(j.verificationStatus ?? "unverified");
+      setDocUrl(j.verificationDocUrl ?? "");
+      setReviewNote(j.reviewNote ?? null);
+      setLoad("ok");
+    });
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setMsg("");
+    e.preventDefault();
+    if (load !== "ok") return;
+    setSaving(true); setMsg("");
     const r = await fetch("/api/org/dashboard/verification", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ documentUrl: docUrl, documentType: docType, notes }),
     });
     setSaving(false);
-    if (r.ok) { setStatus("pending_review"); setMsg("Submitted ✓ — Imotara team will review within 48 hours."); }
-    else { setMsg((await r.json().catch(() => ({}))).error ?? "Submission failed."); }
+    if (r.ok) { setMsgError(false); setStatus("pending_review"); setMsg("Submitted ✓ — Imotara team will review within 48 hours."); }
+    else { setMsgError(true); setMsg((await r.json().catch(() => ({}))).error ?? "Submission failed."); }
   }
 
   const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -649,7 +696,9 @@ function VerificationSection() {
     verified:       { label: "Verified ✓",    color: "text-emerald-300 bg-emerald-500/15" },
     rejected:       { label: "Not approved",  color: "text-rose-400 bg-rose-500/15" },
   };
-  const s = STATUS_LABELS[status] ?? STATUS_LABELS.unverified;
+  const s = load === "failed"
+    ? { label: "Couldn't load", color: "text-rose-400 bg-rose-500/15" }
+    : STATUS_LABELS[status] ?? STATUS_LABELS.unverified;
 
   return (
     <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
@@ -684,8 +733,8 @@ function VerificationSection() {
             <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Registration number, validity dates..."
               className="w-full resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none" />
           </div>
-          {msg && <p className="text-xs text-emerald-400">{msg}</p>}
-          <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+          <SaveNote load={load} msg={msg} error={msgError} />
+          <button type="submit" disabled={saving || load !== "ok"} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
             {saving ? "Submitting…" : "Submit for verification"}
           </button>
         </form>
@@ -711,19 +760,25 @@ function DomainVerifySection({ orgSlug, billingType }: { orgSlug: string; billin
     navigator.clipboard.writeText(joinLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); }).catch(() => {});
   }
 
+  const [load, setLoad]             = useState<LoadState>("loading");
+  const [msgError, setMsgError]     = useState(false);
+
   useEffect(() => {
-    fetch("/api/org/dashboard/domain-verify", { credentials: "same-origin" })
-      .then((r) => r.json()).then((j) => {
-        setDomains(j.allowedDomains ?? []);
-        setAutoJoin(j.autoJoinEnabled ?? false);
-        if (j.academicYearStart) setYearStart(j.academicYearStart);
-        if (j.academicYearEnd)   setYearEnd(j.academicYearEnd);
-      }).catch(() => {});
+    loadSettings("/api/org/dashboard/domain-verify").then((j) => {
+      if (!j) { setLoad("failed"); return; }
+      setDomains(j.allowedDomains ?? []);
+      setAutoJoin(j.autoJoinEnabled ?? false);
+      if (j.academicYearStart) setYearStart(j.academicYearStart);
+      if (j.academicYearEnd)   setYearEnd(j.academicYearEnd);
+      setLoad("ok");
+    });
   }, []);
 
   async function handleSave(e: React.FormEvent) {
-    e.preventDefault(); setSaving(true); setMsg("");
-    await fetch("/api/org/dashboard/domain-verify", {
+    e.preventDefault();
+    if (load !== "ok") return;
+    setSaving(true); setMsg("");
+    const r = await fetch("/api/org/dashboard/domain-verify", {
       method: "POST", credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -733,8 +788,10 @@ function DomainVerifySection({ orgSlug, billingType }: { orgSlug: string; billin
         // default values into an NGO's org_settings.
         ...(isEdu ? { academicYearStart: yearStart, academicYearEnd: yearEnd } : {}),
       }),
-    });
-    setSaving(false); setMsg("Saved ✓");
+    }).catch(() => null);
+    setSaving(false);
+    if (r?.ok) { setMsgError(false); setMsg("Saved ✓"); }
+    else { setMsgError(true); setMsg((r ? (await r.json().catch(() => ({}))).error : null) ?? "Couldn't save — nothing was changed. Please try again."); }
   }
 
   const inputCls = "rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
@@ -791,8 +848,8 @@ function DomainVerifySection({ orgSlug, billingType }: { orgSlug: string; billin
             <p className="text-[11px] text-zinc-600">Academic year dates are used for renewal reminders and billing cycle reference.</p>
           </>
         )}
-        {msg && <p className="text-xs text-emerald-400">{msg}</p>}
-        <button type="submit" disabled={saving} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
+        <SaveNote load={load} msg={msg} error={msgError} />
+        <button type="submit" disabled={saving || load !== "ok"} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
           {saving ? "Saving…" : "Save domain settings"}
         </button>
       </form>

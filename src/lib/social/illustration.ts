@@ -35,6 +35,7 @@ export {
   type StyleTone,
 } from "@/lib/social/illustrationStyles";
 
+import { aiKeyFor } from "@/lib/imotara/aiClient";
 import {
   ILLUSTRATION_STYLES,
   illustrationPrompt,
@@ -158,7 +159,7 @@ const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta";
 export async function listImageModels(): Promise<
   { ok: true; models: string[] } | { ok: false; reason: string }
 > {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key = aiKeyFor("gemini", "social")?.trim();
   if (!key) return { ok: false, reason: "GEMINI_API_KEY is not set in this environment." };
 
   const res = await fetch(`${ENDPOINT}/models?pageSize=200`, {
@@ -189,7 +190,7 @@ export async function generateIllustration(opts: {
   model: string;
   aspectRatio?: string;
 }): Promise<IllustrationResult> {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key = aiKeyFor("gemini", "social")?.trim();
   if (!key) return { ok: false, reason: "GEMINI_API_KEY is not set in this environment." };
 
   const prompt = illustrationPrompt(opts.style, opts.mood);

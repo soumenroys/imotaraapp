@@ -16,6 +16,8 @@
 // owner sees one clip and decides, priced first: ~$0.10 per second at 720p
 // (Gemini API pricing page, read 21 Oct 2026).
 
+import { aiKeyFor } from "@/lib/imotara/aiClient";
+
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
 /**
@@ -65,7 +67,7 @@ export async function animatePicture(
   image: Uint8Array,
   opts: { aspect: AnimationAspect; prompt?: string; fetchImpl?: typeof fetch },
 ): Promise<Animated> {
-  const key = process.env.GEMINI_API_KEY;
+  const key = aiKeyFor("gemini", "social");
   if (!key) return { ok: false, error: "GEMINI_API_KEY is not set here." };
   const doFetch = opts.fetchImpl ?? fetch;
   const started = Date.now();

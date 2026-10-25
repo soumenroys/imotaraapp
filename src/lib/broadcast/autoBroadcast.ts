@@ -148,7 +148,7 @@ export async function writeNewsletter(theme: { brief: string }): Promise<{ subje
   for (let i = 0; i < 3; i++) {
     const res = await callImotaraAI(newsletterPrompt(theme), {
       system: "You write short, plain, honest emails for a wellbeing companion app. Never a clinical claim. JSON only.",
-      maxTokens: 800, temperature: 0.7, abortMs: 45_000,
+      maxTokens: 800, temperature: 0.7, abortMs: 45_000, feature: "newsletter",
     });
     if (!res.text?.trim()) throw new Error(`The writer returned nothing (${res.meta.from}).`);
     const m = parseMail(res.text);

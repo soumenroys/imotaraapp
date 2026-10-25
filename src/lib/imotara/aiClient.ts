@@ -66,7 +66,29 @@ export type CallImotaraAIOptions = {
    * path the fallback is the thing standing between the person and a template.
    */
   noFallback?: boolean;
+
+  /**
+   * Which background feature is calling. Each feature may have its OWN key
+   * (OPENAI_API_KEY_<FEATURE>, GEMINI_API_KEY_<FEATURE>) so its cost shows on
+   * its own line, a runaway job can only exhaust its own cap, and one leaked key
+   * can be revoked without touching the others. Unset ⇒ the shared key, exactly
+   * as before. Chat replies never pass this: they always use the shared key.
+   */
+  feature?: AIFeature;
 };
+
+export type AIFeature = "social" | "trends" | "outreach" | "newsletter";
+
+/**
+ * The key for one provider and feature: the feature's own key when it is set,
+ * otherwise the shared one. A blank feature key counts as unset, so clearing it
+ * in Vercel falls back instead of breaking the feature.
+ */
+export function aiKeyFor(provider: "openai" | "gemini", feature?: AIFeature): string | undefined {
+  const shared = provider === "openai" ? "OPENAI_API_KEY" : "GEMINI_API_KEY";
+  const own = feature ? process.env[`${shared}_${feature.toUpperCase()}`]?.trim() : undefined;
+  return own || process.env[shared];
+}
 
 export type ImotaraAIResponse = {
   text: string;
@@ -431,7 +453,7 @@ async function callImotaraAIPrimary(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): Promise<ImotaraAIResponse> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = aiKeyFor("openai", options.feature);
   const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
 
   // A missing OPENAI_API_KEY used to return empty text immediately, with no
@@ -779,7 +801,7 @@ async function callGeminiAI(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): Promise<ImotaraAIResponse> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKeyFor("gemini", options.feature);
   const model = GEMINI_MODEL;
 
   // Every failure path here is reached only after OpenAI has ALREADY failed
@@ -1119,7 +1141,7 @@ async function* streamGeminiAI(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): AsyncGenerator<string, void, unknown> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = aiKeyFor("gemini", options.feature);
   const model = GEMINI_MODEL;
   // Like callGeminiAI, this generator runs only after the OpenAI stream has
   // already failed, so any exit without tokens is a total outage. Every one of
@@ -1305,7 +1327,7 @@ async function* streamImotaraAIPrimary(
   prompt: string,
   options: CallImotaraAIOptions = {},
 ): AsyncGenerator<string, void, unknown> {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = aiKeyFor("openai", options.feature);
   const model = process.env.IMOTARA_AI_MODEL || "gpt-4.1-mini";
   if (!apiKey) {
     yield* streamGeminiAI(prompt, options);

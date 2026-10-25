@@ -199,7 +199,7 @@ export async function refreshTrends(supabase: SupabaseClient, now = new Date()):
   // Filter 2 — judgement.
   if (passed.length) {
     try {
-      const res = await callImotaraAI(judgePrompt(passed), { system: "You are a careful editor for a mental-wellbeing brand. When in doubt, refuse. JSON only.", maxTokens: 900, temperature: 0.2, abortMs: 45_000 });
+      const res = await callImotaraAI(judgePrompt(passed), { system: "You are a careful editor for a mental-wellbeing brand. When in doubt, refuse. JSON only.", maxTokens: 900, temperature: 0.2, abortMs: 45_000, feature: "trends" });
       const text = res.text ?? "";
       const j = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)) as { kept?: { n: number; topic: string; why: string; angle: string }[]; refused?: { n: number; why: string }[] };
       for (const k of (j.kept ?? []).slice(0, 4)) {

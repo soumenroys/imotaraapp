@@ -84,7 +84,10 @@ describe("🔴 the timezone must not depend on someone opening Settings", () => 
         // production (profile/sync, push/cron) both set it; this one must too.
         const route = read("src/app/api/push/subscribe/route.ts");
         const block = route.slice(route.indexOf('key: "time_zone"'));
-        expect(block.slice(0, 200)).toMatch(/confidence: 1/);
+        // ⚠️ Present AND inside the live check constraint: this used to pin `confidence: 1`,
+        //    which the database rejects — the test guarded the very value that broke it
+        //    (25 Oct 2026, 0 subscriptions ever saved) ⇒ pushSubscriptionsCanBeSaved.test.ts.
+        expect(block.slice(0, 200)).toMatch(/confidence: 0\.9/);
     });
 
     it("the client actually sends it with the subscription", () => {

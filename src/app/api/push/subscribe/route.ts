@@ -66,7 +66,7 @@ export async function POST(req: Request) {
       type: "push",
       key: "subscription",
       value: JSON.stringify(subscription),
-      confidence: 1,
+      confidence: 0.9, // ⛔ NOT 1: the live user_memory_confidence_check rejects it — every subscription since build 63 failed and none was saved (25 Oct 2026)
       updated_at: now,
     },
     { onConflict: "user_id,type,key" },
@@ -85,13 +85,13 @@ export async function POST(req: Request) {
       // (profile/sync, push/cron). If the column is NOT NULL with no default,
       // omitting it fails the upsert — and this write is deliberately
       // non-fatal, so that failure would be SILENT and we would be right back
-      // to nudging people at 01:30. 1, not 0.9: the browser measured this.
+      // to nudging people at 01:30.
       {
         user_id: userId,
         type: "identity",
         key: "time_zone",
         value: tz,
-        confidence: 1,
+        confidence: 0.9, // ⛔ not 1 — see the subscription write above
         updated_at: now,
       },
       { onConflict: "user_id,type,key" },

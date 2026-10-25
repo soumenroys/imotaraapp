@@ -318,7 +318,7 @@ export async function GET(req: Request) {
             type: "push",
             key: "last_notified_at",
             value: new Date().toISOString(),
-            confidence: 1,
+            confidence: 0.9, // ⛔ not 1 — the live check constraint rejects it (push/subscribe)
             updated_at: new Date().toISOString(),
           },
           { onConflict: "user_id,type,key" },

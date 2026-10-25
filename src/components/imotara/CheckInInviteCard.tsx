@@ -25,6 +25,10 @@ export default function CheckInInviteCard(props: {
         if (r.ok) {
             setInviteState("accepted");
             props.onDone({ message: s.done(formatHour(hour, props.lang)), type: "info" });
+        } else if (r.reason === "failed") {
+            // 🔴 OUR failure, not theirs (25 Oct: the server refused every subscription).
+            //    Say so, and leave the card offerable next time instead of retiring it.
+            props.onDone({ message: "Couldn't save the reminder just now — please try again later.", type: "error" });
         } else {
             // ⛔ Declined or unavailable: retire the card rather than ask again.
             setInviteState("declined");

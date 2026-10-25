@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
   const { data: authData } = await getSupabaseAdmin().auth.getUser(bearer);
   const userId = authData?.user?.id;
   if (!userId) return NextResponse.json({ ok: false, error: "invalid session" }, { status: 401 });
+  // ⛔ A purchase never lands on a GUEST identity (25 Oct 2026): it vanishes on reinstall,
+  //    and with it the plan someone paid for. The app now asks a guest to sign in first;
+  //    this is the backstop. Unacknowledged, the purchase stays restorable after sign-in.
+  if (authData?.user?.is_anonymous) return NextResponse.json({ ok: false, error: "sign_in_required" }, { status: 403 });
 
   let body: { productId: string; purchaseToken: string; orderId?: string };
   try { body = await req.json(); }

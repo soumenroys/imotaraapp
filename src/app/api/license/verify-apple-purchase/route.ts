@@ -178,6 +178,9 @@ async function resolveUserId(req: Request): Promise<string | null> {
     if (!auth.startsWith("Bearer ")) return null;
     const token = auth.slice(7).trim();
     const { data } = await getSupabaseAdmin().auth.getUser(token);
+    // ⛔ A purchase never lands on a GUEST identity (25 Oct 2026) — it vanishes on
+    //    reinstall, and the plan with it. Treated as signed out; the app asks them to sign in.
+    if (data?.user?.is_anonymous) return null;
     return data?.user?.id ?? null;
 }
 

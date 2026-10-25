@@ -3,6 +3,7 @@ import type { ImotaraResponse } from "@/lib/ai/response/responseBlueprint";
 import { statedPreference } from "./statedPreference";
 import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
 import { englishSignal } from "./scriptDetection";
+import { guestChatToken } from "@/lib/imotara/guestChatIdentity";
 
 /** Script-based language detection — handles native scripts via Unicode ranges.
  *  Urdu-specific chars are checked before the generic Arabic block to avoid misclassification. */
@@ -343,6 +344,8 @@ export async function respondRemote(input: {
     const _timeoutRaw = typeof window !== "undefined" ? parseInt(window.localStorage.getItem("imotara.api.timeout.v1") ?? "20", 10) : 20;
     const apiTimeoutMs = isFinite(_timeoutRaw) && _timeoutRaw > 0 ? _timeoutRaw * 1000 : 20_000;
 
+    // Hoisted: the template fallback below sends it too, so a guest past the 20 sees the same limit card.
+    let guestToken: string | null = null;
     // 🔴 Hoisted out of the try so the catch can SEE what already arrived.
     // A stall after most of a good reply used to throw it away and start again
     // against the template engine — and the person had already WATCHED those
@@ -350,6 +353,8 @@ export async function respondRemote(input: {
     let fullText = "";
     try {
         // ── Streaming path (web) ────────────────────────────────────────────────
+        // 🔑 A signed-out visitor's reply is recorded and counted like the phone's ⇒ guestChatIdentity.
+        guestToken = await guestChatToken();
         const aiRes = await fetch("/api/chat-reply?stream=1", {
             method: "POST",
             // Tell the server how long we will actually wait, so it can size
@@ -358,6 +363,7 @@ export async function respondRemote(input: {
             headers: {
                 "Content-Type": "application/json",
                 "x-imotara-client-timeout-ms": String(apiTimeoutMs),
+                ...(guestToken ? { "x-imotara-guest-token": guestToken } : {}),
             },
             body: chatReplyBody,
             signal: AbortSignal.timeout(apiTimeoutMs),
@@ -467,6 +473,7 @@ export async function respondRemote(input: {
         headers: {
             "Content-Type": "application/json",
             ...(qa ? { "x-imotara-qa": "1" } : {}),
+            ...(guestToken ? { "x-imotara-guest-token": guestToken } : {}),
         },
         body: JSON.stringify({
             message: input.message,

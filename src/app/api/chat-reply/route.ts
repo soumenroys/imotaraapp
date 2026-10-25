@@ -652,10 +652,21 @@ export async function POST(req: Request) {
         try {
           const supabaseUser = await getSupabaseUserServerClient();
           const { data } = await supabaseUser.auth.getUser();
-          return data?.user?.id ?? "";
+          if (data?.user?.id) return data.user.id;
         } catch {
-          return "";
+          // fall through to the guest identity
         }
+        // 🔑 A WEB GUEST (25 Oct 2026, owner chose option A): nobody is signed in,
+        //    so the page sends the anonymous identity it keeps for chat only, in
+        //    its OWN header — never Authorization, so it can never stand in for a
+        //    signed-in person. ⛔ Accepted only when it really is anonymous; it
+        //    makes the guest's reply recorded and counted (20/day, as on the phone).
+        const guestToken = (req.headers.get("x-imotara-guest-token") ?? "").trim();
+        if (guestToken) {
+          const { data } = await getSupabaseAdmin().auth.getUser(guestToken);
+          if (data?.user?.id && data.user.is_anonymous) return data.user.id;
+        }
+        return "";
       })(),
 
       // ── memory fetch (skipped when name already in payload, or when the

@@ -1015,10 +1015,25 @@ export async function POST(req: Request) {
   (baseCtx as any).user = (baseCtx as any).user ?? {};
   (baseCtx as any).user.id = String(userId);
 
+  // 🔑 A WEB GUEST'S identity (25 Oct 2026) is used for the QUOTA ONLY — never for
+  //    memories or personalisation: when chat-reply has said "20 used", this
+  //    fallback must say so too, so the guest sees the same daily-limit card as a
+  //    Free account instead of silent template replies ⇒ lib/imotara/guestChatIdentity.
+  let quotaUserId = authUserId;
+  if (!quotaUserId) {
+    const guestToken = (req.headers.get("x-imotara-guest-token") ?? "").trim();
+    if (guestToken) {
+      try {
+        const { data: g } = await supabaseServer.auth.getUser(guestToken);
+        if (g?.user?.id && g.user.is_anonymous) quotaUserId = g.user.id;
+      } catch { /* uncounted, as before */ }
+    }
+  }
+
   // ── Quota gate (mirrors /api/chat-reply LIC-2) ────────────────────────────
   // /api/respond is the fallback AI path — protect it identically.
   // Fail-open: DB errors never block a reply.
-  if (authUserId) {
+  if (quotaUserId) {
     try {
       const { getSupabaseAdmin } = await import("@/lib/supabaseServer");
       const quotaAdmin = getSupabaseAdmin();
@@ -1026,7 +1041,7 @@ export async function POST(req: Request) {
       const { data: licRow } = await quotaAdmin
         .from("licenses")
         .select("tier, expires_at, token_balance")
-        .eq("user_id", authUserId)
+        .eq("user_id", quotaUserId)
         .maybeSingle();
 
       const isExpired =
@@ -1040,7 +1055,7 @@ export async function POST(req: Request) {
         const { count } = await quotaAdmin
           .from("usage_events")
           .select("id", { count: "exact", head: true })
-          .eq("user_id", authUserId)
+          .eq("user_id", quotaUserId)
           // Same fix as chat-reply/route.ts — see the long note there. Without
           // it, tts / voice_transcribe / settings_search rows were spending
           // the user's advertised 20 cloud replies.
@@ -1053,7 +1068,7 @@ export async function POST(req: Request) {
             await quotaAdmin
               .from("licenses")
               .update({ token_balance: tokenBalance - 1 })
-              .eq("user_id", authUserId)
+              .eq("user_id", quotaUserId)
               .gt("token_balance", 0);
           } else {
             const r = NextResponse.json(

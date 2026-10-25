@@ -320,6 +320,76 @@ export function Explain({ q, children }: { q: string; children: React.ReactNode 
  * width with no Imotara mark at all — so moving between them felt like leaving
  * the product.
  */
+// ── "Your admin session has ended" ───────────────────────────────────────────
+//
+// 🔑 Owner, 25 Oct 2026: To do showed a bare red "Unauthorized". The admin
+// sign-in lasts 8 hours (adminCrypto.SESSION_TTL_MS); a page left open past
+// that kept its look while every request failed, and nothing said why.
+//
+// ⚠️ A 401 alone is not proof: some routes also answer 401 to a connect
+// reviewer who opens a page that is not theirs. So on a 401 this asks
+// /api/admin/auth/me — only "not signed in" there shows the notice.
+
+const SESSION_ENDED_EVENT = "imotara:admin-401";
+/** The admin page's per-tab sign-in marker ⇒ admin/page.tsx SESSION_KEY. */
+const ADMIN_TAB_KEY = "imotara_admin_token";
+
+function watchAdminRequests() {
+  const w = window as unknown as { __imotaraAdmin401?: boolean };
+  if (w.__imotaraAdmin401) return;
+  w.__imotaraAdmin401 = true;
+  const original = window.fetch.bind(window);
+  window.fetch = async (...args: Parameters<typeof fetch>) => {
+    const res = await original(...args);
+    try {
+      const raw = args[0];
+      const url = typeof raw === "string" ? raw : raw instanceof URL ? raw.href : (raw as Request).url;
+      const path = new URL(url, window.location.origin).pathname;
+      // Sign-in attempts answer 401 for a wrong password — that is not a lapsed session.
+      if (res.status === 401 && path.startsWith("/api/admin/") && !path.startsWith("/api/admin/auth/")) {
+        window.dispatchEvent(new Event(SESSION_ENDED_EVENT));
+      }
+    } catch { /* never let the watcher break a request */ }
+    return res;
+  };
+}
+
+function SessionEndedNotice() {
+  const [ended, setEnded] = useState(false);
+  useEffect(() => {
+    watchAdminRequests();
+    let checking = false;
+    const onUnauthorized = () => {
+      if (checking) return;
+      checking = true;
+      fetch("/api/admin/auth/me", { credentials: "same-origin" })
+        .then((r) => { if (r.status === 401) setEnded(true); })
+        .catch(() => {})
+        .finally(() => { checking = false; });
+    };
+    window.addEventListener(SESSION_ENDED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(SESSION_ENDED_EVENT, onUnauthorized);
+  }, []);
+  if (!ended) return null;
+  return (
+    <div role="alert" className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-400/40 bg-amber-500/10 px-4 py-3">
+      <p className="text-sm text-amber-100">
+        <span className="font-semibold">Your admin session has ended.</span>{" "}
+        <span className="text-amber-200/80">For security, the admin sign-in lasts 8 hours. Nothing was lost — sign in again to continue.</span>
+      </p>
+      <button
+        onClick={() => {
+          try { sessionStorage.removeItem(ADMIN_TAB_KEY); } catch { /* private mode */ }
+          window.location.assign("/admin");
+        }}
+        className="rounded-lg bg-amber-400 px-3 py-1.5 text-xs font-semibold text-zinc-900 hover:bg-amber-300"
+      >
+        Sign in again
+      </button>
+    </div>
+  );
+}
+
 export function AdminShell({
   title,
   lede,
@@ -353,6 +423,8 @@ export function AdminShell({
         </div>
         {actions}
       </header>
+
+      <SessionEndedNotice />
 
       <AdminNav current={current} role={role} onSelect={onSelect} />
 

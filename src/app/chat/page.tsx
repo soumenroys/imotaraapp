@@ -63,6 +63,10 @@ import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { isWithinLaunchOffer } from "@/lib/imotara/license";
+import CheckInInviteCard from "@/components/imotara/CheckInInviteCard";
+import { getInviteState, setInviteState, shouldOfferInvite } from "@/lib/imotara/checkInInviteStrings";
+import { alreadySubscribed, pushPossible } from "@/lib/imotara/enableDailyCheckIn";
+import { signedInCookiePresent } from "@/lib/imotara/guestChatIdentity";
 import useLicense from "@/hooks/useLicense";
 import { adaptReflectionTone } from "@/lib/imotara/reflectionTone";
 import { getReflectionSeedCard } from "@/lib/imotara/reflectionSeedContract";
@@ -936,6 +940,37 @@ export default function ChatPage() {
   const [showTrialBanner, setShowTrialBanner] = useState(false);
   // Quota-hit card — shown once per session when cloud daily limit is reached
   const [quotaCardShown, setQuotaCardShown] = useState(false);
+  // 🌙 The one-time check-in invite ⇒ lib/imotara/checkInInviteStrings. Its language when shown.
+  const [inviteLang, setInviteLang] = useState<string | null>(null);
+  const inviteOfferedRef = useRef(false);
+
+  /**
+   * Offer "Shall I check in with you tomorrow?" under this reply — once ever,
+   * after a real exchange, NEVER if any message in the conversation shows a
+   * distress signal, only for someone signed in whose browser can push.
+   * ⛔ A card under the reply; the reply itself is untouched.
+   */
+  async function maybeOfferInvite(msgs: Message[], quotaHit: boolean) {
+    if (quotaHit || inviteOfferedRef.current) return;
+    try {
+      const userTexts = msgs.filter((m) => m.role === "user").map((m) => m.content ?? "");
+      const crisisInThread = userTexts.some((t) =>
+        isCrisisTier2(t) || CRISIS_TIER1_RE.test(t) || CRISIS_INDIC_TIER1_RE.test(t) || CRISIS_ROMAN_INDIC_TIER1_RE.test(t));
+      const offer = shouldOfferInvite({
+        state: getInviteState(),
+        userMessageCount: userTexts.length,
+        crisisInThread,
+        signedIn: signedInCookiePresent(document.cookie),
+        pushPossible: pushPossible(),
+      });
+      if (!offer) return;
+      // Already receiving it on this browser — nothing to invite them to.
+      if (await alreadySubscribed()) { setInviteState("accepted"); return; }
+      inviteOfferedRef.current = true;
+      const pref = getImotaraProfile()?.user?.preferredLang;
+      setInviteLang(pref && String(pref) !== "auto" ? String(pref) : (detectScriptLang(userTexts[userTexts.length - 1] ?? "") ?? "en"));
+    } catch { /* never let the invite get in the way of a reply */ }
+  }
 
   // EN-3 — Daily micro check-in
   const DAILY_CHECKIN_KEY = "imotara.dailycheckin.lastDate.v1";
@@ -2621,6 +2656,7 @@ export default function ChatPage() {
               : t,
           ),
         );
+        void maybeOfferInvite(msgsForAnalysis, false);
 
         void pushChatMessageToRemote({
           id: assistantMsg.id,
@@ -2793,6 +2829,7 @@ export default function ChatPage() {
           isQuotaNotice: true,
         });
       }
+      void maybeOfferInvite(msgsForAnalysis, cloudQuotaHit);
       setThreads((prev) =>
         prev.map((t) =>
           t.id === threadId
@@ -4264,6 +4301,14 @@ export default function ChatPage() {
                     onDelete={() => handleDeleteMessage(m.id)}
                   />
                 ))}
+
+                {/* 🌙 One-time check-in invite — under the replies, never inside one */}
+                {inviteLang && (
+                  <CheckInInviteCard
+                    lang={inviteLang}
+                    onDone={(toast) => { setInviteLang(null); if (toast) setChatToast(toast); }}
+                  />
+                )}
 
                 {/* #9: Typing indicator — shows while Imotara is composing a reply */}
                 {analyzing && !pendingUndo && (

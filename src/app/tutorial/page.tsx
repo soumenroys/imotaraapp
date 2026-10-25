@@ -870,7 +870,7 @@ const FEATURES: Record<string, Feature[]> = {
       steps: [
         "Go to the History tab.",
         "Tap '+ Start new conversation'.",
-        "You're taken to the Chat screen with a blank thread.",
+        "You're taken to the Chat screen, where your companion says hello in your language and asks what's on your mind.",
         "Your previous conversations remain accessible in History.",
       ],
     },
@@ -1500,9 +1500,9 @@ const FEATURES: Record<string, Feature[]> = {
         "Web: find 'Browser notifications' and tap 'Enable notifications'. Mobile: turn on 'Daily check-in reminder'.",
         "Allow the permission prompt when it appears.",
         "Set your preferred reminder time (mobile uses hour and minute steppers; minutes step by 15).",
-        "Optional on mobile: turn on 'Play sound' and 'Show badge', and set 'Nudge if silent for'.",
+        "Optional on mobile: turn on 'Play sound' and 'Show badge', and set 'Nudge if silent for' (3 days unless you change it).",
       ],
-      tip: "Switching the reminder off turns everything off — including any 'we miss you' nudge already waiting in the queue. And if a reminder can't be set, Imotara now tells you what actually went wrong rather than blaming permissions.",
+      tip: "Switching the reminder off turns everything off — including any 'we miss you' nudge already waiting in the queue. Pausing reminders pauses that nudge too, and it never asks for notification permission on its own. If a reminder can't be set, Imotara tells you what actually went wrong rather than blaming permissions.",
     },
     {
       icon: "💭",

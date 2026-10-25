@@ -69,7 +69,7 @@ Steps:
 ## 3. Chat basics
 
 ### 3a. Send a message
-1. Open **Chat**.
+1. Open **Chat**. *(v1.6.1 / web, Oct 2026)* A new conversation opens with your companion saying hello **in your language** — e.g. "Hi, Asha — I'm glad you're here. What's on your mind today?" — above the suggestion chips. It is only a greeting: it is not saved to History and the AI does not see it.
 2. Type in the message box at the bottom (**On web** placeholder area; **On mobile** the composer) and press Enter / the send arrow.
 3. **On web:** start a fresh conversation with the **New conversation** button (top of the thread list); rename or delete threads from the thread list (**Rename**, **Delete thread**).
 4. **On mobile (v1.4.1+):** **long-press any empty space** in the conversation — the background around the bubbles, not a bubble — to open the **⋯ overflow menu** (**Breathing exercise**, **Unsent letter**, **Clear chat**) without reaching the top bar. Long-pressing a message bubble is unchanged.
@@ -161,7 +161,7 @@ On mobile all four live together under **Settings → Experience → Voice input
 
 ### 6b. History — browse, search, filter, delete
 1. Open **History** (**View Emotion History** link in Settings, or the History tab).
-2. **Browse:** each entry is a moment from your conversations; open an entry to see detail or jump back to Chat.
+2. **Browse:** each entry is a moment from your conversations; open an entry to see detail or jump back to Chat. Each message carries the mood it was read as. *(Oct 2026)* Felt phrases such as "I feel heavy", "I've been so low", "work has been a lot" or "it's all too much" now count as low/stressed instead of neutral. **On web, History did not record any mood before 25 Oct 2026** (a bug, now fixed) — older web entries show as neutral.
 3. **Search — On web:** tap **Search**, then type in **"Search by emotion or message…"**. **On mobile:** tap the search toggle and type; you can also pick an emotion filter (default **all**).
 4. **Delete a single entry — On mobile:** swipe the row left to reveal the red **Delete** action and tap it. **On web:** manage entries from the History controls; bulk removal is under **Settings → Local data controls**.
 5. **Retention note:** Free shows the last 7 days; **Plus and above are unlimited** (`HISTORY_RETENTION_DAYS`: free 7, everything else `Infinity`) — a banner offers an upgrade when your plan caps history.
@@ -263,7 +263,7 @@ nobody else's business. The default time is **20:00 where you are**.
 
 ### 10b. Inactivity nudge
 1. **On web:** in the same **Browser notifications** card, choose **Remind me if I haven't visited in**: **24 h / 48 h / 72 h / 7 days**.
-2. **On mobile:** under the reminder, set **Nudge if silent for** to your chosen interval.
+2. **On mobile:** under the reminder, set **Nudge if silent for** to your chosen interval. **From v1.6.1 the default is 3 days** (it was 2); a value you picked yourself is kept. The nudge never asks for notification permission by itself, stays quiet while reminders are paused, and speaks your language even when the app language is set to automatic.
 
 ### 10c. Disable notifications
 1. **On web:** **Settings → Browser notifications → Disable notifications**. (If the browser itself blocked them, you'll see "Notifications blocked by your browser. Allow them in your browser's site settings, then reload.")

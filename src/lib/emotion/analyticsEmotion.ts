@@ -44,6 +44,7 @@ import {
   // English helpers + cross-language signals.
   isSadText, isStressText, isConfusedText,
   CRISIS_HINT_REGEX, LONELY_WANTS_COMPANY_REGEX,
+  EN_FELT_HEAVY_RE, EN_FELT_A_LOT_RE,
 } from "./keywordMaps";
 
 // ── The canonical vocabulary ──────────────────────────────────────────────────
@@ -151,14 +152,13 @@ const STRONG_GRATITUDE_REGEX =
 // because callers disagree on their English wording. So this call site states
 // its own, tuned for precision: bare "down" and "empty" are required to appear
 // as a FEELING ("feeling down", not "the server is down" or "the box is empty").
-// 25 Oct 2026: "Long day. I feel heavy…" and "Work has been a lot… not doing
-// enough" — both real, both read as NEUTRAL. Added as PHRASES for the same
-// reason: "heavy rain", "lifted something heavy", "the price is low" must stay
-// neutral, so "heavy"/"low" count only when felt ("I feel heavy", "been so low").
+// Felt heaviness / overload ("I feel heavy", "work has been a lot") comes from
+// keywordMaps' EN_FELT_HEAVY_RE / EN_FELT_A_LOT_RE — ONE copy, shared with
+// History, so the two can never drift apart.
 const EN_SAD_RE =
-  /(\bsad\b|\bunhappy\b|\bdepressed\b|\blonely\b|\bcry\b|\bcrying\b|\bcried\b|\bin tears\b|\bupset\b|\bheartbroken\b|\bmiserable\b|\bgrief\b|\bgrieving\b|\bdevastated\b|\bhollow\b|\bnumb\b|feel(ing)? down|i'?m down|feel(ing)? empty|feel(ing)? hollow|feel(s|ing)? (so |really |very |a bit |kind of )?heavy|heavy[- ]?heart(ed)?|weigh(s|ing|ed)? (on|down) me|weighed down|(feel(ing)?|i'?m|i'?ve been|i have been) (so |really |very |a bit |pretty )?low\b(?! on)|not (doing|being) (good )?enough\b|\bnot good enough\b|i'?m not enough\b)/i;
+  /(\bsad\b|\bunhappy\b|\bdepressed\b|\blonely\b|\bcry\b|\bcrying\b|\bcried\b|\bin tears\b|\bupset\b|\bheartbroken\b|\bmiserable\b|\bgrief\b|\bgrieving\b|\bdevastated\b|\bhollow\b|\bnumb\b|feel(ing)? down|i'?m down|feel(ing)? empty|feel(ing)? hollow)/i;
 const EN_STRESS_RE =
-  /(\bstress\b|\bstressed\b|\bstressful\b|\boverwhelmed\b|\boverwhelming\b|burn(t|ed) out|\bburnout\b|\bexhausted\b|\bdrained\b|can'?t cope|cannot cope|can'?t take (it|this)|too much (for me|to handle)|under pressure|no time to|(has|have|'s) been (a lot|too much)|it'?s (all )?(a lot|too much)\b|(all|way) too much|so much (going on|on my plate|to do)|\bswamped\b|drowning in)/i;
+  /(\bstress\b|\bstressed\b|\bstressful\b|\boverwhelmed\b|\boverwhelming\b|burn(t|ed) out|\bburnout\b|\bexhausted\b|\bdrained\b|can'?t cope|cannot cope|can'?t take (it|this)|too much (for me|to handle)|under pressure|no time to)/i;
 const EN_ANXIOUS_RE =
   /(\banxious\b|\banxiety\b|\bworried\b|\bworrying\b|\bnervous\b|\bpanic\b|\bpanicking\b|panic attack|on edge|\buneasy\b|\bdread\b|\brestless\b)/i;
 const EN_AFRAID_RE =
@@ -354,10 +354,10 @@ export function deriveAnalyticsEmotion(message: string): AnalyticsEmotion {
   if (LONELY_WANTS_COMPANY_REGEX.test(t)) return "lonely";
 
   // 2. Negative cascade — 15 languages, plus the English helpers.
-  if (EN_SAD_RE.test(t)    || anyOf(raw, SAD)      || anyOf(t, SAD)      || isSadText(raw)
+  if (EN_SAD_RE.test(t)    || EN_FELT_HEAVY_RE.test(t) || anyOf(raw, SAD)      || anyOf(t, SAD)      || isSadText(raw)
                            || anyOf(raw, X_SAD)      || anyOf(t, X_SAD)
                            || anyOf(raw, X_SAD_GAPS) || anyOf(t, X_SAD_GAPS)) return "sad";
-  if (EN_STRESS_RE.test(t) || anyOf(raw, STRESSED) || anyOf(t, STRESSED) || isStressText(raw)
+  if (EN_STRESS_RE.test(t) || EN_FELT_A_LOT_RE.test(t) || anyOf(raw, STRESSED) || anyOf(t, STRESSED) || isStressText(raw)
                            || anyOf(raw, X_STRESS)   || anyOf(t, X_STRESS))   return "stressed";
   if (EN_ANXIOUS_RE.test(t))                                                  return "anxious";
   if (EN_AFRAID_RE.test(t) || anyOf(raw, AFRAID)   || anyOf(t, AFRAID)

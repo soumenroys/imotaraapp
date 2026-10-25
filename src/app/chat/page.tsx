@@ -100,6 +100,8 @@ import {
   isSadText,
   isStressText,
   isCrisisTier2,
+  EN_FELT_HEAVY_RE,
+  EN_FELT_A_LOT_RE,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
@@ -537,10 +539,10 @@ function getLocalMoodHint(text: string, companionName = "Imotara"): string | nul
   if (isConfusedText(raw) || CONFUSED_EN_REGEX.test(lower) ||
       /\b(stuck|lost|confused|don't know|dont know|no idea|numb|not sure what to do)\b/.test(lower))
     return "You sound a bit stuck or unsure. It's okay to take time to untangle things.";
-  if (isSadText(raw) ||
+  if (isSadText(raw) || EN_FELT_HEAVY_RE.test(raw) ||
       /\b(sad|down|lonely|tired|upset|hurt|empty|depressed|blue|cry|crying|hopeless)\b/.test(lower))
     return `You seem a bit low. It's okay to feel this way — ${companionName} is here with you.`;
-  if (isStressText(raw) ||
+  if (isStressText(raw) || EN_FELT_A_LOT_RE.test(raw) ||
       /\b(worry|worried|anxious|scared|panic|nervous|stressed|overwhelmed|afraid|fear)\b/.test(lower))
     return "It sounds like something is making you feel tense or worried.";
   if (BN_ANGER_REGEX.test(raw) || /\b(angry|mad|frustrated|annoyed|irritated|furious|rage|hate)\b/.test(lower))
@@ -756,17 +758,28 @@ async function logUserMessageToHistory(
     if (!opts) {
       try {
         const res = (await runLocalAnalysis([msg] as any, 1)) as any;
-        const summary = res?.summary;
-        const inferredEmotion =
-          summary?.primaryEmotion ?? summary?.emotion ?? summary?.tag ?? null;
-        const inferredIntensity =
-          typeof summary?.intensity === "number" ? summary.intensity : null;
+        // 🔴 Until 25 Oct 2026 this read `summary.primaryEmotion` — a field the
+        // analyser's MoodSummary never had (it is { headline, details }). So
+        // EVERY web message was saved to History as neutral since 14 Nov 2025:
+        // Trends, the radar and the emotional-history summary saw nothing.
+        // The answer lives on the per-message dominant tag.
+        const dominant = res?.perMessage?.[0]?.dominant ?? null;
+        // History's palette has no "anxiety" (the analyser's does) — fear is its
+        // nearest bucket, so map it rather than store a label no chart knows.
+        const analysed = dominant?.emotion === "anxiety" ? "fear" : dominant?.emotion;
+        const inferredEmotion: Emotion | null =
+          analysed && analysed !== "neutral" ? (analysed as Emotion) : null;
 
         if (inferredEmotion) {
-          emotion = inferredEmotion as Emotion;
-        }
-        if (inferredIntensity !== null) {
-          intensity = inferredIntensity;
+          emotion = inferredEmotion;
+          if (typeof dominant?.intensity === "number") intensity = dominant.intensity;
+        } else if (EN_FELT_HEAVY_RE.test(text)) {
+          // The analyser matches single words, so a felt PHRASE never reaches it.
+          emotion = "sadness";
+          intensity = 0.6;
+        } else if (EN_FELT_A_LOT_RE.test(text)) {
+          emotion = "fear";
+          intensity = 0.6;
         }
       } catch (e) {
         console.warn(

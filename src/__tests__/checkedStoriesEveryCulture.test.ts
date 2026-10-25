@@ -22,7 +22,7 @@ describe("every language tells checked stories from its own tradition", () => {
         ["zh", /Zhuangzi|Confucius|Tao Te Ching|Liezi|Mencius|Weaver Girl|border/],
         ["ja", /Zen|Kojiki|Kintsugi|Urashima|Nan-in|Hakuin|Ryōkan|Buddha|mono no aware|Wabi-sabi|bamboo|Pang|scorpion|proverb/],
         ["he", /Psalm|Ruth|Lamentations|Nachshon|Hillel|Nachman|Ecclesiastes|Proverbs|Genesis|Moses|Elijah|Gamzu|Tarfon|Shabbat/],
-        ["ru", /Norse|Baldur|Freyja|Hávamál|Russian|Tolstoy|Norns|Sigurd|Loki|Fimbulwinter|Yggdrasil/],
+        ["ru", /Russian|Tolstoy|Chekhov|Dostoevsky|Pushkin/],
         ["es", /Greek|Iliad|Odyssey|Aesop|Seneca|Epictetus|Luke|Andersen|Fontaine|Camus|Euripides|Prometheus|Heracles|Atlas|Delphi|Persephone|Orpheus|Perseus|Penelope|Sisyphus/],
     ])("%s gets 8 stories, all from its tradition", (lang, tradition) => {
         const s = verifiedStoriesFor(lang as string, 11)!;
@@ -33,6 +33,16 @@ describe("every language tells checked stories from its own tradition", () => {
     it("English and the Indian languages keep the Indian pool", () => {
         for (const lang of ["en", "bn", "hi", "pa", "ta"]) {
             expect(verifiedStoriesFor(lang, 3)!.some((v) => /Mahabharata|Ramayana|Buddha|Kabir|Thirukkural|Guru|Upanishad|Siddhartha|Savitri|Sikh|Puranas|Jataka|Panchatantra|old texts|Gita/.test(v.text))).toBe(true);
+        }
+    });
+});
+
+describe("⛔ Russian stories never sit beside Norse ones", () => {
+    // Measured 26 Oct: with one shared pool, a Russian reply called a Russian
+    // fairy tale "Norwegian". Russian gets its own pool, and every line names it.
+    it("ru never gets a Norse story", () => {
+        for (let seed = 0; seed < 40; seed++) {
+            for (const v of verifiedStoriesFor("ru", seed)!) expect(v.text).not.toMatch(/Norse|Hávamál|Baldur|Odin|Norns|Völsunga|Yggdrasil|Fimbulwinter/);
         }
     });
 });

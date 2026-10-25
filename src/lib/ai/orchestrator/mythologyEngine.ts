@@ -296,28 +296,25 @@ const ISLAMIC_SUFI: CulturePool = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NORSE / SLAVIC / RUSSIAN (ru)
+// NORSE (world-cycle slot only — no language's own tradition)
 // ─────────────────────────────────────────────────────────────────────────────
 // ✅ CHECKED 26 Oct 2026. Corrected: Baldur (Loki guided the blind god Höðr's
 // hand; Odin "knowing the story wasn't over" was invented), Freyja's tears are
 // red gold (not "jewelry"), Fimbulwinter (three winters — "even the gods were
-// tired" was invented). Added: Tolstoy's "Three Questions", Hávamál 76,
-// "the morning is wiser than the evening".
-const NORSE_SLAVIC: CulturePool = {
+// tired" was invented). Added: Hávamál 23 and 76.
+// ⛔ Kept apart from RUSSIAN: when both shared one pool, a Russian reply called
+//    a Russian fairy tale "Norwegian" (measured on a preview, 26 Oct).
+const NORSE: CulturePool = {
     sad: [
         "In Norse myth, Baldur was so loved that his mother Frigg made every thing in the world promise never to harm him — every thing except the small mistletoe. Loki made a dart of it and guided the blind god Höðr to throw it, and Baldur died. All things were asked to weep him back, and nearly all of them did.",
 
         "In Norse myth, the goddess Freyja wept for her absent husband Óðr as she travelled in search of him, and her tears turned to red gold. Love that misses someone leaves something precious behind.",
 
         "The Hávamál, the old Norse sayings of the High One, says that cattle die and kinsmen die, and we too shall die — but one thing never dies: the good name of the dead. What a person was to others does not vanish with them.",
-
-        "In Russian fairy tales, the hero often loses what he loves and must travel 'beyond thrice-nine lands' to find it again. The tales never promise the road will be easy. They begin with someone setting out anyway.",
     ],
 
     anxious: [
-        "A Russian proverb says: 'The morning is wiser than the evening.' In the old fairy tales, when the hero is given an impossible task at night, he is told to go to sleep — and in the morning the way looks different.",
-
-        "In Leo Tolstoy's story 'Three Questions', a king wants to know the right time to act, the most important person, and the most important thing to do. He learns the answer through what happens to him: the most important time is now; the most important person is the one you are with; the most important thing is to do them good.",
+        "The Hávamál, the old Norse sayings of the High One, says the foolish man lies awake all night, turning everything over; when morning comes he is worn out, and his trouble is just as it was.",
 
         "In Norse myth, three Norns sit at the roots of the world tree and shape the fates of all beings. The Norse did not imagine they could control everything — they cared about how one met what came.",
 
@@ -328,16 +325,59 @@ const NORSE_SLAVIC: CulturePool = {
         "In the Völsunga saga, Sigurd killed the dragon Fafnir not by charging at it, but by digging a pit on its path and waiting. Strength guided by a plan did what rage could not.",
 
         "In Norse myth, Loki begins as a clever trickster who helps the gods out of trouble. His story darkens until his deeds can no longer be undone. The myths seem to ask when cleverness and resentment cross a line that cannot be uncrossed.",
-
-        "In Tolstoy's 'Three Questions', a man who came to harm the king is wounded, and the king — not knowing who he is — tends his wound. The man becomes his friend. Kindness given in the moment turned an enemy around.",
     ],
 
     tired: [
         "Norse myth tells of Fimbulwinter — three winters in a row with no summer between, before the world's great ending and renewal. Even the myths that imagine the world's end imagine it beginning again.",
 
         "In Norse myth, the world tree Yggdrasil holds the nine worlds, while a serpent gnaws at its root and deer bite its branches. It suffers more than anyone knows, the poem says — and it still stands.",
+    ],
+};
 
+// ─────────────────────────────────────────────────────────────────────────────
+// RUSSIAN (ru)
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026. Every line names its source as Russian, so a reply
+// cannot pass it off as another tradition's. Tales from Afanasyev's collection
+// (Vasilisa the Beautiful, the Turnip), the byliny (Ilya Muromets), Pushkin's
+// "Tale of the Fisherman and the Fish", Tolstoy's "Three Questions" and
+// "A Spark Neglected Burns the House", Chekhov's "Misery", Dostoevsky's
+// "The Brothers Karamazov" (epilogue), and common Russian proverbs.
+const RUSSIAN: CulturePool = {
+    sad: [
+        "In Russian fairy tales, the hero often loses what he loves and must travel 'beyond thrice-nine lands' to find it again. The tales never promise the road will be easy. They begin with someone setting out anyway.",
+
+        "In Anton Chekhov's story 'Misery', the old cab driver Iona has lost his son, and all evening he tries to tell his passengers about it. Nobody listens. At last he tells the whole story to his little horse. Chekhov understood how much a grieving person needs simply to be heard.",
+
+        "At the end of Dostoevsky's 'The Brothers Karamazov', Alyosha stands with a group of boys after the funeral of their friend Ilyusha and tells them that one good memory, kept from childhood, may be the best education of all — and may one day save a person. Grief and love, he says, keep us kind.",
+    ],
+
+    anxious: [
+        "A Russian proverb says: 'The morning is wiser than the evening.' In the old Russian fairy tales, when the hero is given an impossible task at night, he is told to go to sleep — and in the morning the way looks different.",
+
+        "In the Russian fairy tale 'Vasilisa the Beautiful', the girl's dying mother gives her a small doll. Whenever Vasilisa is set an impossible task — even by the witch Baba Yaga — she feeds the doll and tells it her troubles, and it says: 'Go to sleep. The morning is wiser than the evening.'",
+
+        "In Leo Tolstoy's story 'Three Questions', a king wants to know the right time to act, the most important person, and the most important thing to do. He learns the answer through what happens to him: the most important time is now; the most important person is the one you are with; the most important thing is to do them good.",
+
+        "A Russian proverb says: 'The eyes are afraid, but the hands do the work.' A task that looks impossible from outside gets smaller once the hands begin.",
+    ],
+
+    angry: [
+        "In Tolstoy's 'Three Questions', a man who came to harm the king is wounded, and the king — not knowing who he is — tends his wound. The man becomes his friend. Kindness given in the moment turned an enemy around.",
+
+        "In Tolstoy's story 'A Spark Neglected Burns the House', two peasant neighbours begin quarrelling over a single egg. Each insult answers the last, until one of them sets fire to the other's barn — and the fire takes the whole village. Tolstoy shows how small an anger is when it starts, and how hard it is to stop once it spreads.",
+
+        "In Pushkin's 'Tale of the Fisherman and the Fish', an old man's wife keeps demanding more from the magic golden fish — a new trough, a house, a palace, a throne. Each wish only makes her angrier. In the end she is back where she began, beside her broken trough.",
+
+        "A Russian proverb says: 'A word is not a sparrow — once it flies out, you will not catch it.' Words said in anger cannot be called back.",
+    ],
+
+    tired: [
         "A Russian proverb says: 'The slower you go, the further you'll get.' Tiredness is sometimes a sign that we have been running at a pace no one could keep.",
+
+        "In the Russian folk tale 'The Turnip', the grandfather cannot pull the giant turnip out alone. The grandmother joins him, then the granddaughter, the dog, the cat — and only when the little mouse adds its strength does the turnip come out. No one was meant to pull alone.",
+
+        "In the Russian byliny, the hero Ilya Muromets could not walk and sat at home on the stove for thirty-three years before his strength came to him. The old songs did not count those years as wasted.",
     ],
 };
 
@@ -438,21 +478,22 @@ const JEWISH: CulturePool = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Culture registry
 // ─────────────────────────────────────────────────────────────────────────────
-type CultureKey = "indian" | "greek_roman" | "chinese" | "islamic_sufi" | "norse_slavic" | "japanese_zen" | "jewish";
+type CultureKey = "indian" | "greek_roman" | "chinese" | "islamic_sufi" | "norse" | "russian" | "japanese_zen" | "jewish";
 
 const CULTURE_POOLS: Record<CultureKey, CulturePool> = {
     indian:       INDIAN,
     greek_roman:  GREEK_ROMAN,
     chinese:      CHINESE,
     islamic_sufi: ISLAMIC_SUFI,
-    norse_slavic: NORSE_SLAVIC,
+    norse:        NORSE,
+    russian:      RUSSIAN,
     japanese_zen: JAPANESE_ZEN,
     jewish:       JEWISH,
 };
 
 // Non-Indian cultures in a fixed cycle order for "other world" slot
 const WORLD_CULTURES: readonly CultureKey[] = [
-    "greek_roman", "chinese", "islamic_sufi", "norse_slavic", "japanese_zen", "jewish",
+    "greek_roman", "chinese", "islamic_sufi", "norse", "russian", "japanese_zen", "jewish",
 ];
 
 // Language → primary culture
@@ -466,7 +507,7 @@ const LANG_PRIMARY: Record<string, CultureKey> = {
     zh: "chinese",
     es: "greek_roman", pt: "greek_roman",
     fr: "greek_roman", de: "greek_roman",
-    ru: "norse_slavic",
+    ru: "russian",
     ja: "japanese_zen",
     he: "jewish",
 };

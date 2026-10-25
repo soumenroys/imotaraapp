@@ -481,6 +481,7 @@ export async function writeWithModel(req: WriteRequest): Promise<Written> {
     maxTokens: 700,
     temperature: 0.85,
     abortMs: 45_000,
+    feature: "social",
   });
 
   if (!res.text?.trim()) {

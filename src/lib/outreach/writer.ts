@@ -177,6 +177,7 @@ export async function writeMailDraft(audience: Audience, step: StepId): Promise<
       maxTokens: 700,
       temperature: 0.7,
       abortMs: 45_000,
+      feature: "outreach",
     });
     if (!res.text?.trim()) throw new Error(`The writer returned nothing (${res.meta.from}).`);
     const { subject, body } = parseMail(res.text);

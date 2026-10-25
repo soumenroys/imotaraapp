@@ -26,6 +26,9 @@ type CulturePool = Record<MythSignal, readonly string[]>;
 // Vikramaditya's vanishing gifts; Viswamitra and "a woman's food"). Corrected
 // 10 wrong details (Vikarna DID speak for Draupadi; Gandhari kept her
 // blindfold; Dasharatha's "three days"; Dhruva met Narada and saw Vishnu…).
+// ➕ 26 Oct 2026: added Kisa Gotami, Angulimala (MN 86), Bhai Kanhaiya, Guru Nanak
+// ('Nanak dukhia sab sansar', GGS p. 954), Kabir's 'Dheere dheere re mana', and
+// Thirukkural 314 and 621 — every one checked against its named source.
 // ⛔ These are now handed to the cloud as the ONLY stories it may tell
 // (verifiedStoriesFor) — a line added here is a line every user may hear.
 const INDIAN: CulturePool = {
@@ -50,6 +53,10 @@ const INDIAN: CulturePool = {
 
         "In the Mahabharata, Kunti carried for her entire life the knowledge that Karna — the great warrior on the opposing side — was her firstborn son. She had abandoned him as a young woman and could never claim him. On the eve of war, she finally told him. He listened, and still refused to switch sides. They both bore the weight of it. Some things cannot be undone — only held.",
 
+
+        "In the Buddhist texts, Kisa Gotami came to the Buddha carrying her dead child, begging for medicine. He asked her to bring a mustard seed from any house where no one had ever died. She went from door to door and found no such house. She understood that she was not alone in her loss — and she buried her child and became a nun.",
+
+        "Guru Nanak wrote, in a line preserved in the Guru Granth Sahib: 'Nanak dukhia sab sansar' — 'Nanak, the whole world is in sorrow.' He was not saying sorrow is small. He was saying no one carries it alone.",
         ],
 
     anxious: [
@@ -72,6 +79,10 @@ const INDIAN: CulturePool = {
         "In the Katha Upanishad, young Nachiketa waited at Death's gate for three days. When Yama returned and offered him palaces and pleasures to drop his question, Nachiketa refused. He had come for one thing, and no discomfort had changed that. Sometimes the truest kind of courage is just not moving.",
 
         "In a Buddhist story, Ananda — the Buddha's closest disciple — worked for decades but could not reach enlightenment while the Buddha was alive. The night after the Buddha passed, Ananda sat alone with his grief and his effort. In that night, he let go of the effort itself — and arrived.",
+
+        "Kabir wrote: 'Dheere dheere re mana, dheere sab kuch hoye; maali seenche sau ghada, ritu aaye phal hoye' — 'Slowly, slowly, O mind; everything happens in its own time. The gardener may pour a hundred pots of water, but the fruit comes only in its season.'",
+
+        "The Thirukkural, the Tamil book of wisdom by Thiruvalluvar, says (verse 621): when trouble comes, laugh — nothing overcomes trouble like it. Not because the trouble is small, but because a mind that can still smile is not beaten by it.",
     ],
 
     angry: [
@@ -95,6 +106,12 @@ const INDIAN: CulturePool = {
 
         "In the Katha Upanishad, Nachiketa was given to Yama by his own father in a burst of rage. Nachiketa stood at Death's gate without bitterness — and when Yama returned, he asked not for revenge but for wisdom. He had every right to anger. He chose something else.",
 
+
+        "The Thirukkural (verse 314) says that the way to answer those who harm you is to do them good, so that they feel ashamed of what they did — and then to forget both the harm and the good.",
+
+        "In Sikh tradition, during the battles at Anandpur, Bhai Kanhaiya carried water to every wounded soldier — including the enemy's. When this was reported to Guru Gobind Singh, Kanhaiya said he saw no friend or foe, only the same light in every face. The Guru gave him ointment so he could dress their wounds too.",
+
+        "In the Majjhima Nikaya, Angulimala was a feared bandit. When he chased the Buddha, he could not catch him though the Buddha only walked, and he shouted, 'Stop!' The Buddha answered: 'I have stopped, Angulimala — you stop too.' Angulimala laid down his weapons and became a monk.",
         ],
 
     tired: [
@@ -122,293 +139,361 @@ const INDIAN: CulturePool = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GREEK / ROMAN
+// GREEK / ROMAN + EUROPEAN FABLES (es, pt, fr, de)
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026, story by story (as INDIAN on 23 Oct). Corrected:
+// Achilles did NOT refuse to fight after Patroclus died (he returned to battle);
+// Perseus used Athena's polished SHIELD, not "a mirror". Removed: a Hera line
+// that asserted more than the myths say. Added: Aesop, La Fontaine, Andersen,
+// Seneca, Epictetus and the Prodigal Son (Luke 15).
 const GREEK_ROMAN: CulturePool = {
     sad: [
-        "In Greek mythology, Orpheus descended into the Underworld to bring back his beloved Eurydice, moving even Death itself with his music. He was given the chance to lead her back — on one condition: do not look back. He looked, and lost her again. The story has endured for millennia because grief makes us reach for what we cannot hold.",
+        "In Greek mythology, Orpheus descended into the Underworld to bring back his beloved Eurydice, and his music moved even its rulers to let her go — on one condition: he must not look back until they reached the light. He looked, and lost her again. The story has lasted for millennia because grief makes us reach for what we cannot hold.",
 
-        "In the Odyssey, Penelope waited twenty years for Odysseus to return — weaving a shroud by day and unraveling it at night. She did not wait passively; she waited in ingenuity, in the quiet work of keeping something alive. Faithfulness, the myth tells us, is not one act but a thousand daily choices.",
+        "When Persephone was taken into the Underworld, her mother Demeter grieved so deeply that the earth stopped growing. The seasons came to mirror that grief — winter while they are apart, spring when Persephone returns. Even in the oldest stories, mourning has its season, and spring still comes.",
 
-        "When Persephone was taken into the Underworld, her mother Demeter let the earth go cold. The seasons themselves became grief made visible. The myth's strange gift: it tells us that even the world mourns — and that spring still comes.",
+        "In the Iliad, when Achilles learned that his companion Patroclus had been killed, the greatest warrior among the Greeks poured dust over his head, wept, and would not eat. The poem does not treat his grief as weakness; it shows how much he had loved.",
 
-        "In the Iliad, when Achilles lost his companion Patroclus, the greatest warrior in the Greek army sat on the shore and wept — refusing to eat, refusing to fight. His grief was not weakness; it was the measure of how deeply he had loved.",
+        "In the Gospel of Luke, a younger son wastes his inheritance far from home. Starving, he walks back, rehearsing an apology. While he is still far off, his father sees him, runs to him and embraces him before he can finish. Some homecomings are kinder than the speech we prepare for them.",
+
+        "In Hans Christian Andersen's tale, a cygnet hatched among ducklings is mocked as ugly and driven away. He survives a hard winter alone. In spring he sees swans on the water, bows his head expecting to be driven off — and sees in the water that he is a swan himself. Being out of place is not the same as being wrong.",
     ],
 
     anxious: [
-        "In the Odyssey, Odysseus faced a decade of storms, monsters, and detours. At each impossible moment, he did not resolve the whole journey — he resolved the next step. That became the pattern that brought him home.",
+        "In Greek myth, Perseus was sent to bring back the head of Medusa, whose gaze turned people to stone. He did not look at her directly — he watched her reflection in a polished shield. Some fears cannot be faced head-on; they can be approached another way.",
 
-        "In Greek myth, Perseus was sent to bring back Medusa's head — whose gaze turned men to stone. He could not look directly at the threat. He used a mirror. Sometimes what paralyzes us cannot be faced head-on — it has to be approached at an angle.",
+        "Above the temple of Apollo at Delphi were carved the words 'Know thyself.' Not 'know the future' — know yourself. Worry asks what will happen; the old inscription points to who we are while it happens.",
 
-        "Above the entrance to the Oracle at Delphi were inscribed two words: 'Know thyself.' Not 'know the future' — know yourself. Anxiety often asks 'what will happen?' but the deeper question is 'who am I in this moment?'",
+        "Seneca, the Roman philosopher, wrote to his friend Lucilius: 'There are more things likely to frighten us than there are to crush us; we suffer more often in imagination than in reality.' He was not dismissing fear — only asking how much of it has actually arrived.",
 
-        "Albert Camus wrote of Sisyphus — condemned to roll a stone up a hill forever, watching it fall back. He ended his essay: 'one must imagine Sisyphus happy.' Not because the burden disappears, but because the person carrying it chooses how to carry it.",
+        "Epictetus, who was born into slavery, began his handbook with one distinction: some things are within our power, and some are not. Our opinions, choices and responses are ours; much of the rest is not. He thought peace begins by sorting the two.",
+
+        "In Aesop's fable, a hare mocks a tortoise for being slow, and the tortoise challenges him to a race. The hare runs far ahead, then lies down to sleep. The tortoise keeps plodding and crosses the line first. Steady steps can carry further than anxious sprints.",
     ],
 
     angry: [
-        "The Iliad opens with one word: 'Rage.' Achilles's anger at Agamemnon starts a chain that costs him his closest friend and nearly destroys the Greek army. He was right to be wronged. But his rage consumed everything he hadn't meant to burn.",
+        "The Iliad opens with one word: 'Rage.' Achilles' anger at Agamemnon keeps him out of the fighting while the Greeks suffer, and in the end it costs him his dearest friend. He had been wronged. But the anger burned far more than he meant it to.",
 
-        "In Greek tragedy, Medea's fury at being abandoned was total. Her anger was not unreasonable — she had given everything and been discarded. But the story asks: at what point does righteous anger begin consuming what it was trying to protect?",
+        "In Aesop's fable, the North Wind and the Sun argue over who is stronger and agree to a test: whoever makes a traveller take off his cloak wins. The harder the Wind blows, the tighter the man holds it. Then the Sun shines gently, and the man takes it off himself. Force often hardens what warmth can open.",
 
-        "Prometheus gave fire to humanity and was chained to a rock as punishment — an eagle eating his liver each day. His was the anger of someone who saw injustice clearly and acted anyway, knowing the cost. There are times when anger is the most honest form of love.",
+        "In Euripides' play, Medea is abandoned by Jason after giving up everything for him. Her fury is understandable — and the tragedy shows what it costs when that fury is allowed to destroy even what she loved. The play asks when righteous anger begins consuming its own.",
 
-        "Hera's wrath in Greek mythology is constant — she pursues every grievance with the full power of a goddess. And yet the myths rarely end with Hera satisfied. The anger is always reignited by the next slight. The stories seem to ask: what would it finally take to be enough?",
+        "Prometheus gave fire to humanity against Zeus's will and was chained to a rock, where an eagle came every day to eat his liver. The myth remembers him not for his anger but for what he was willing to bear for the people he cared about.",
     ],
 
     tired: [
-        "In Greek myth, Hercules was given twelve impossible labors — not as achievement, but as penance. The labors were not designed to be winnable. He completed them not because victory was guaranteed, but because he kept going when it wasn't.",
+        "In Greek myth, Heracles was set twelve labours — not as glory, but as penance. Each seemed impossible. He did not finish them all at once; he finished them one after another.",
 
-        "Atlas was condemned to hold up the sky forever. Hercules briefly took it from him, and in that moment Atlas experienced what it was to put something down. Sometimes the most important thing is to let someone else carry it for a while.",
+        "Atlas was condemned to hold up the sky. When Heracles needed the golden apples, he took the sky on his own shoulders for a while so Atlas could go and fetch them. Even the strongest burden can be shared, if only for a time.",
 
-        "Penelope's faithfulness over twenty years was not one act of love but twenty years of daily choices — to weave, to wait, to hold. Endurance is rarely heroic in the moment. It is made of repetition.",
+        "In the Odyssey, Penelope waited twenty years for Odysseus. To hold off the suitors, she promised to choose one when she finished weaving a shroud — and each night she secretly unravelled the day's work. Endurance in that story is not one great act but a long run of quiet, ordinary ones.",
 
-        "The myth of Sisyphus can be read as the story of anyone doing work that never feels finished. Camus's interpretation was not despair — it was this: find meaning not in the summit, but in choosing to go again.",
+        "In La Fontaine's fable, a mighty oak pities a reed for bending in every breeze. Then a storm comes. The reed bends and survives; the oak, which will not bend, is torn up by the roots. Giving way for a while is not the same as giving up.",
+
+        "Albert Camus wrote about Sisyphus, condemned to push a stone up a hill forever and watch it roll down again. He ended: 'One must imagine Sisyphus happy.' Not because the work ends, but because the one doing it can choose how to meet it.",
     ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// CHINESE / TAOIST
+// CHINESE / TAOIST / CONFUCIAN (zh)
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026. Corrected: the Yellow Emperor's dream (Liezi) — the
+// old line invented that he "recognized what was already there". Quotes from
+// Zhuangzi are marked as paraphrase. Added: Yu Gong (Liezi), Mencius 6B:15,
+// Analects 15.24.
 const CHINESE: CulturePool = {
     sad: [
-        "When Zhuangzi's wife died, he was found singing and drumming on a bowl. His friend was horrified. Zhuangzi said: 'She has returned through the great changes — earth to form, form to breath, breath to life, and now back. To weep endlessly seemed like not understanding the nature of things.' Not detachment — a different kind of presence with loss.",
+        "When Zhuangzi's wife died, his friend Huizi found him drumming on a bowl and singing. Huizi was shocked. Zhuangzi explained that at first he had grieved like anyone — then he thought about how she had come from formlessness into life, and now had gone on, like the turning of the seasons. It is not a story about not caring. It is about finding a way to carry it.",
 
-        "In Chinese legend, the Weaver Girl and the Cowherd were separated by the Milky Way, allowed to meet only once a year when magpies form a bridge across the stars. Their love was not diminished by distance. The myth says: some connections are larger than proximity.",
+        "In Chinese legend, the Weaver Girl and the Cowherd were separated by the Milky Way and may meet only once a year, on the seventh night of the seventh month, when magpies form a bridge between the stars. The distance never ended their love.",
 
-        "Confucius stood by a river and said: 'It flows on like this — never ceasing, day or night.' He was not mourning the passing of time. He was saying: grief, too, moves. Nothing stays in one form forever.",
+        "Standing by a river, Confucius said: 'It flows on like this, never ceasing, day or night.' Time moves, and so does what we feel; nothing stays in one form forever.",
 
-        "A Chinese fable tells of a farmer whose horse ran away. 'What terrible luck,' said the neighbors. 'Maybe,' he said. It returned with wild horses. 'What great luck.' 'Maybe.' His son broke his leg training them. 'Terrible luck.' 'Maybe.' The army came — his son was not taken to war. Loss does not always stay as loss.",
+        "A Chinese fable tells of an old man near the border whose horse ran away. His neighbours called it bad luck. 'Who knows?' he said. The horse came back with a fine wild horse. 'Good luck!' 'Who knows?' His son broke his leg riding it. 'Bad luck!' 'Who knows?' Then war came, and the son was spared from the army. A loss is not always only a loss.",
     ],
 
     anxious: [
-        "Zhuangzi dreamed he was a butterfly — free, not knowing he was Zhuangzi. He woke, and was Zhuangzi again. But he wondered: was he a man dreaming of a butterfly, or a butterfly dreaming of being a man? It is an invitation to hold all certainty a little more lightly.",
+        "Zhuangzi dreamed he was a butterfly, fluttering happily, not knowing he was Zhuangzi. Then he woke — and could not be sure whether he was Zhuangzi who had dreamed of a butterfly, or a butterfly now dreaming it was Zhuangzi. It is an old invitation to hold our certainties a little more lightly.",
 
-        "A core teaching of Taoism: Wu Wei — acting in accord with the natural flow, without forcing. Not passivity, but not struggle either. The tallest trees bend in wind; it is the rigid ones that break.",
+        "In Zhuangzi, Cook Ding carved an ox so skilfully that his knife stayed sharp for nineteen years. He said he no longer saw the whole ox, but followed its natural spaces — and when he came to a hard place, he slowed down and went carefully. Hard places are not met by force but by attention.",
 
-        "In Zhuangzi, a cook carves an ox with such perfect understanding that his knife glides through spaces without effort. He says: 'I work with my mind, not my eyes.' When worry fills a situation, it is often because we are working with fear rather than with understanding.",
+        "The Tao Te Ching says that nothing in the world is softer or weaker than water, yet nothing is better at overcoming the hard and strong. Water does not fight the stone. It keeps going.",
 
-        "Laozi wrote: 'Nothing in the world is as soft and yielding as water. Yet for dissolving the hard and inflexible, nothing can surpass it.' Anxiety is often the feeling of being rigid in the face of the flowing. Water does not fight the stone. It goes around.",
+        "In the Liezi, an old man named Yu Gong began digging away two mountains that blocked his door. A neighbour laughed: he would die before finishing. Yu Gong replied that his sons would carry on, and their sons after them, while the mountains would never grow taller. A task too big for one day can still be begun today.",
     ],
 
     angry: [
-        "Confucius said: 'When you are angry, think of the consequences.' Not to suppress the anger, but to see it fully — where it leads, what it is protecting, what it might cost.",
+        "Confucius listed things a wise person keeps in mind; one of them is: when angry, think of the trouble it may bring. Not to deny the anger — to see where it leads before following it.",
 
-        "Sun Tzu wrote: 'The supreme art of war is to subdue the enemy without fighting.' Anger rarely knows the full situation. It knows only how much it has been hurt.",
+        "In Zhuangzi, a man crossing a river is bumped by an empty boat, and he is not angry at all. If someone were in that boat, he would shout and curse. The boat is the same; only the story he tells about it changes. Much anger lives in that story.",
 
-        "Zhuangzi described a man rowing who was struck by another boat. He shouted in fury — then saw the boat was empty. The anger dissolved instantly. He asked: would it be so different if the boat had a distracted man in it? The empty boat reminds us: we often fill the other person with intent they may not have.",
+        "Confucius was asked for one word to guide a whole life. He answered: reciprocity — 'Do not impose on others what you would not want for yourself.' It is a simple test to bring into any argument.",
 
-        "In Zhuangzi, a wheelwright tells a Duke that the books he reads are merely dregs of dead men. The Duke is furious. The wheelwright explains: the real understanding cannot be fully put into words. Anger at others is sometimes anger at the gap between what we need to feel and what can be expressed.",
+        "In Zhuangzi, Duke Huan was reading the words of ancient sages when a wheelwright told him he was reading only the leftovers of dead men. The Duke was furious and demanded an explanation. The wheelwright said that the real skill of his own craft lived in his hands and could not be put into words. Sometimes what angers us is how much cannot be said.",
     ],
 
     tired: [
-        "Laozi wrote: 'Doing nothing, nothing is left undone.' It is one of the most misunderstood lines in Taoism. It does not mean laziness — it means stop forcing, stop pushing against the grain, and sometimes what seemed immovable begins to move.",
+        "The Tao Te Ching says the Way does nothing, yet nothing is left undone. It does not praise laziness; it describes not forcing, not pushing against the grain — and how much can settle on its own when we stop.",
 
-        "A Chinese parable tells of a gnarled, useless tree that no carpenter would cut down. In its uselessness, it grew enormous and ancient. A man dreamed the tree spoke: 'You useful trees are cut young. I survived by being useless.' There is something in rest that is not failure.",
+        "In Zhuangzi, a carpenter passes a huge old tree and calls it useless — its wood is good for nothing. That night the tree appears in his dream and says that useful trees are cut down young; it has lived so long precisely because no one could use it. Rest is not uselessness.",
 
-        "Laozi wrote: 'The valley spirit never dies.' A valley endures because it does not resist — it receives everything and holds it. Exhaustion sometimes comes not from doing too much but from holding too tightly.",
+        "Mencius wrote that when Heaven is about to give someone a great task, it first tests their mind with suffering, works their body with toil, and leaves them in want — to strengthen what is weak in them. Hard seasons are not proof that we have failed.",
 
-        "In a Chinese legend, the Yellow Emperor fell asleep and dreamed of a perfect kingdom where everything was in its right place. He woke and spent the rest of his reign not building but recognizing what was already there. Sometimes what we are exhausted from seeking, we already have.",
+        "The Tao Te Ching speaks of the valley spirit that never dies. A valley endures because it receives rather than resists. Some tiredness comes from holding too tightly.",
     ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ISLAMIC / SUFI
+// ISLAMIC / SUFI / PERSIAN (ar, ur)
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026 — the most corrected pool. REMOVED as misattributed or
+// unsourced: "Yesterday I was clever…" (not in Rumi), "the sun never says to the
+// earth 'you owe me'" (Ladinsky, not Hafez), "I have lived on the lip of
+// insanity" (a loose modern rendering), "Be empty of worrying… prison"
+// (same), the "gift I do not accept" story (it is the Buddha's — now in
+// JAPANESE_ZEN), the Prophet and the woman throwing rubbish (no hadith source),
+// and invented Nasruddin "tiger" and dervish "river" stories. ADDED: Qur'an
+// (Ya'qub 12:18/12:86, 94:5-6), authentic hadith on anger, Musa and Khidr
+// (18:60-82), Saadi's Bani Adam.
 const ISLAMIC_SUFI: CulturePool = {
     sad: [
-        "When Rumi's beloved teacher Shams-i-Tabrizi disappeared, Rumi's grief was absolute. He searched for him and wrote thousands of poems — and eventually understood that the longing itself had become the teaching. 'I have lived on the lip of insanity,' he wrote, 'wanting to know reasons, knocking on a door. It opens. I've been knocking from the inside.'",
+        "In the Qur'an, when the prophet Ya'qub was told his son Yusuf was lost, he answered, 'Beautiful patience' — and years later, grieving still, he said: 'I only complain of my grief and sorrow to God.' Patience in that story is not the absence of sorrow. It is where the sorrow is carried.",
 
-        "The Masnavi opens with the cry of a reed flute, cut from its reed bed, longing to return. Rumi says: everyone who stays far from their origin longs to return. The pain of separation is not something to fix — it is proof of what you came from.",
+        "The Masnavi of Rumi opens with the voice of a reed flute, cut from its reed bed, lamenting its separation. Everyone parted from their source, it says, longs to return. Longing is not a fault to fix; it shows what we belong to.",
 
-        "Ibrahim ibn Adham was a king who gave up his throne after a series of encounters that made him understand: none of it was what he was truly looking for. He wept for years — not from sadness alone but from the awareness of how much time had passed before he turned toward what mattered.",
+        "When Rumi's beloved companion, Shams of Tabriz, disappeared, Rumi's grief poured into thousands of verses — so many that the great collection of his lyric poems is named after Shams. Grief can become the very thing that speaks.",
 
-        "A Sufi parable: a man lost his beloved ring in the dark and searched for hours under a lamppost. A passerby asked why he was looking there if he'd dropped it inside. 'Because the light is here,' he said. Grief sometimes searches where the light is, not where the thing was lost.",
+        "Saadi wrote in the Gulistan that human beings are members of one body, made from one essence; when one member is in pain, the others cannot rest. You are not as alone in your pain as it feels.",
     ],
 
     anxious: [
-        "Rumi wrote: 'Past and future veil God from our sight; burn up both of them with fire.' He was not saying the future doesn't matter. He was saying: peace is only available now, in this moment. Worry is a kind of journey away from the only place where rest is possible.",
+        "The Qur'an says, and says twice: 'Indeed, with hardship comes ease. Indeed, with hardship comes ease.' Not after the hardship — with it. Even inside a hard time, some ease is already there.",
 
-        "A key teaching in Sufi thought is tawakkul — complete trust and surrender. A hadith says: 'Tie your camel, then put your trust in God.' Not passive resignation — but action followed by release. Do what can be done, then let go of what cannot.",
+        "A man asked the Prophet whether he should tie his camel or trust in God. He answered: 'Tie it, and trust in God.' Do what is yours to do — then let go of what is not.",
 
-        "A Mulla Nasruddin story: a man ran toward him in terror shouting, 'A tiger is chasing me!' Nasruddin replied: 'How far behind is it?' 'Very far.' 'Then why are you running so fast?' Some of what we flee has not yet arrived — and may not.",
+        "Rumi wrote in the Masnavi that past and future veil God from our sight, and told the reader to burn them both. Worry lives in the future; the only place we can actually stand is now.",
 
-        "A Sufi story: a man about to cross a river asked a dervish whether it was safe. The dervish walked across ankle-deep. 'The water is only this deep.' 'But what if there are deeper spots?' The dervish replied: 'Then you will find them — and they will only be as deep as they are.'",
+        "A Mulla Nasruddin story: a neighbour found Nasruddin searching the ground under a street lamp and helped him look for his lost key. After a long time he asked where exactly it had fallen. 'In the house,' said Nasruddin. 'Then why look here?' 'Because there is more light here.' We often search where it is easy rather than where the answer is.",
     ],
 
     angry: [
-        "A man used to throw garbage on the Prophet every day as he passed. One day he did not. The Prophet went to ask after him and found he was ill. He visited and offered help. The story is not about being passive — it is about what it costs to let resentment define your response.",
+        "The Prophet said: 'The strong man is not the one who overcomes others by his strength; the strong man is the one who controls himself when angry.' Strength, in that saying, is measured inward.",
 
-        "Rumi wrote: 'Yesterday I was clever, so I wanted to change the world. Today I am wise, so I am changing myself.' Anger at others is often the last defense against the harder work of looking inward.",
+        "The Prophet also advised that when one becomes angry while standing, one should sit down, and if the anger does not leave, lie down. Even the body can be used to slow the moment between feeling and acting.",
 
-        "Hafez wrote: 'Even after all this time, the sun never says to the earth: you owe me. Look what happens with a love like that — it lights the whole sky.' Anger keeps a ledger; love burns it.",
+        "In the Qur'an, Musa travels with a wise servant of God, Khidr, who does things that seem wrong — damaging a boat, rebuilding a wall for people who refused them food. Musa protests each time. Only at the end does Khidr explain the hidden reasons. Not everything that angers us is what it first appears.",
 
-        "A Sufi teacher was publicly insulted and expected to respond. He said: 'If you gave me a gift and I did not accept it, who would the gift belong to?' The man said: 'To me.' The teacher said: 'Then I do not accept your insult.'",
+        "Ibrahim ibn Adham was a king of Balkh who left his throne for a life of simplicity and devotion. The Sufis remembered him not for what he had, but for what he was willing to set down.",
     ],
 
     tired: [
-        "Rumi wrote: 'Be empty of worrying. Think of who created thought. Why do you stay in prison when the door is so wide open?' Rest in his poetry is a dissolving of the grip — not passivity, but the exhaustion of the ego finally setting down what it has been holding.",
+        "In the Qur'an, the prophet Ayyub lost his health, his wealth and his family, and called out to God that harm had touched him. He was restored. The Sufis hold him up not as someone who never suffered, but as someone who kept calling out through it.",
 
-        "A Sufi teaching: the river does not rest before reaching the sea — but it does not fight the land either. It flows around obstacles. The river's journey is not effortless; it is simply not wasted on resistance.",
+        "In Edward FitzGerald's version of Omar Khayyam's Rubaiyat, the world is a battered caravanserai — an inn on the road, with doorways of night and day, where travellers stop and then move on. We are not meant to carry everything forever; there are places to rest on the way.",
 
-        "Omar Khayyam wrote: 'This life is but a caravanserai — a rest stop, not a home.' Not despair, but permission. You are not meant to carry everything forever. You are meant to rest here, and then continue.",
-
-        "The Sufi concept of sabr — patient endurance — is not resignation. It is the act of continuing without bitterness, not because the difficulty has ended but because you have found what does not depend on the difficulty ending.",
+        "Sabr, patience, is one of the great virtues in Islamic teaching — not passive waiting, but steadily continuing without bitterness while a hard time lasts.",
     ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NORSE / SLAVIC
+// NORSE (world-cycle slot only — no language's own tradition)
 // ─────────────────────────────────────────────────────────────────────────────
-const NORSE_SLAVIC: CulturePool = {
+// ✅ CHECKED 26 Oct 2026. Corrected: Baldur (Loki guided the blind god Höðr's
+// hand; Odin "knowing the story wasn't over" was invented), Freyja's tears are
+// red gold (not "jewelry"), Fimbulwinter (three winters — "even the gods were
+// tired" was invented). Added: Hávamál 23 and 76.
+// ⛔ Kept apart from RUSSIAN: when both shared one pool, a Russian reply called
+//    a Russian fairy tale "Norwegian" (measured on a preview, 26 Oct).
+const NORSE: CulturePool = {
     sad: [
-        "In Norse mythology, Baldur the Beautiful was loved by everything in creation — except a single mistletoe that had been overlooked. Loki used that one oversight to kill him. The gods wept. Even the stones wept. And Odin, sitting with his grief, knew the story wasn't over — Baldur would return after the world's great renewal.",
+        "In Norse myth, Baldur was so loved that his mother Frigg made every thing in the world promise never to harm him — every thing except the small mistletoe. Loki made a dart of it and guided the blind god Höðr to throw it, and Baldur died. All things were asked to weep him back, and nearly all of them did.",
 
-        "The goddess Freya searched the nine worlds for her lost husband, weeping golden tears wherever she walked. Her grief was so powerful it became jewelry — turned to gold wherever it touched the earth. Even the Norse understood: love that has been lost leaves something behind.",
+        "In Norse myth, the goddess Freyja wept for her absent husband Óðr as she travelled in search of him, and her tears turned to red gold. Love that misses someone leaves something precious behind.",
 
-        "In Russian folktales, Ivan often loses the thing he loves — and must travel to the ends of the earth to find it again. The journey is never guaranteed. But the stories always begin with the same thing: he set out anyway.",
-
-        "In Norse belief, those who died in battle were carried by the Valkyries to Valhalla — chosen not just for courage but to be honored. The Norse did not look away from loss; they tried to make meaning out of it.",
+        "The Hávamál, the old Norse sayings of the High One, says that cattle die and kinsmen die, and we too shall die — but one thing never dies: the good name of the dead. What a person was to others does not vanish with them.",
     ],
 
     anxious: [
-        "Odin hung himself from Yggdrasil, the world tree, for nine days — wounded, without food or water — to receive the runes. He gave his eye to drink from the well of wisdom. The Norse understood that real knowledge required something of you, and that the fear of the cost was often worse than the cost itself.",
+        "The Hávamál, the old Norse sayings of the High One, says the foolish man lies awake all night, turning everything over; when morning comes he is worn out, and his trouble is just as it was.",
 
-        "Thor went fishing for the Midgard Serpent — the creature that encircles the entire world. When it surfaced, he did not back away. He lifted his hammer. Norse mythology is full of characters who face what cannot be defeated and go toward it anyway — because that is what it means to be alive.",
+        "In Norse myth, three Norns sit at the roots of the world tree and shape the fates of all beings. The Norse did not imagine they could control everything — they cared about how one met what came.",
 
-        "In Norse myth, three women called the Norns sit at the roots of the world tree and weave fate. Not even the gods can change what the Norns have woven. The Norse acceptance of fate was not passive — they believed you could face your fate with such courage that it would be worth singing about.",
-
-        "In Slavic folklore, heroes must visit Baba Yaga — the fierce witch at the edge of the forest. She will help you or harm you, depending on how you ask and what you do. The forest that frightens you most often holds what you are looking for.",
+        "In the Hávamál, Odin tells how he hung on the windswept tree for nine nights, wounded by a spear, without bread or drink, and at the end took up the runes. Knowledge, in that poem, comes through enduring something hard.",
     ],
 
     angry: [
-        "Thor's anger in Norse mythology is elemental — literal thunder and lightning. But in the stories that show him at his best, the anger is always directed at genuine threats. The Norse distinguished between rage that protects and rage that destroys.",
+        "In the Völsunga saga, Sigurd killed the dragon Fafnir not by charging at it, but by digging a pit on its path and waiting. Strength guided by a plan did what rage could not.",
 
-        "Loki began as a trickster — chaotic but creative, bending rules to solve impossible problems. But over time, his resentments accumulated until they became irreversible. His story asks: at what point does clever bitterness become something that cannot be undone?",
-
-        "Sigurd killed the dragon Fafnir not out of rage, but out of purpose. He dug a pit and waited. The anger was channeled into a plan — and the plan was what succeeded. The Norse sagas distinguished carefully between warriors who fight in rage and those who fight with intention.",
-
-        "In Slavic folk tales, the hero often faces a giant whose power seems absolute. The giant cannot be defeated by force alone. The hero must use wit, patience, and respectful cleverness. Pure anger at what is larger than you usually ends the story badly.",
+        "In Norse myth, Loki begins as a clever trickster who helps the gods out of trouble. His story darkens until his deeds can no longer be undone. The myths seem to ask when cleverness and resentment cross a line that cannot be uncrossed.",
     ],
 
     tired: [
-        "In Norse prophecy, before Ragnarök comes Fimbulwinter — three years of endless winter with no summer between. Even the gods were tired. The world itself grew exhausted before its great ending and beginning. And the world still turned.",
+        "Norse myth tells of Fimbulwinter — three winters in a row with no summer between, before the world's great ending and renewal. Even the myths that imagine the world's end imagine it beginning again.",
 
-        "Odin spent much of his existence traveling disguised — a wandering old man, learning what the world held. He was not resting. But the wandering itself was rest of a kind — movement that did not demand arrival.",
-
-        "Yggdrasil, the world tree, has its roots gnawed by serpents from below. It holds everything together — and it is never done holding. Even the tree at the center of all worlds does not get to rest. But it endures.",
-
-        "In Slavic tales, the hero always returns home eventually — often unrecognized, often changed past the point where home feels like home anymore. The exhaustion of the journey is real. But so is the return.",
+        "In Norse myth, the world tree Yggdrasil holds the nine worlds, while a serpent gnaws at its root and deer bite its branches. It suffers more than anyone knows, the poem says — and it still stands.",
     ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JAPANESE / ZEN / BUDDHIST
+// RUSSIAN (ru)
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026. Every line names its source as Russian, so a reply
+// cannot pass it off as another tradition's. Tales from Afanasyev's collection
+// (Vasilisa the Beautiful, the Turnip), the byliny (Ilya Muromets), Pushkin's
+// "Tale of the Fisherman and the Fish", Tolstoy's "Three Questions" and
+// "A Spark Neglected Burns the House", Chekhov's "Misery", Dostoevsky's
+// "The Brothers Karamazov" (epilogue), and common Russian proverbs.
+const RUSSIAN: CulturePool = {
+    sad: [
+        "In Russian fairy tales, the hero often loses what he loves and must travel 'beyond thrice-nine lands' to find it again. The tales never promise the road will be easy. They begin with someone setting out anyway.",
+
+        "In Anton Chekhov's story 'Misery', the old cab driver Iona has lost his son, and all evening he tries to tell his passengers about it. Nobody listens. At last he tells the whole story to his little horse. Chekhov understood how much a grieving person needs simply to be heard.",
+
+        "At the end of Dostoevsky's 'The Brothers Karamazov', Alyosha stands with a group of boys after the funeral of their friend Ilyusha and tells them that one good memory, kept from childhood, may be the best education of all — and may one day save a person. Grief and love, he says, keep us kind.",
+    ],
+
+    anxious: [
+        "A Russian proverb says: 'The morning is wiser than the evening.' In the old Russian fairy tales, when the hero is given an impossible task at night, he is told to go to sleep — and in the morning the way looks different.",
+
+        "In the Russian fairy tale 'Vasilisa the Beautiful', the girl's dying mother gives her a small doll. Whenever Vasilisa is set an impossible task — even by the witch Baba Yaga — she feeds the doll and tells it her troubles, and it says: 'Go to sleep. The morning is wiser than the evening.'",
+
+        "In Leo Tolstoy's story 'Three Questions', a king wants to know the right time to act, the most important person, and the most important thing to do. He learns the answer through what happens to him: the most important time is now; the most important person is the one you are with; the most important thing is to do them good.",
+
+        "A Russian proverb says: 'The eyes are afraid, but the hands do the work.' A task that looks impossible from outside gets smaller once the hands begin.",
+    ],
+
+    angry: [
+        "In Tolstoy's 'Three Questions', a man who came to harm the king is wounded, and the king — not knowing who he is — tends his wound. The man becomes his friend. Kindness given in the moment turned an enemy around.",
+
+        "In Tolstoy's story 'A Spark Neglected Burns the House', two peasant neighbours begin quarrelling over a single egg. Each insult answers the last, until one of them sets fire to the other's barn — and the fire takes the whole village. Tolstoy shows how small an anger is when it starts, and how hard it is to stop once it spreads.",
+
+        "In Pushkin's 'Tale of the Fisherman and the Fish', an old man's wife keeps demanding more from the magic golden fish — a new trough, a house, a palace, a throne. Each wish only makes her angrier. In the end she is back where she began, beside her broken trough.",
+
+        "A Russian proverb says: 'A word is not a sparrow — once it flies out, you will not catch it.' Words said in anger cannot be called back.",
+    ],
+
+    tired: [
+        "A Russian proverb says: 'The slower you go, the further you'll get.' Tiredness is sometimes a sign that we have been running at a pace no one could keep.",
+
+        "In the Russian folk tale 'The Turnip', the grandfather cannot pull the giant turnip out alone. The grandmother joins him, then the granddaughter, the dog, the cat — and only when the little mouse adds its strength does the turnip come out. No one was meant to pull alone.",
+
+        "In the Russian byliny, the hero Ilya Muromets could not walk and sat at home on the stove for thirty-three years before his strength came to him. The old songs did not count those years as wasted.",
+    ],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JAPANESE / ZEN / BUDDHIST (ja)
+// ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026. Removed as unsourced: a monk "weeping because he
+// weeps", a Zen "mirror" story, a duplicate archery line and a duplicate "chop
+// wood". Added: Ryōkan's moon, "fall seven times, stand up eight", kintsugi,
+// Urashima Tarō, and the Buddha's refused insult (Akkosa Sutta).
 const JAPANESE_ZEN: CulturePool = {
     sad: [
-        "Japanese aesthetics has a concept: mono no aware — the bittersweet awareness of impermanence. Cherry blossoms are loved precisely because they fall. The beauty is inseparable from the passing. Not all grief is a wound. Some of it is just seeing clearly.",
+        "Japanese aesthetics has a phrase, mono no aware — the gentle sadness of seeing that things pass. Cherry blossoms are loved partly because they fall so soon. Not all grief is a wound; some of it is love noticing time.",
 
-        "In Shinto mythology, Izanagi descended into Yomi — the realm of the dead — to bring back his wife. He was told not to look at her. He looked. She was already changed by death. He fled. The story asks: what does love owe the dead, and what does it owe the living?",
+        "In the Kojiki, Izanagi went down to the land of the dead to bring back his wife Izanami. She asked him not to look at her. He lit a light, saw how death had changed her, and fled. The old story asks what love owes the dead — and what it owes the living.",
 
-        "A Zen story: a monk was weeping at his teacher's grave. Another monk asked: didn't you teach that death was simply change? The weeping monk said: 'I weep because I weep.' The grief does not need a philosophy to justify it. It is simply what is here.",
+        "Kintsugi is the Japanese craft of mending broken pottery with lacquer and gold. The cracks are not hidden; they become part of the bowl's beauty. Being broken and being mended can both be part of a life.",
 
-        "In Zen, mushin — 'no mind' — is the state of meeting each moment without the weight of the past. Not forgetting, but not carrying. A grief that has been fully felt does not become nothing; it becomes something you can set down.",
+        "In the Japanese tale, the fisherman Urashima Tarō stays in the palace under the sea for what feels like three years. When he returns home, everyone he knew is gone; centuries have passed. It is an old story about how time and loss can surprise us — and how much the people around us mattered.",
     ],
 
     anxious: [
-        "A Zen master poured tea into a visitor's cup and kept pouring even as it overflowed. 'Like this cup,' he said, 'you are full of your own opinions and worries. How can anything new enter unless you first empty your cup?' The anxiety that fills us leaves no room for what would actually help.",
+        "A Zen story: a professor visited the master Nan-in to ask about Zen. Nan-in served tea, and kept pouring after the cup was full. 'It is overflowing!' the professor said. 'Like this cup,' said Nan-in, 'you are full of your own opinions. How can I show you anything unless you first empty your cup?'",
 
-        "Zen monks are given koans — impossible questions like 'what is the sound of one hand clapping?' They are not meant to be solved by thinking. They are meant to exhaust the thinking mind until something deeper opens. Some anxieties are like koans: keep working them until the question itself dissolves.",
+        "A proud samurai asked the Zen master Hakuin whether heaven and hell were real. Hakuin mocked him until the samurai drew his sword in rage. 'Here open the gates of hell,' said Hakuin. The samurai understood, sheathed his sword and bowed. 'Here open the gates of heaven.' The difference was one breath.",
 
-        "A fearsome samurai came to a Zen master demanding to be taught about heaven and hell. The master insulted him. The samurai drew his sword in fury. The master said: 'That is hell.' The samurai paused, sheathed his sword, bowed. The master said: 'That is heaven.' The gap between them was one breath.",
+        "A Japanese proverb says: 'Fall down seven times, get up eight.' It does not promise we will not fall.",
 
-        "In Zen archery, the student learns that the target is not outside them — it is the stillness inside. The training is not about the arrow. It is about the state of the person releasing it.",
+        "Zen students work with koans, such as Hakuin's 'What is the sound of one hand?' They are not solved by thinking harder. Some worries are like that too — they loosen when we stop trying to think our way out of them.",
     ],
 
     angry: [
-        "A Buddhist teacher once said: anger is like a coal you hold in your hand intending to throw it at someone. You are the one being burned right now.",
+        "In a Buddhist sutta, a man insulted the Buddha to his face. The Buddha asked him: if you offer food to a guest and the guest does not take it, to whom does the food belong? 'To me,' the man said. 'Then I do not accept your abuse,' said the Buddha. 'It stays with you.'",
 
-        "A Zen story: a student asked why his anger kept returning even after he had apologized and tried to move on. The master held up a mirror. 'What do you see?' 'Myself.' 'The mirror does not hold what it reflects. Your mind can learn the same.'",
+        "A Zen story: one night a thief broke into the hut of the poet-monk Ryōkan and found nothing to steal. Ryōkan gave him his own clothes. When the thief had gone, Ryōkan sat looking at the moon and wished he could have given him that too. Even after being wronged, he looked for what was still beautiful.",
 
-        "A monk saw a scorpion drowning and saved it — and was stung. This happened three times. A passerby asked: why do you keep helping it? The monk said: it is the scorpion's nature to sting. It is my nature to help. Why should I change my nature because it cannot change its?",
-
-        "Zen teaches that the archer who shoots in anger has already missed — before the arrow leaves the bow. The practice is not about the target. It is about what state you shoot from.",
+        "A folk story is told of a monk who kept lifting a drowning scorpion out of the water and kept being stung. Asked why, he said: stinging is the scorpion's nature; helping is mine. Why give up my nature because of its?",
     ],
 
     tired: [
-        "A student asked a Zen master: 'What happens after enlightenment?' The master said: 'Chop wood, carry water.' The work does not change. But the one doing the work has changed. Tiredness sometimes comes not from the work but from the argument with the work.",
+        "The Zen layman Pang said his miraculous power was simply this: carrying water and chopping firewood. Ordinary work, done fully, was the practice itself.",
 
-        "In Japanese philosophy, bamboo is a model: it bends fully under the weight of snow, then springs back when the snow falls. It does not resist the weight. It carries it and then releases it. Rest is the spring-back, not the avoidance of the snow.",
+        "In Japanese poetry and painting, bamboo is admired because it bends under heavy snow and springs back when the snow slides off. It does not refuse the weight; it lets it pass.",
 
-        "The ideal of wabi-sabi in Japanese aesthetics: finding beauty in imperfection and impermanence. The cracked bowl, the worn path. Exhaustion, too, has its beauty — it is proof of something given fully.",
-
-        "A Zen aphorism: 'Before enlightenment, chop wood, carry water. After enlightenment, chop wood, carry water.' The tasks do not disappear. The relationship with the tasks changes. Rest is not the end of effort — it is effort meeting itself without resistance.",
+        "Wabi-sabi is the Japanese way of finding beauty in what is simple, worn and imperfect — the chipped bowl, the old path. Tiredness, too, can be the mark of something given fully.",
     ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JEWISH / TALMUDIC
+// JEWISH / TALMUDIC (he)
 // ─────────────────────────────────────────────────────────────────────────────
+// ✅ CHECKED 26 Oct 2026. Corrected: Joseph is in GENESIS (the old line said
+// "the Mahabharata"); Miriam's Well (it followed the Israelites in Miriam's
+// merit — "wherever songs were sung" was invented). Removed as unsourced: a
+// Baal Shem Tov quote, a Talmudic "tell it three times" story, and the Golem
+// that "could not observe Shabbat". Added: Psalm 34:18, Psalm 30:5,
+// Ecclesiastes 3:1, gam zu l'tova (Taanit 21a), Rabbi Tarfon (Avot 2:16).
 const JEWISH: CulturePool = {
     sad: [
-        "The Baal Shem Tov, founder of Hasidic Judaism, taught that even sadness is part of the divine — because it pushes us toward connection. 'God is found,' he said, 'in the broken places.' Not despite the grief, but through it.",
+        "The Psalms say: 'The Lord is near to the brokenhearted, and saves those who are crushed in spirit.' The tradition does not tell the broken-hearted to hurry up and heal; it tells them they are not alone.",
 
-        "In the Book of Ruth, Naomi — having lost her husband and both sons — told her daughters-in-law to return to their own people. Ruth said: 'Where you go, I will go. Where you die, I will die.' She chose grief over comfort, connection over safety. The Talmud calls this chesed — lovingkindness without calculation.",
+        "In the Book of Ruth, Naomi lost her husband and both her sons, and urged her daughter-in-law Ruth to go back to her own people. Ruth answered: 'Where you go, I will go; where you lodge, I will lodge; where you die, I will die.' Jewish tradition holds her up as a model of chesed — loving-kindness.",
 
-        "The Book of Lamentations is an entire text of grief — written after the destruction of Jerusalem. It does not pretend the grief is small or explain it away. Jewish tradition kept it in scripture. The grief was considered holy enough not to remove.",
+        "The Book of Lamentations is grief set down after the destruction of Jerusalem. It does not make the loss small or explain it away. The tradition kept it in scripture and reads it every year. Grief was considered worth keeping.",
 
-        "The Talmud teaches: whoever saves a single life, it is as if they saved an entire world. And: each person should say, 'the world was created for my sake.' Not arrogance — the reminder that you are not a small thing. Even in your grief, you are not a small thing.",
+        "A Psalm says: 'Weeping may stay for the night, but joy comes in the morning.' Night is real, and it is not the whole of the day.",
     ],
 
     anxious: [
-        "In the Exodus story, the Israelites stood at the Red Sea with the Egyptian army behind them. There was nowhere to go. According to one interpretation, the sea did not part first — it parted when one person walked in up to his nose. The miracle waited for the first step into the impossible.",
+        "A midrash tells that when the Israelites stood at the Red Sea with the Egyptian army behind them, the sea did not part until one man, Nachshon, walked into the water up to his nose. Sometimes the way opens only after the first step.",
 
-        "Hillel taught: 'If I am not for myself, who will be for me? If I am only for myself, what am I? And if not now, when?' Three questions, each turning the person back toward the moment they are actually in. Not someday. Now.",
+        "Hillel taught: 'If I am not for myself, who will be for me? If I am only for myself, what am I? And if not now, when?' Three questions that bring a person back to the present moment.",
 
-        "Rabbi Nachman of Bratslav wrote: 'The world is a very narrow bridge, and the most important thing is not to be afraid at all.' Not: the bridge is wide. Not: the fall is safe. The bridge is narrow — and the task is to walk it without being paralyzed.",
+        "Rabbi Nachman of Breslov taught that the whole world is a very narrow bridge, and the main thing is not to be afraid. He did not say the bridge is wide.",
 
-        "In Jewish folklore, the Golem was created to protect. But unchecked, it grew uncontrollable. The stories about the Golem are stories about the thing we build to manage our fear — which eventually must be returned to clay before it destroys what it was meant to guard.",
+        "Ecclesiastes says: 'To every thing there is a season, and a time to every purpose under heaven' — a time to weep and a time to laugh, a time to mourn and a time to dance. Whatever season this is, it is a season.",
     ],
 
     angry: [
-        "When Moses came down from Sinai and found the people worshipping the golden calf, he threw down and broke the tablets. The Talmud does not condemn him for this. Some rabbis say God agreed — the covenant could not be received by people not ready to receive it. There are moments when anger is the truthful response.",
+        "The Book of Proverbs says: 'One who is slow to anger is better than a warrior, and one who rules their spirit than one who takes a city.' Mastering anger was counted among the hardest victories.",
 
-        "In the Mahabharata, Joseph was sold into slavery by his own brothers out of jealousy. Years later, when his brothers came before him in Egypt not knowing who he was, he wept — not from weakness but from recognizing that the story had moved further than the wound. He chose differently.",
+        "In Genesis, Joseph was sold into slavery by his own brothers. Years later, when they stood before him in Egypt without recognizing him, he wept — and in the end he forgave them. What was done to him was real; what he chose to do next was his own.",
 
-        "Proverbs 16:32 — 'One who is slow to anger is better than a warrior, and one who rules their spirit than one who captures a city.' The Hebrew tradition placed mastery of anger among the highest human achievements — not because the anger was wrong, but because the mastery was harder.",
-
-        "A Talmudic story: a student came to his teacher enraged at being treated unfairly. The teacher said: 'Tell me the story three times.' Each time, the student told it, less of it was about injustice and more of it was about pain. By the third telling, they were talking about the pain.",
+        "When Moses came down from Sinai and found the people worshipping a golden calf, he broke the tablets. The Talmud records the view that God approved of what he did. Jewish tradition did not pretend that anger is never right.",
     ],
 
     tired: [
-        "The Shabbat — the Jewish day of rest — is commanded alongside the greatest moral imperatives. Rest was not the absence of work; it was the crown of it. The world needed to be created first — and then it needed to be rested in.",
+        "In the Book of Kings, the prophet Elijah, exhausted after a great struggle, sat under a broom tree and asked to die: 'It is enough.' An angel touched him and said, 'Arise and eat, for the journey is too great for you.' He was given bread and water, and he slept again. No lecture. Just food and rest.",
 
-        "In the Book of Kings, the prophet Elijah — after a great victory — sat under a juniper tree and asked to die. He said: 'It is enough.' An angel came and touched him and said: 'Arise and eat — the journey is too great for you.' Not a lecture. Just: here is bread, here is water, sleep again.",
+        "The Talmud tells of Nachum Ish Gamzu, who met every misfortune with the words 'gam zu l'tova' — 'this too is for the good.' It was not denial; it was a refusal to let the hard moment have the last word.",
 
-        "Jewish tradition tells of Miriam's Well — a miraculous spring said to follow the Israelites through the desert, appearing wherever songs were sung. Sometimes exhausted people need the reminder: the water is still near. You may need to sing before it appears.",
+        "Rabbi Tarfon taught: 'It is not your duty to finish the work, but neither are you free to walk away from it.' You do not have to finish everything today.",
 
-        "In many versions of the Golem legend, the Golem could not observe Shabbat — it did not know how to rest. This was considered its greatest limitation. Without rest, it could not be truly alive.",
+        "Shabbat, the day of rest, is among the Ten Commandments themselves. In Jewish tradition, rest is not a reward for finishing everything — it is part of how a life is made whole.",
     ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Culture registry
 // ─────────────────────────────────────────────────────────────────────────────
-type CultureKey = "indian" | "greek_roman" | "chinese" | "islamic_sufi" | "norse_slavic" | "japanese_zen" | "jewish";
+type CultureKey = "indian" | "greek_roman" | "chinese" | "islamic_sufi" | "norse" | "russian" | "japanese_zen" | "jewish";
 
 const CULTURE_POOLS: Record<CultureKey, CulturePool> = {
     indian:       INDIAN,
     greek_roman:  GREEK_ROMAN,
     chinese:      CHINESE,
     islamic_sufi: ISLAMIC_SUFI,
-    norse_slavic: NORSE_SLAVIC,
+    norse:        NORSE,
+    russian:      RUSSIAN,
     japanese_zen: JAPANESE_ZEN,
     jewish:       JEWISH,
 };
 
 // Non-Indian cultures in a fixed cycle order for "other world" slot
 const WORLD_CULTURES: readonly CultureKey[] = [
-    "greek_roman", "chinese", "islamic_sufi", "norse_slavic", "japanese_zen", "jewish",
+    "greek_roman", "chinese", "islamic_sufi", "norse", "russian", "japanese_zen", "jewish",
 ];
 
 // Language → primary culture
@@ -422,7 +507,7 @@ const LANG_PRIMARY: Record<string, CultureKey> = {
     zh: "chinese",
     es: "greek_roman", pt: "greek_roman",
     fr: "greek_roman", de: "greek_roman",
-    ru: "norse_slavic",
+    ru: "russian",
     ja: "japanese_zen",
     he: "jewish",
 };
@@ -509,19 +594,23 @@ const SIGNAL_THEME: Record<MythSignal, string> = {
  * (or none) without us guessing the feeling from words in 22 languages.
  * Stories whose figure was already used this session are skipped.
  *
- * Returns null for languages whose own collections are not checked yet —
- * those keep the older free behaviour until they are.
+ * Every language gets its own tradition's checked pool (26 Oct 2026); the
+ * return type still allows null so a future unchecked pool can opt out.
  */
 export function verifiedStoriesFor(
     lang: string,
     seed: number,
     alreadyUsed: readonly string[] = [],
 ): { theme: string; text: string }[] | null {
-    if ((LANG_PRIMARY[lang] ?? "indian") !== "indian") return null;
+    // ✅ 26 Oct 2026: EVERY language now gets its own tradition's CHECKED pool.
+    // Until then only English + the Indian languages did; Arabic, Urdu, Chinese,
+    // Japanese, the European languages, Russian and Hebrew fell back to stories
+    // told from memory — the path where episodes and quotes get invented.
+    const pools = CULTURE_POOLS[LANG_PRIMARY[lang] ?? "indian"];
     const used = alreadyUsed.map((u) => u.toLowerCase());
     const out: { theme: string; text: string }[] = [];
-    (Object.keys(INDIAN) as MythSignal[]).forEach((signal, k) => {
-        const pool = INDIAN[signal].filter((t) => !used.some((u) => u && t.toLowerCase().includes(u)));
+    (Object.keys(pools) as MythSignal[]).forEach((signal, k) => {
+        const pool = pools[signal].filter((t) => !used.some((u) => u && t.toLowerCase().includes(u)));
         // ⚠️ TWO per feeling: with one, grief over a father was handed King
         // Bharata's deer as its only "sad" story — true, but a poor fit.
         for (let j = 0; j < Math.min(2, pool.length); j++)

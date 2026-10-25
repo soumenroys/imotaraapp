@@ -51,11 +51,12 @@ describe("the checked collection", () => {
       expect(eng, gone).not.toContain(gone);
     expect(eng).toContain("only young Vikarna spoke up");
   });
-  it("hands two stories per feeling for Bengali, none for unchecked languages", async () => {
+  it("hands two stories per feeling, in every language", async () => {
     const { verifiedStoriesFor } = await import("@/lib/ai/orchestrator/mythologyEngine");
     expect(verifiedStoriesFor("bn", 7)).toHaveLength(8);
     expect(verifiedStoriesFor("en", 7)).toHaveLength(8);
-    expect(verifiedStoriesFor("ar", 7)).toBeNull();
+    // 26 Oct 2026: every language now gets its own tradition's CHECKED pool.
+    expect(verifiedStoriesFor("ar", 7)).toHaveLength(8);
   });
   it("skips a figure already used in the conversation", async () => {
     const { verifiedStoriesFor } = await import("@/lib/ai/orchestrator/mythologyEngine");

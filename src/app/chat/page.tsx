@@ -1862,11 +1862,31 @@ export default function ChatPage() {
   );
 
   // #M-6: Geo-aware crisis resources — respects manual override from Settings (P-3)
+  // 🔑 25 Oct 2026: the browser's locale is a preference, not a location — a
+  //    Bengali-locale laptop in London was shown Indian numbers. The edge's country
+  //    (/api/geo/country) replaces the guess once it answers; the card never waits
+  //    for it, and an explicit Settings choice still wins over both.
+  const [edgeCountry, setEdgeCountry] = useState<string | null>(null);
+  useEffect(() => {
+    let cached: string | null = null;
+    try { cached = sessionStorage.getItem("imotara.edge.country.v1"); } catch { /* private mode */ }
+    if (cached) { setEdgeCountry(cached); return; }
+    let cancelled = false;
+    fetch("/api/geo/country", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { country?: string | null } | null) => {
+        if (cancelled || !j?.country) return;
+        setEdgeCountry(j.country);
+        try { sessionStorage.setItem("imotara.edge.country.v1", j.country); } catch { /* private mode */ }
+      })
+      .catch(() => { /* keep the locale guess */ });
+    return () => { cancelled = true; };
+  }, []);
   const crisisCountryResources = useMemo(() => {
     const override = typeof localStorage !== "undefined" ? localStorage.getItem("imotara.crisis.country.v1") : null;
-    const code = (override && override !== "auto") ? override : detectCountryCode();
+    const code = (override && override !== "auto") ? override : (edgeCountry ?? detectCountryCode());
     return getCrisisResourcesForCountry(code);
-  }, []);
+  }, [edgeCountry]);
 
   // Close open capsule menu on click-away
   useEffect(() => {

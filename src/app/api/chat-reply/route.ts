@@ -272,6 +272,18 @@ export function replyTokenBudget(
     return (resolvedLang && resolvedLang !== "en") ? Math.round(base * 1.4) : base;
 }
 
+/**
+ * 🔑 THE COUNTRY THE EDGE SAW, for the crisis card — the same hint /api/respond
+ * has always returned as meta.resolvedCountry. ⚠️ This route is the one both
+ * clients actually use (stream and JSON), and it never sent it, so a Bengali-locale
+ * phone in London kept being shown Tele-MANAS (checked 25 Oct). Header only: no
+ * IP, no coordinate, nothing stored. null when the edge could not place it.
+ */
+function edgeCountry(req: Request): string | null {
+  const c = req.headers.get("x-vercel-ip-country")?.trim().toUpperCase() ?? "";
+  return /^[A-Z]{2}$/.test(c) ? c : null;
+}
+
 export async function POST(req: Request) {
   try {
     const ip = getClientIp(req);
@@ -3810,8 +3822,12 @@ export async function POST(req: Request) {
         : maxTokens;
       const encoder = new TextEncoder();
 
+      const resolvedCountry = edgeCountry(req);
       const readable = new ReadableStream({
         async start(controller) {
+          // 🔑 First, before any words: the country hint. Clients that do not know this
+          //    event skip it — both readers only take events carrying "t".
+          if (resolvedCountry) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: { resolvedCountry } })}\n\n`));
           try {
             for await (const token of streamImotaraAI("Reply now.", {
               system: streamSystem,
@@ -3888,6 +3904,7 @@ export async function POST(req: Request) {
             ...(ai?.meta ?? {}),
             from: "fallback",
             reason: "filtered-placeholder-reply",
+            resolvedCountry: edgeCountry(req),
           },
         },
         { status: 200 },
@@ -3955,6 +3972,7 @@ export async function POST(req: Request) {
         meta: {
           ...(ai?.meta ?? {}),
           framework: "three-part-v1",
+          resolvedCountry: edgeCountry(req),
         },
       },
       { status: 200 },

@@ -37,14 +37,14 @@ describe("server: a source language is a hint, never a reason to refuse", () => 
 
 (hasMobileRepo() ? describe : describe.skip)("mobile sends the sender's language", () => {
     it("both translate calls pass sourceLang from the sender", () => {
-        const src = readMobileFile("src/screens/connect/ConnectScreen.tsx");
+        const src = readMobileFile("src/screens/connect/ConnectScreen.tsx") ?? "";
         const calls = src.match(/sourceLang: senderLang\(/g) ?? [];
         expect(calls.length).toBe(2);
         expect(src).not.toMatch(/JSON\.stringify\(\{ text(: msg\.content)?, targetLang: lang \}\)/);
     });
 
     it("uses the same two-participant rule as web", () => {
-        const src = readMobileFile("src/screens/connect/ConnectScreen.tsx");
+        const src = readMobileFile("src/screens/connect/ConnectScreen.tsx") ?? "";
         expect(src).toMatch(/if \(senderId === session\.user_id\) return session\.user_lang \?\? undefined;\s*return session\.consultant_lang \?\? undefined;/);
     });
 });

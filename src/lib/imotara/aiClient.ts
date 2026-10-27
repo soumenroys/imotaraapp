@@ -424,7 +424,7 @@ export async function callImotaraAI(
       `[imotara][aiClient] primary slow past ${plan.hedgeAfterMs}ms — starting Gemini alongside it (${left}ms left)`,
     );
     try {
-      return await callGeminiAI(prompt, { ...options, abortMs: Math.max(1_000, left) });
+      return await callGeminiAI(prompt, { ...options, abortMs: Math.max(1_000, left) }, true);
     } catch {
       return { text: "", meta: { usedModel: "", from: "error", reason: "hedge threw" } };
     }
@@ -790,13 +790,19 @@ async function geminiTryModel(
 async function callGeminiAI(
   prompt: string,
   options: CallImotaraAIOptions = {},
+  // 🔴 true when Gemini runs as the HEDGE — started alongside a slow OpenAI
+  // call that may still answer. Its failure then says nothing about an outage:
+  // on 26 Oct 2026 a hedge given ~1 s timed out and mailed "TOTAL AI OUTAGE"
+  // while OpenAI answered normally. A real outage is still alerted — OpenAI's
+  // own failure path calls this WITHOUT asHedge.
+  asHedge = false,
 ): Promise<ImotaraAIResponse> {
   const apiKey = aiKeyFor("gemini", options.feature);
   const model = GEMINI_MODEL;
 
-  // Every failure path here is reached only after OpenAI has ALREADY failed
-  // (this function is called solely as callImotaraAI's fallback), so a failure
-  // that survives the retry below means no working engine at all.
+  // Two callers: OpenAI's own failure path (asHedge false — a failure here
+  // means no working engine at all) and the hedge started beside a slow OpenAI
+  // call (asHedge true — OpenAI may still answer). ⇒ reportGeminiFailure.
   if (!apiKey) {
     void sendOutageAlert("GEMINI_API_KEY not set", "total_outage");
     return {
@@ -839,9 +845,9 @@ async function callGeminiAI(
       };
     }
 
-    void sendOutageAlert(
+    reportGeminiFailure(
       `Both Gemini models failed — "${model}": ${first.reason} | "${GEMINI_LAST_RESORT_MODEL}": ${retry.reason}`,
-      "total_outage",
+      asHedge,
     );
     return {
       text: "",
@@ -849,10 +855,7 @@ async function callGeminiAI(
     };
   }
 
-  void sendOutageAlert(
-    `Gemini failed on model "${model}": ${first.reason}`,
-    "total_outage",
-  );
+  reportGeminiFailure(`Gemini failed on model "${model}": ${first.reason}`, asHedge);
   return {
     text: "",
     meta: { usedModel: model, from: "error", reason: first.reason },
@@ -1130,12 +1133,12 @@ async function* streamGeminiTryModel(
 async function* streamGeminiAI(
   prompt: string,
   options: CallImotaraAIOptions = {},
+  asHedge = false, // ⇒ callGeminiAI's comment
 ): AsyncGenerator<string, void, unknown> {
   const apiKey = aiKeyFor("gemini", options.feature);
   const model = GEMINI_MODEL;
-  // Like callGeminiAI, this generator runs only after the OpenAI stream has
-  // already failed, so any exit without tokens is a total outage. Every one of
-  // these exits used to be completely silent — the stream simply ended with
+  // Same two callers as callGeminiAI (fallback vs hedge) ⇒ reportGeminiFailure.
+  // These exits used to be completely silent — the stream simply ended with
   // zero tokens and the client fell through to template replies with no trace.
   if (!apiKey) {
     void sendOutageAlert("GEMINI_API_KEY not set (streaming)", "total_outage");
@@ -1172,17 +1175,26 @@ async function* streamGeminiAI(
     );
     if (retry.ok) return;
 
-    void sendOutageAlert(
+    reportGeminiFailure(
       `Both Gemini models failed on the streaming path — "${model}": ${first.reason} | "${GEMINI_LAST_RESORT_MODEL}": ${retry.reason}`,
-      "total_outage",
+      asHedge,
     );
     return;
   }
 
-  void sendOutageAlert(
-    `Gemini stream failed on model "${model}": ${first.reason}`,
-    "total_outage",
-  );
+  reportGeminiFailure(`Gemini stream failed on model "${model}": ${first.reason}`, asHedge);
+}
+
+/**
+ * A Gemini failure is a TOTAL outage only when Gemini was the fallback after
+ * OpenAI had already failed. As the hedge it is just a backup that lost.
+ */
+function reportGeminiFailure(reason: string, asHedge: boolean): void {
+  if (asHedge) {
+    console.warn(`[imotara][aiClient] Gemini hedge failed (OpenAI may still answer): ${reason}`);
+    return;
+  }
+  void sendOutageAlert(reason, "total_outage");
 }
 
 /**
@@ -1251,7 +1263,7 @@ export async function* streamImotaraAI(
       console.warn(
         `[imotara][aiClient] stream silent past ${plan.hedgeAfterMs}ms — starting Gemini alongside it (${left}ms left)`,
       );
-      return streamGeminiAI(prompt, { ...options, abortMs: Math.max(1_000, left) });
+      return streamGeminiAI(prompt, { ...options, abortMs: Math.max(1_000, left) }, true);
     },
     // The primary already spoke — never spend the second call.
     () => firstTokenSeen,

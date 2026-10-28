@@ -277,6 +277,7 @@ const NOTES: Partial<Record<Column, string>> = {
   call_date: "YOU FILL: the day to call, e.g. 2026-11-03. A new, later date calls again.",
   call_time: "YOU FILL: the time to call, 24-hour, e.g. 11:00. ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
   call_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
+  asked_for_call: "YOU FILL: yes ONLY if the person themselves asked us to call (website, 'call me' to the team). Write when and how in consent_note. Until TRAI DLT is done, individuals are called only with yes here.",
   do_not_contact: "YOU FILL: type yes to stop ALL calls and emails to this person.",
   call_progress: "SYSTEM: where calling stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem · 🔴 safety.",
   mail_progress: "SYSTEM: where email stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem.",
@@ -287,7 +288,7 @@ const NOTES: Partial<Record<Column, string>> = {
 const WIDTHS: Partial<Record<Column, number>> = {
   phone: 130, name: 170, organisation: 190, consent_note: 260, email: 220, context: 200,
   call_summary: 260, next_action: 240, call_progress: 300, mail_progress: 300, what_to_do: 380, do_not_contact: 120,
-  contact_by_email: 120, contact_by_phone: 120, mail_date: 110, mail_time: 90, mail_time_zone: 140, call_date: 110, call_time: 90, call_time_zone: 140,
+  contact_by_email: 120, contact_by_phone: 120, asked_for_call: 120, mail_date: 110, mail_time: 90, mail_time_zone: 140, call_date: 110, call_time: 90, call_time_zone: 140,
 };
 
 type SheetMeta = {
@@ -405,7 +406,7 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
     });
     // 🔑 The admin's schedule (owner, 28 Oct 2026): yes/no, a real date, a 24-hour time, a zone.
     const col = (c: Column) => ({ sheetId: id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: idx(c), endColumnIndex: idx(c) + 1 });
-    for (const c of ["contact_by_email", "contact_by_phone"] as const) {
+    for (const c of ["contact_by_email", "contact_by_phone", "asked_for_call"] as const) {
       requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "yes" }, { userEnteredValue: "no" }] }, strict: false, showCustomUi: true, inputMessage: "yes or no" } } });
     }
     for (const c of ["mail_date", "call_date"] as const) {
@@ -452,14 +453,14 @@ export async function updateGuide(): Promise<void> {
   const t = quote("Start here");
   const data = [
     { range: `${t}!B2`, values: [["Contacts for Imotara's calls and outreach email. You fill the white (teal-header) columns; the system fills the grey ones."]] },
-    { range: `${t}!B5`, values: [["White (teal header): you and your team fill these — phone, name, organisation, type, country, time zone, language, source, consent note, team member, context, call reason, ambassador notes, voice_gender, email, do_not_contact, and the schedule columns AH–AO. These are the only columns you can edit."]] },
+    { range: `${t}!B5`, values: [["White (teal header): you and your team fill these — phone, name, organisation, type, country, time zone, language, source, consent note, team member, context, call reason, ambassador notes, voice_gender, email, do_not_contact, the schedule columns AH–AO and asked_for_call (AP). These are the only columns you can edit."]] },
     { range: `${t}!B6`, values: [["Grey (slate header): the system fills these after each call and email — status, attempts, outcome, summary, next action, mail status, and the three status columns. Locked."]] },
     { range: `${t}!B23:B29`, values: [
       ["READING A ROW (columns AE–AG, updated every 10 minutes)"],
       ["call_progress and mail_progress: ✅ done · ⏳ in queue · 🟡 waiting for its day · ⛔ a problem · 🔴 SAFETY — call them yourself today."],
       ["what_to_do: the fix for a problem on that row, in plain words. 'Nothing' means nothing is needed."],
       ["EMAIL: email in column Z, yes in contact_by_email (AH), and the first email's date + time in mail_date / mail_time (AJ–AK; zone in AL, or column G). Day 7 and day 21 follow at the same time. Any hour, any day."],
-      ["CALL: yes in contact_by_phone (AI), and the date + time in call_date / call_time (AM–AN; zone in AO, or column G). Any hour. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again."],
+      ["CALL: yes in contact_by_phone (AI), and the date + time in call_date / call_time (AM–AN; zone in AO, or column G). The call service rings 09:00–21:00 their time and holds other times till 09:00. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again. INDIVIDUALS: called only with yes in asked_for_call (AP) until TRAI DLT is done."],
       ["No date = nothing happens. No consent note = no call and no email. TO STOP SOMEONE: yes in do_not_contact (AD). Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
     ] },
   ];

@@ -35,6 +35,8 @@ export const COLUMNS = [
   // 🔑 AH–AO, the admin's own schedule (owner, 28 Oct 2026) ⇒ lib/voice/slots.
   // ⚠️ Appended, never inserted: every column before them keeps its letter.
   "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
+  // 🔑 AP — the person themselves asked us to call (owner, 28 Oct 2026) ⇒ checkContact.
+  "asked_for_call",
 ] as const;
 
 /**
@@ -47,6 +49,7 @@ export const ADMIN_COLUMNS: readonly Column[] = [
   "phone", "name", "organisation", "organisation_type", "country", "time_zone", "language", "source",
   "consent_note", "team_member", "context", "call_reason", "ambassador_notes", "voice_gender", "email", "do_not_contact",
   "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
+  "asked_for_call",
 ];
 
 /** "yes", "y", "true", "stop", "x" or a ticked box ⇒ never contact this person, by phone or email. */
@@ -310,7 +313,15 @@ export function checkContact(
     return "EXCLUDED: OpenLM - never call";
   }
   if (!c.v.consent_note) return "Add consent note";
-  if (c.tab === "Individuals" && d.settings?.allowIndividuals === false) return "Individuals paused (TRAI/DLT)";
+  /**
+   * ⛔ Promotional calls to individuals in India need TRAI DLT and a 140-series
+   * number — not done yet (mailboxes checked 28 Oct 2026). Until then the
+   * owner's middle path: an individual who ASKED us to call is a reply to their
+   * own request, not promotion ⇒ asked_for_call = yes lets that row through.
+   */
+  if (c.tab === "Individuals" && d.settings?.allowIndividuals === false && !yes(c.v.asked_for_call)) {
+    return "Individuals paused (TRAI/DLT) - only people who asked for a call";
+  }
   if (d.languages.get(c.v.language.toLowerCase()) !== "start") return "Language not started yet";
   if (!agentFor(c.v.language, c.v.voice_gender)) return "No agent for this language and voice";
   if (!callZone(c)) return c.v.call_time_zone || c.v.time_zone ? "Time zone not understood" : "Add time zone";

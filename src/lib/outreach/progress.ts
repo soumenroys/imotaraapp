@@ -33,7 +33,7 @@ const CALL_FIX: [RegExp, string][] = [
   [/Missing name/i, "Type the person's name in column C."],
   [/Sample row/i, "Delete this sample row."],
   [/consent note/i, "Write how they agreed to be contacted in column J (consent_note)."],
-  [/Individuals paused/i, "Individuals are paused until TRAI/DLT is settled — the owner switches this on in Voice calls → Settings."],
+  [/Individuals paused/i, "Individuals are called only if they asked us to call: choose yes in asked_for_call (column AP) and write in consent_note when and how they asked. Everyone else waits for TRAI DLT registration."],
   [/Language not started/i, "This language is not approved for calls yet — the owner sets it to Start on the Languages tab."],
   [/No agent/i, "No calling voice exists for this language and voice — choose another voice_gender (column X)."],
   [/time zone/i, "Type the time zone in call_time_zone (or column G), e.g. Asia/Kolkata."],

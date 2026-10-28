@@ -737,7 +737,7 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
       />
       <Toggle
         label="Call individuals"
-        hint="Off until the TRAI/DLT question for promotional calls is settled. Organisations are not affected."
+        hint="Off until TRAI DLT registration and a 140-series number are done. While off, an individual is called only if they asked for a call (asked_for_call = yes in the sheet). Organisations are not affected."
         on={!!s.allowIndividuals}
         busy={busy}
         onToggle={(next, warn) => void save({ allowIndividuals: next }, warn)}

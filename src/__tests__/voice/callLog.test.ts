@@ -112,8 +112,16 @@ describe("the Individuals switch", () => {
   it("is OFF by default, and blocks only the Individuals tab", () => {
     expect(parseSettings([]).allowIndividuals).toBe(false);
     const d = dir([]);
-    expect(checkContact(contact({}, "Individuals"), d)).toBe("Individuals paused (TRAI/DLT)");
+    expect(checkContact(contact({}, "Individuals"), d)).toBe("Individuals paused (TRAI/DLT) - only people who asked for a call");
     expect(checkContact(contact({}, "NGOs"), d)).toBe("OK");
+  });
+
+  it("🔑 while it is OFF, an individual who ASKED for a call is let through (owner, 28 Oct 2026)", () => {
+    const d = dir([]);
+    expect(checkContact(contact({ asked_for_call: "yes" }, "Individuals"), d)).toBe("OK");
+    expect(checkContact(contact({ asked_for_call: "no" }, "Individuals"), d)).toMatch(/Individuals paused/);
+    // ⛔ …and asking does not stand in for the rest: no consent note, no call.
+    expect(checkContact(contact({ asked_for_call: "yes", consent_note: "" }, "Individuals"), d)).toBe("Add consent note");
   });
 
   it("allow_individuals = yes in the sheet lets them through", () => {

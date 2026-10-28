@@ -90,7 +90,7 @@ NEVER
 LONELINESS AND LATE NIGHTS ARE ONE THEME AMONG MANY
 They are welcome — the angles rotate, so they come up now and then, not in
 every post. When a post is about them, say plainly what Imotara offers and
-when ("any hour", "even offline"). Don't dramatise the hour or the feeling,
+when ("any hour", "typing works even offline"). Don't dramatise the hour or the feeling,
 and never write as if to one person in crisis: a public post cannot follow up.
 
 ⛔ THE PHRASES THAT ANNOUNCE A MACHINE WROTE THIS
@@ -123,7 +123,11 @@ WHAT IS TRUE ABOUT IMOTARA, and nothing beyond this
   Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu.
 - Conversations stay on the device by default. Cloud sync is opt-in and off
   until it is switched on. The privacy policy names every processor.
-- Works offline, on-device, when there is no signal.
+- TYPING works offline, on-device, when there is no signal. ⛔ SPEAKING does
+  not: a spoken message is turned into text on a server, so voice needs a
+  connection and the audio leaves the phone to be transcribed. Never put
+  speaking/voice/"out loud" and "offline" in the same claim, and never say
+  nothing is sent when someone speaks.
 - Free to start. Paid is optional.
 - It remembers what mattered last time you talked.
 - There is no feed, no streak, no badge, nothing to keep up with.

@@ -66,7 +66,7 @@ export const AWARENESS_DAYS: { month: number; day: number; name: string; why: st
   { month: 10, day: 1, name: "International Day of Older Persons", why: "A day for older people and the people who care for them.", angle: "Speak instead of type, in your own language, and it remembers what mattered last time." },
   { month: 10, day: 10, name: "World Mental Health Day", why: "The world's day for mental health.", angle: "What Imotara is and is not: a private companion, not therapy — and it shows a helpline when needed." },
   { month: 11, day: 13, name: "World Kindness Day", why: "A day about kindness, including towards yourself.", angle: "Being kind starts with being honest about how you are — somewhere nobody judges." },
-  { month: 11, day: 21, name: "World Hello Day", why: "A day for saying hello and starting a conversation.", angle: "The first hello is the hardest; Imotara is there to talk to, any hour, even offline." },
+  { month: 11, day: 21, name: "World Hello Day", why: "A day for saying hello and starting a conversation.", angle: "The first hello is the hardest; Imotara is there to write to, any hour — typing works even offline." },
   { month: 12, day: 3, name: "International Day of Persons with Disabilities", why: "A day for access and inclusion.", angle: "Type or speak — whichever works for you, in your own language." },
   { month: 12, day: 5, name: "International Volunteer Day", why: "A day for volunteers and the NGOs they keep going.", angle: "Volunteers give a lot and say little about it; a private place for them too." },
 ];
@@ -113,7 +113,7 @@ export function upcomingAwarenessDays(now: Date, days = 14): TrendNote[] {
 export function judgePrompt(candidates: Candidate[]): string {
   return `
 You choose which of this week's trending topics a mental-wellbeing companion app (Imotara) may post about.
-Imotara: a private companion for saying how you actually feel; 22 languages (11 Indian); works offline; no feed or streaks; NOT therapy.
+Imotara: a private companion for saying how you actually feel; 22 languages (11 Indian); typing works offline (voice needs a connection); no feed or streaks; NOT therapy.
 
 KEEP a topic only if ALL are true:
 - It is a shared, positive or neutral moment: a festival, a holiday, a season, exam or results season, a cultural event, a broad everyday experience.

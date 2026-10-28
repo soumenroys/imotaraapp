@@ -47,7 +47,7 @@ export const DEFAULT_AUTO: AutoSettings = { enabled: false, dayOfMonth: 5, hourI
 export const THEMES: { id: string; brief: string }[] = [
   { id: "privacy", brief: "Privacy: conversations stay on your own phone by default; cloud sync is off unless you turn it on." },
   { id: "languages", brief: "Your own language: 22 languages, eleven of them Indian, typed or spoken." },
-  { id: "offline", brief: "It works offline, on the device, when there is no signal." },
+  { id: "offline", brief: "Typing works offline, on the device, when there is no signal. Speaking does not: a spoken message is transcribed on a server, so voice needs a connection." },
   { id: "nothing-to-keep-up", brief: "No feed, no streaks, no badges — nothing to keep up with." },
   { id: "remembers", brief: "It remembers what mattered last time, so you need not start again." },
   { id: "honest-limits", brief: "What it is and is not: a private companion, not therapy, and it shows a helpline when needed." },

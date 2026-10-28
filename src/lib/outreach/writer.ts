@@ -45,15 +45,20 @@ const STEP_BRIEF: Record<StepId, string> = {
  * highlight their interest with imotara features". ⛔ Every feature named here
  * is on the FACTS list — this chooses and orders, it never adds a claim.
  */
+/**
+ * ⚠️ "WORKS OFFLINE" MEANS TYPING. Speaking is transcribed on a server ⇒ needs
+ * a connection. Eldercare leads with speaking, so it does not mention offline
+ * at all — the two side by side read as one claim ⇒ offlineMeansTypingNotSpeaking.
+ */
 export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avoid: string }> = {
   individuals: {
     cares: "a private place to say how they really feel, in their own words and language, at any hour, without being judged or tracked",
-    lead: "privacy (stays on their own phone by default) · 22 languages incl. 11 Indian · type or speak · works offline · remembers what mattered last time · no feed, streaks or badges · free to start",
+    lead: "privacy (stays on their own phone by default) · 22 languages incl. 11 Indian · type or speak · typing works even offline (speaking needs a connection) · remembers what mattered last time · no feed, streaks or badges · free to start",
     avoid: "Do not lecture about mental health. Write to one person.",
   },
   ngos: {
     cares: "field staff, volunteers and the people they serve — often across languages and with patchy signal — and nothing extra for an already stretched team to run",
-    lead: "11 Indian languages, replies in the language they write in · works offline · private: conversations stay on the device, so nothing reaches a supervisor · asks no training or admin effort · Imotara Connect human peer companions (not counsellors)",
+    lead: "11 Indian languages, replies in the language they write in · typing works even with patchy signal (speaking needs a connection) · private: conversations stay on the device, so nothing reaches a supervisor · asks no training or admin effort · Imotara Connect human peer companions (not counsellors)",
     avoid: "Do not claim it replaces counselling or any programme they run.",
   },
   education: {
@@ -63,7 +68,7 @@ export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avo
   },
   eldercare: {
     cares: "residents who want someone to talk to between visits, often more comfortable speaking than typing and in their mother tongue, and caregivers who cannot be everywhere",
-    lead: "speak instead of type · their mother tongue among 22 languages · remembers what mattered last time, so they need not repeat themselves · works offline · no feed or anything to keep up with",
+    lead: "speak instead of type · their mother tongue among 22 languages · remembers what mattered last time, so they need not repeat themselves · no feed or anything to keep up with",
     avoid: "Loneliness may be named, but with dignity — never as helplessness; speak of company and continuity.",
   },
   corporates: {

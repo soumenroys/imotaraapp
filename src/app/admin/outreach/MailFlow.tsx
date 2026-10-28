@@ -25,12 +25,12 @@ export function MailFlow({ on, auto, cap }: { on: boolean; auto: boolean; cap: n
         </Box>
       </div>
 
-      <Arrow label="3 · every 10 minutes, in each person's daytime" />
+      <Arrow label="3 · every 10 minutes, at the date and time set in the sheet" />
 
       <Box tone="gate" title="Outreach email ON, and within today's limit?">
         <b className={on ? "text-emerald-300" : "text-red-300"}>Right now it is {on ? "ON" : "OFF"}.</b> At most {cap} a day
-        here, and never more than the domain&rsquo;s warm-up allows — so imotara.com stays out of spam folders. Only 10:00–18:00
-        their time, never a Sunday in India.
+        here, and never more than the domain&rsquo;s warm-up allows — so imotara.com stays out of spam folders. Only rows with
+        yes in contact_by_email and a mail_date + mail_time — at that time, any hour, in mail_time_zone.
       </Box>
 
       <Arrow label="what each person gets" />
@@ -38,9 +38,9 @@ export function MailFlow({ on, auto, cap }: { on: boolean; auto: boolean; cap: n
       <div className="flex flex-col gap-3 md:flex-row">
         <Lane title="The sequence">
           <div className="grid grid-cols-3 gap-2">
-            <Box tone="good" title="Day 0 · Introduction" />
-            <Box tone="good" title="Day 7 · Follow-up" />
-            <Box tone="good" title="Day 21 · Last note" />
+            <Box tone="good" title="Your date · Introduction" />
+            <Box tone="good" title="+7 days · Follow-up">Same time of day</Box>
+            <Box tone="good" title="+21 days · Last note">Same time of day</Box>
           </div>
         </Lane>
         <Lane title="Linked to calls">

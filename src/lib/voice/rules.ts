@@ -15,6 +15,7 @@
 
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
 import { agentFor } from "@/lib/voice/agents";
+import { callSlot, callZone, yes, zoneOffsetMinutes } from "@/lib/voice/slots";
 
 export const CONTACT_TABS = ["Individuals", "NGOs", "Education", "Eldercare", "Corporates"] as const;
 export type ContactTab = (typeof CONTACT_TABS)[number];
@@ -31,6 +32,9 @@ export const COLUMNS = [
   "follow_up_datetime", "ambassador_notes", "voice_gender", "call_id",
   "email", "mail_status", "mail_step", "mail_last_sent",
   "do_not_contact", "call_progress", "mail_progress", "what_to_do",
+  // 🔑 AH–AO, the admin's own schedule (owner, 28 Oct 2026) ⇒ lib/voice/slots.
+  // ⚠️ Appended, never inserted: every column before them keeps its letter.
+  "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
 ] as const;
 
 /**
@@ -42,6 +46,7 @@ export const COLUMNS = [
 export const ADMIN_COLUMNS: readonly Column[] = [
   "phone", "name", "organisation", "organisation_type", "country", "time_zone", "language", "source",
   "consent_note", "team_member", "context", "call_reason", "ambassador_notes", "voice_gender", "email", "do_not_contact",
+  "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
 ];
 
 /** "yes", "y", "true", "stop", "x" or a ticked box ⇒ never contact this person, by phone or email. */
@@ -134,7 +139,15 @@ export type Settings = {
    * parseSettings always sets it, and its default is false.
    */
   allowIndividuals?: boolean;
+  /**
+   * 🔑 The local hours a RETRY may ring in (start inclusive, end exclusive).
+   * Owner, 28 Oct 2026: an admin's own time is "anytime … no restriction";
+   * a retry's time is the system's choice, so it alone keeps a daytime band.
+   */
+  retryHours?: { start: number; end: number };
 };
+
+export const DEFAULT_RETRY_HOURS = { start: 9, end: 21 };
 
 export const DEFAULT_SETTINGS: Settings = {
   callingEnabled: false,
@@ -143,6 +156,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dailyCap: 30,
   alertEmails: ["info@imotara.com"],
   allowIndividuals: false,
+  retryHours: { ...DEFAULT_RETRY_HOURS },
 };
 
 export type Directory = {
@@ -210,7 +224,7 @@ const truthy = (s: string | undefined) => /^(yes|on|true|1)$/i.test((s ?? "").tr
 
 /** The optional Settings tab: two columns, key | value. Missing ⇒ the safe defaults. */
 export function parseSettings(rows: string[][] | null): Settings {
-  const s: Settings = { ...DEFAULT_SETTINGS, alertEmails: [...DEFAULT_SETTINGS.alertEmails] };
+  const s: Settings = { ...DEFAULT_SETTINGS, alertEmails: [...DEFAULT_SETTINGS.alertEmails], retryHours: { ...DEFAULT_RETRY_HOURS } };
   for (const [k, v] of rows ?? []) {
     const key = (k ?? "").trim().toLowerCase();
     if (key === "calling_enabled") s.callingEnabled = truthy(v);
@@ -219,6 +233,11 @@ export function parseSettings(rows: string[][] | null): Settings {
     else if (key === "daily_cap" && Number(v) > 0) s.dailyCap = Math.floor(Number(v));
     else if (key === "alert_emails" && v?.trim()) s.alertEmails = v.split(/[,;\s]+/).filter((e) => e.includes("@"));
     else if (key === "allow_individuals") s.allowIndividuals = truthy(v);
+    else if (key === "retry_hours") {
+      // "09-21", "9:00-21:00"; "0-24" means any hour.
+      const m = (v ?? "").match(/^\s*(\d{1,2})(?::00)?\s*[-–to]+\s*(\d{1,2})(?::00)?\s*$/i);
+      if (m && Number(m[1]) < Number(m[2]) && Number(m[2]) <= 24) s.retryHours = { start: Number(m[1]), end: Number(m[2]) };
+    }
   }
   return s;
 }
@@ -281,6 +300,8 @@ export function checkContact(
   if (bad) return bad;
   if (!c.v.name) return "Missing name";
   if (/^sample\b/i.test(c.v.name)) return "Sample row - delete it";
+  // ⛔ Owner, 28 Oct 2026: called only when the admin chose "yes" for phone. Blank is not yes.
+  if (!yes(c.v.contact_by_phone)) return "Contact by phone is not yes";
   if (d.dnc.has(phone)) return "On do-not-call list - never call";
   if (NO_MORE_CALLS.includes(c.v.status)) return `Call ended: ${c.v.status}`;
   if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
@@ -292,14 +313,11 @@ export function checkContact(
   if (c.tab === "Individuals" && d.settings?.allowIndividuals === false) return "Individuals paused (TRAI/DLT)";
   if (d.languages.get(c.v.language.toLowerCase()) !== "start") return "Language not started yet";
   if (!agentFor(c.v.language, c.v.voice_gender)) return "No agent for this language and voice";
-  if (!c.v.time_zone) return "Add time zone";
+  if (!callZone(c)) return c.v.call_time_zone || c.v.time_zone ? "Time zone not understood" : "Add time zone";
   return "OK";
 }
 
 // ── Time ─────────────────────────────────────────────────────────────────────
-
-export const WINDOW_START_HOUR = 10;
-export const WINDOW_END_HOUR = 18;
 
 /** The contact's local hour and weekday (0 = Sunday), from an IANA zone. */
 export function localTime(now: Date, timeZone: string): { hour: number; weekday: number; date: string } | null {
@@ -315,12 +333,16 @@ export function localTime(now: Date, timeZone: string): { hour: number; weekday:
   }
 }
 
-/** ⚠️ India additionally: never on a Sunday ⇒ spec §6. */
-export function inCallingWindow(now: Date, timeZone: string, country: string): boolean {
+/**
+ * ⚠️ Only RETRIES are held to these hours — the one call whose time the system
+ * picks. An admin's time, a console Schedule, Call now and a callback the
+ * person asked for are placed when they say (owner, 28 Oct 2026: "anytime in
+ * 24 hours, 365 days … no restriction").
+ */
+export function inRetryHours(now: Date, timeZone: string, hours: { start: number; end: number } = DEFAULT_RETRY_HOURS): boolean {
   const t = localTime(now, timeZone);
   if (!t) return false;
-  if (country.toUpperCase() === "IN" && t.weekday === 0) return false;
-  return t.hour >= WINDOW_START_HOUR && t.hour < WINDOW_END_HOUR;
+  return t.hour >= hours.start && t.hour < hours.end;
 }
 
 export function dayPart(hour: number): "morning" | "afternoon" | "late" {
@@ -365,6 +387,28 @@ export function sameContact(c: Contact, phone: string | undefined): boolean {
   return !!phone && phoneOf(c) === normalisePhone(phone);
 }
 
+export const MISSED_SHEET_CALL = "Call time passed - set a new call date";
+export const OUTSIDE_RETRY_HOURS = "Retry waits for retry hours (their local time)";
+
+/**
+ * Is the sheet's call time due? "none" when no time is set, or when a call was
+ * already placed at or after it (so a NEW, later date in the sheet calls again).
+ * ⚠️ Missed by more than the grace period ⇒ "missed", never a call hours late.
+ */
+export function sheetCallDue(c: Contact, now: Date): "none" | "due" | "waiting" | "missed" {
+  if (!yes(c.v.contact_by_phone)) return "none";
+  // ⛔ A refused dial records no call time, so its slot would look unspent and
+  // ring again every 5 minutes (the 24 Oct bug). It waits for a person's Retry.
+  if (c.v.status === STATUS.dialFailed || c.v.status === STATUS.calling) return "none";
+  const slot = callSlot(c);
+  if (slot.kind !== "at") return "none";
+  const at = slot.at.getTime();
+  const last = parseTime(c.v.last_call_date);
+  if (last !== null && last >= at) return "none";
+  if (at > now.getTime()) return "waiting";
+  return now.getTime() - at > SCHEDULE_GRACE_HOURS * 3600_000 ? "missed" : "due";
+}
+
 export function selectDue(d: Directory, now: Date, opts: { auto: boolean }): Selection {
   const nowMs = now.getTime();
   const active = d.contacts.filter((c) => {
@@ -377,12 +421,13 @@ export function selectDue(d: Directory, now: Date, opts: { auto: boolean }): Sel
     return t !== null && nowMs - t < 24 * 3600_000;
   }).length;
 
-  const groups: Contact[][] = [[], [], [], []]; // follow-ups, queued, retries, new
+  const groups: Contact[][] = [[], [], []]; // follow-ups, the admin's own times, retries
   const skipped: Selection["skipped"] = [];
 
   for (const c of d.contacts) {
     const status = c.v.status || STATUS.pending;
     const attempts = Number(c.v.call_attempts) || 0;
+    const sheet = sheetCallDue(c, now);
     let group = -1;
     if (status === STATUS.queued) group = 1;
     else if (status === STATUS.scheduled) {
@@ -394,22 +439,32 @@ export function selectDue(d: Directory, now: Date, opts: { auto: boolean }): Sel
       }
       if (at <= nowMs) group = 1;
     }
+    // 🔑 The sheet's call_date + call_time: the admin's own choice too ⇒ not gated by autoDispatch.
+    else if (sheet === "due") group = 1;
+    else if (sheet === "missed") { skipped.push({ contact: c, reason: MISSED_SHEET_CALL }); continue; }
     else if (opts.auto) {
       if ((status === STATUS.callback || status === STATUS.sendInfo) && (parseTime(c.v.follow_up_datetime) ?? Infinity) <= nowMs) group = 0;
       else if (status === STATUS.noAnswer && attempts < MAX_ATTEMPTS) {
+        const zone = callZone(c) ?? "UTC";
         const last = parseTime(c.v.last_call_date);
-        const lastLocal = last !== null ? localTime(new Date(last), c.v.time_zone) : null;
-        const nowLocal = localTime(now, c.v.time_zone);
+        const lastLocal = last !== null ? localTime(new Date(last), zone) : null;
+        const nowLocal = localTime(now, zone);
         const spaced = last === null || nowMs - last >= RETRY_GAP_HOURS * 3600_000;
         const differentPart = !lastLocal || !nowLocal || dayPart(lastLocal.hour) !== dayPart(nowLocal.hour);
         if (spaced && differentPart) group = 2;
-      } else if (status === STATUS.pending && attempts === 0) group = 3;
+      }
+      // ⛔ No "new" group any more: a row with no call date WAITS (owner, 28 Oct 2026:
+      // nothing goes out that the admin did not schedule).
     }
     if (group < 0) continue;
 
     const check = checkContact(c, d);
     if (check !== "OK") { skipped.push({ contact: c, reason: check }); continue; }
-    if (!inCallingWindow(now, c.v.time_zone, c.v.country)) { skipped.push({ contact: c, reason: "Outside calling hours (their local time)" }); continue; }
+    // ⚠️ Retries only: their time is the system's choice ⇒ inRetryHours.
+    if (group === 2 && !inRetryHours(now, callZone(c)!, d.settings.retryHours)) {
+      skipped.push({ contact: c, reason: OUTSIDE_RETRY_HOURS });
+      continue;
+    }
     groups[group].push(c);
   }
 
@@ -488,16 +543,6 @@ export type Writeback = {
   meeting: boolean;
   sendInfo: boolean;
 };
-
-/** Minutes the zone is ahead of UTC at `at` (e.g. +330 for Asia/Kolkata). */
-function zoneOffsetMinutes(at: Date, timeZone: string): number {
-  const p = new Intl.DateTimeFormat("en-US", {
-    timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
-  }).formatToParts(at);
-  const g = (t: string) => Number(p.find((x) => x.type === t)?.value);
-  const asUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second"));
-  return Math.round((asUtc - at.getTime()) / 60_000);
-}
 
 /**
  * 11:00 in the CONTACT'S zone, N local days ahead, as a full ISO instant.

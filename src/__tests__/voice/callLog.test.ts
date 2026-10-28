@@ -93,6 +93,7 @@ const contact = (over: Partial<Record<Column, string>> = {}, tab: Contact["tab"]
       ...blank,
       phone: "919830012345", name: "Asha", country: "IN", time_zone: "Asia/Kolkata", language: "bn",
       consent_note: "Seminar sign-up, 12 Oct", status: "Pending", call_attempts: "0", team_member: "Tapan",
+      contact_by_phone: "yes", call_date: "2026-10-21", call_time: "10:55",
       ...over,
     },
   };
@@ -133,12 +134,10 @@ describe("a Scheduled call", () => {
     expect(selectDue(dir([later]), TUE_11_IST, { auto: true }).toCall).toHaveLength(0);
   });
 
-  it("still respects the person's calling hours", () => {
-    // Due 30 minutes ago (inside the grace period), but it is now 20:30 IST — outside 10:00–18:00.
+  it("🔑 rings at the admin's time even at 20:30 — no calling hours (owner, 28 Oct 2026)", () => {
     const due = contact({ status: STATUS.scheduled, follow_up_datetime: "2026-10-21T14:30:00Z" });
     const s = selectDue(dir([due]), new Date("2026-10-21T15:00:00Z"), { auto: true });
-    expect(s.toCall).toHaveLength(0);
-    expect(s.skipped[0].reason).toMatch(/calling hours/);
+    expect(s.toCall).toHaveLength(1);
   });
 });
 

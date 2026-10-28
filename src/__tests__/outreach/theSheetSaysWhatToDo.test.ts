@@ -10,7 +10,7 @@ import type { OutreachState } from "@/lib/outreach/store";
 
 const contact = (over: Partial<Record<Column, string>> = {}): Contact => {
   const blank = Object.fromEntries(COLUMNS.map((c) => [c, ""])) as Record<Column, string>;
-  return { tab: "NGOs", row: 2, v: { ...blank, phone: "919830012345", name: "Asha", organisation: "Hope", country: "IN", time_zone: "Asia/Kolkata", language: "bn", consent_note: "Seminar", status: "Pending", email: "asha@hope.org", ...over } };
+  return { tab: "NGOs", row: 2, v: { ...blank, phone: "919830012345", name: "Asha", organisation: "Hope", country: "IN", time_zone: "Asia/Kolkata", language: "bn", consent_note: "Seminar", status: "Pending", email: "asha@hope.org", contact_by_email: "yes", contact_by_phone: "yes", mail_date: "2026-10-21", mail_time: "10:55", call_date: "2026-10-21", call_time: "10:55", ...over } };
 };
 const dir = { languages: new Map([["bn", "start"]]), dnc: new Set<string>(), settings: { callingEnabled: true, autoDispatch: false, maxConcurrency: 2, dailyCap: 30, alertEmails: [], allowIndividuals: false } };
 const state: OutreachState = { settings: { enabled: true, sendWithoutAsking: false, dailyCap: 20 }, drafts: {} };

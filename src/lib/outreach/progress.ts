@@ -11,8 +11,9 @@
 // cannot drift from what the system actually does.
 
 import {
-  STATUS, MAX_ATTEMPTS, checkContact, missedSchedule, stoppedByAdmin, type Contact, type Directory,
+  STATUS, MAX_ATTEMPTS, checkContact, missedSchedule, sheetCallDue, stoppedByAdmin, type Contact, type Directory,
 } from "@/lib/voice/rules";
+import { callSlot, mailSlot, showSlot, yes } from "@/lib/voice/slots";
 import { MAIL, SEQUENCE, STEP_LABEL, dueStep, emailOf, mailCheck, AUDIENCE_OF } from "@/lib/outreach/sequence";
 import { sendableDraft, type OutreachState } from "@/lib/outreach/store";
 
@@ -35,15 +36,18 @@ const CALL_FIX: [RegExp, string][] = [
   [/Individuals paused/i, "Individuals are paused until TRAI/DLT is settled — the owner switches this on in Voice calls → Settings."],
   [/Language not started/i, "This language is not approved for calls yet — the owner sets it to Start on the Languages tab."],
   [/No agent/i, "No calling voice exists for this language and voice — choose another voice_gender (column X)."],
-  [/time zone/i, "Type the time zone in column G, e.g. Asia/Kolkata."],
+  [/time zone/i, "Type the time zone in call_time_zone (or column G), e.g. Asia/Kolkata."],
 ];
 
 const MAIL_FIX: [RegExp, string][] = [
   [/Email looks wrong|correct the email/i, "Correct the email in column Z — it is retried by itself once fixed."],
   [/consent note/i, "Write how they agreed to be contacted in column J (consent_note)."],
-  [/time zone/i, "Type the time zone in column G, e.g. Asia/Kolkata."],
+  [/time zone/i, "Type the time zone in mail_time_zone (or column G), e.g. Asia/Kolkata."],
   [/Missing name/i, "Type the person's name in column C."],
 ];
+
+/** How to fix a date or time the system could not read. */
+const SLOT_FIX = "Type the date like 2026-11-03 and the time like 14:30 (or 2:30 PM); the time zone like Asia/Kolkata or IST.";
 
 const fixFor = (reason: string, table: [RegExp, string][]) => table.find(([re]) => re.test(reason))?.[1] ?? "";
 
@@ -53,6 +57,9 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
   if (s === STATUS.safety) return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
   if (stoppedByAdmin(c)) return { text: "⛔ Stopped by admin", fix: "" };
   const tries = Number(c.v.call_attempts) || 0;
+  if (s === STATUS.pending && !yes(c.v.contact_by_phone)) {
+    return { text: "— Not chosen for a call (contact_by_phone is not yes)", fix: c.v.call_date ? "Choose yes in contact_by_phone to call at the date you set." : "" };
+  }
   switch (s) {
     case STATUS.safety: return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
     case STATUS.review: return { text: "⛔ Needs review — no result came back", fix: "Listen to the call in Voice calls → Call records, then decide what to do next." };
@@ -77,12 +84,23 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
   }
   const check = checkContact(c, d);
   if (check !== "OK") return { text: `⛔ Not callable — ${check}`, fix: fixFor(check, CALL_FIX) };
-  if (!d.settings.callingEnabled) return { text: "⏸ Not called yet — calling is OFF", fix: "" };
-  return { text: d.settings.autoDispatch ? "⏳ In queue — called automatically" : "⏸ Not called yet — press 📞 in Voice calls", fix: "" };
+  // 🔑 The admin's own time, from call_date + call_time + call_time_zone.
+  const slot = callSlot(c);
+  if (slot.kind === "problem") return { text: `⛔ ${slot.problem}`, fix: SLOT_FIX };
+  if (slot.kind === "none") return { text: "🟡 Waiting — add a call date and time", fix: "" };
+  const when = showSlot(slot.at, slot.zone);
+  const due = sheetCallDue(c, now);
+  if (due === "missed") return { text: `⛔ Missed — the call time ${when} passed`, fix: "Set a new call date and time (calling was off, or the line was busy too long)." };
+  if (!d.settings.callingEnabled) return { text: `⏸ Call set for ${when} — calling is OFF`, fix: "Calling must be ON at that time (Voice calls → Settings)." };
+  if (due === "due") return { text: "⏳ In queue — its time has come", fix: "" };
+  return { text: `⏳ Call set for ${when}`, fix: "" };
 }
 
 export function mailProgress(c: Contact, suppressed: ReadonlySet<string>, state: OutreachState, now: Date, dnc?: ReadonlySet<string>): { text: string; fix: string } {
   if (!emailOf(c)) return { text: "— No email", fix: "" };
+  if (!c.v.mail_status && !yes(c.v.contact_by_email)) {
+    return { text: "— Not chosen for email (contact_by_email is not yes)", fix: c.v.mail_date ? "Choose yes in contact_by_email to send at the date you set." : "" };
+  }
   const status = c.v.mail_status;
   const sent = Number(c.v.mail_step) || 0;
   if (status === MAIL.done) return { text: `✅ Done — all ${SEQUENCE.length} emails sent (last ${day(c.v.mail_last_sent)})`, fix: "" };
@@ -103,7 +121,12 @@ export function mailProgress(c: Contact, suppressed: ReadonlySet<string>, state:
     return { text: `⏳ ${progress} — waiting for “${STEP_LABEL[due]}” to be approved`, fix: "Approve it in Outreach mail → Emails." };
   }
   if (due) return { text: `⏳ In queue — ${STEP_LABEL[due]}`, fix: "" };
-  return { text: `🟡 ${progress} — next one on its day, in their daytime`, fix: "" };
+  if (sent >= SEQUENCE.length) return { text: `✅ Done — ${progress}`, fix: "" };
+  // 🔑 When the next one goes — the admin's own date, then +7 and +21 days at the same local time.
+  const next = mailSlot(c, SEQUENCE[sent].afterDays);
+  if (next.kind === "problem") return { text: `⛔ ${next.problem}`, fix: SLOT_FIX };
+  if (next.kind === "none") return sent === 0 ? { text: "🟡 Waiting — add a mail date and time", fix: "" } : { text: `🟡 ${progress} — next one on its day`, fix: "" };
+  return { text: `⏳ ${STEP_LABEL[SEQUENCE[sent].id]} set for ${showSlot(next.at, next.zone)}`, fix: "" };
 }
 
 /** The three status cells for one row. */

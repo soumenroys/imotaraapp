@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   COLUMNS, STATUS, checkContact, phoneProblem, selectDue, userData, writebackFor, helplineFor, normalisePhone,
-  parseSettings, inCallingWindow, elevenLocal, columnLetter, sameContact, missedSchedule, MISSED_SCHEDULE,
+  parseSettings, inRetryHours, elevenLocal, columnLetter, sameContact, missedSchedule, MISSED_SCHEDULE,
   type Contact, type Directory, type Column,
 } from "@/lib/voice/rules";
 
@@ -22,6 +22,8 @@ const contact = (over: Partial<Record<Column, string>> = {}, tab: Contact["tab"]
       ...blank,
       phone: "919830012345", name: "Asha", country: "IN", time_zone: "Asia/Kolkata", language: "bn",
       consent_note: "Seminar sign-up sheet, 12 Oct", status: "Pending", call_attempts: "0", team_member: "Tapan",
+      // The admin's own schedule (28 Oct 2026): yes, at 10:55 IST on Tue 21 Oct — due at TUE_11_IST.
+      contact_by_phone: "yes", call_date: "2026-10-21", call_time: "10:55",
       ...over,
     },
   };
@@ -63,27 +65,29 @@ describe("the check", () => {
   });
 });
 
-describe("the calling window — their local time, not ours", () => {
-  it("11:00 on a Tuesday in Kolkata is inside", () => {
-    expect(inCallingWindow(TUE_11_IST, "Asia/Kolkata", "IN")).toBe(true);
+describe("hours — the owner, 28 Oct 2026: 'anytime in 24 hours, 365 days … no restriction'", () => {
+  it("an admin's time at 03:00 on a Sunday in India is called", () => {
+    const sunday3am = new Date("2026-10-24T21:30:00Z"); // Sun 25 Oct, 03:00 IST
+    const s = selectDue(dir([contact({ call_date: "2026-10-25", call_time: "03:00" })]), sunday3am, { auto: false });
+    expect(s.toCall).toHaveLength(1);
   });
-  it("the same instant is 01:30 in New York — outside", () => {
-    expect(inCallingWindow(TUE_11_IST, "America/New_York", "US")).toBe(false);
+  it("only a RETRY waits for the retry hours (09–21 their time by default)", () => {
+    expect(inRetryHours(TUE_11_IST, "Asia/Kolkata")).toBe(true);
+    expect(inRetryHours(TUE_11_IST, "America/New_York")).toBe(false); // 01:30 there
+    expect(inRetryHours(new Date("2026-10-21T15:30:00Z"), "Asia/Kolkata")).toBe(false); // 21:00 IST
   });
-  it("⛔ never on a Sunday in India", () => {
-    expect(inCallingWindow(new Date("2026-10-25T05:30:00Z"), "Asia/Kolkata", "IN")).toBe(false);
-  });
-  it("18:00 is already outside", () => {
-    expect(inCallingWindow(new Date("2026-10-21T12:30:00Z"), "Asia/Kolkata", "IN")).toBe(false);
+  it("retry hours come from the sheet's Settings tab", () => {
+    expect(parseSettings([["retry_hours", "08-20"]]).retryHours).toEqual({ start: 8, end: 20 });
+    expect(parseSettings([["retry_hours", "nonsense"]]).retryHours).toEqual({ start: 9, end: 21 });
   });
 });
 
 describe("who is due", () => {
-  it("⛔ with automatic calling OFF, only rows a person queued are called", () => {
-    const d = dir([contact(), contact({ status: STATUS.queued }, "NGOs", 3)], {
+  it("⛔ a row with no call date waits — even with automatic calling ON", () => {
+    const d = dir([contact({ call_date: "", call_time: "" }), contact({ status: STATUS.queued, phone: "919830099999" }, "NGOs", 3)], {
       settings: { callingEnabled: true, autoDispatch: false, maxConcurrency: 2, dailyCap: 30, alertEmails: [] },
     });
-    const s = selectDue(d, TUE_11_IST, { auto: false });
+    const s = selectDue(d, TUE_11_IST, { auto: true });
     expect(s.toCall.map((c) => c.tab)).toEqual(["NGOs"]);
   });
 
@@ -107,15 +111,16 @@ describe("who is due", () => {
 
   it("a no-answer is retried only after 20 hours AND at a different part of the day", () => {
     const yesterdayMorning = new Date(TUE_11_IST.getTime() - 24 * 3600_000).toISOString();
-    const sameTime = selectDue(dir([contact({ status: STATUS.noAnswer, call_attempts: "1", last_call_date: yesterdayMorning })]), TUE_11_IST, { auto: true });
+    const retry = { status: STATUS.noAnswer, call_attempts: "1", last_call_date: yesterdayMorning, call_date: "2026-10-20", call_time: "11:00" };
+    const sameTime = selectDue(dir([contact(retry)]), TUE_11_IST, { auto: true });
     expect(sameTime.toCall).toHaveLength(0);
     const afternoon = new Date("2026-10-21T09:00:00Z"); // 14:30 IST
-    const later = selectDue(dir([contact({ status: STATUS.noAnswer, call_attempts: "1", last_call_date: yesterdayMorning })]), afternoon, { auto: true });
+    const later = selectDue(dir([contact(retry)]), afternoon, { auto: true });
     expect(later.toCall).toHaveLength(1);
   });
 
   it("⛔ never after three attempts", () => {
-    const s = selectDue(dir([contact({ status: STATUS.noAnswer, call_attempts: "3", last_call_date: "2026-10-19T05:30:00Z" })]), new Date("2026-10-21T09:00:00Z"), { auto: true });
+    const s = selectDue(dir([contact({ status: STATUS.noAnswer, call_attempts: "3", last_call_date: "2026-10-19T05:30:00Z", call_date: "2026-10-19", call_time: "11:00" })]), new Date("2026-10-21T09:00:00Z"), { auto: true });
     expect(s.toCall).toHaveLength(0);
   });
 

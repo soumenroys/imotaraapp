@@ -64,7 +64,10 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
     case STATUS.safety: return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
     case STATUS.review: return { text: "⛔ Needs review — no result came back", fix: "Listen to the call in Voice calls → Call records, then decide what to do next." };
     case STATUS.dialFailed: return { text: "⛔ Error — the call could not be placed", fix: `${c.v.next_action || "Dial failed."} Check the phone number (column A), then press Retry in Voice calls → Needs a person.` };
-    case STATUS.calling: return { text: "📞 On a call now", fix: "" };
+    case STATUS.calling:
+      return c.v.next_action.startsWith("Held by the call service")
+        ? { text: "⏳ Held by the call service — rings in its allowed hours (their time)", fix: "" }
+        : { text: "📞 On a call now", fix: "" };
     case STATUS.queued: return { text: "⏳ In queue — next free line", fix: "" };
     case STATUS.scheduled:
       return missedSchedule(c, now)

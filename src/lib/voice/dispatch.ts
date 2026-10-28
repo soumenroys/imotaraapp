@@ -192,6 +192,28 @@ export async function applyResult(v: ExecutionView, d?: Directory, now = new Dat
   return "applied";
 }
 
+/**
+ * 🔴 A CALL THE CALL SERVICE DEFERRED IS STILL A CALL. Bolna's calling
+ * guardrails hold a call placed outside its allowed hours (default 09:00–21:00
+ * in the recipient's zone) as "rescheduled" and ring it at the next allowed
+ * start. Found by the end-to-end test, 28 Oct 2026: a 23:30 call would have
+ * been written "No answer" after 3 hours — and its real result at 09:00
+ * thrown away (applyResult only takes a row still "Calling"), safety flags
+ * included, while a retry could ring the person a second time.
+ */
+export const DEFERRED_STATUSES = new Set(["rescheduled", "scheduled", "queued"]);
+export const DEFERRED_WAIT_HOURS = 36;
+export const DEFERRED_NOTE = "Held by the call service until its allowed calling hours (their time); it rings then";
+
+/** What the reconcile pass does with a call still "Calling" after a while. ⚠️ PURE ⇒ deferredCall.test.ts. */
+export function reconcileVerdict(view: Pick<ExecutionView, "final" | "status"> | null, ageMs: number): "apply" | "deferred" | "wait" | "review" | "no_answer" {
+  if (view?.final) return "apply";
+  if (view && DEFERRED_STATUSES.has(view.status) && ageMs <= DEFERRED_WAIT_HOURS * 3600_000) return "deferred";
+  if (ageMs <= 3 * 3600_000) return "wait";
+  // ⛔ They DID talk to us — the outcome just never arrived. Calling them again would be the worst reading of an empty field.
+  return view?.status === "completed" ? "review" : "no_answer";
+}
+
 async function reconcile(d: Directory, now: Date): Promise<number> {
   let n = 0;
   for (const c of d.contacts) {
@@ -200,22 +222,27 @@ async function reconcile(d: Directory, now: Date): Promise<number> {
     if (!Number.isFinite(t) || now.getTime() - t < ACTIVE_CALL_MINUTES * 60_000) continue;
     const body = await getExecution(c.v.call_id);
     const view = body ? readExecution(body) : null;
-    if (view?.final) {
-      if ((await applyResult({ ...view, executionId: c.v.call_id }, d, now)) === "applied") n++;
-    } else if (now.getTime() - t > 3 * 3600_000) {
-      if (view?.status === "completed") {
-        // ⛔ They DID talk to us — the outcome just never arrived. Calling
-        // them again would be the worst reading of an empty field.
+    switch (reconcileVerdict(view, now.getTime() - t)) {
+      case "apply":
+        if ((await applyResult({ ...view!, executionId: c.v.call_id }, d, now)) === "applied") n++;
+        break;
+      case "deferred":
+        // Said once in the sheet, then left "Calling" so the result is taken when it comes.
+        if (c.v.next_action !== DEFERRED_NOTE) await writeRow(c, { next_action: DEFERRED_NOTE });
+        break;
+      case "review":
         await writeRow(c, {
           status: STATUS.review,
-          call_summary: view.summary,
+          call_summary: view!.summary,
           next_action: "Call completed but no outcome came back - listen to the recording on the Call records tab",
         });
-      } else {
-        // ⚠️ Three hours with no answer from Bolna: free the line, retry later.
+        n++;
+        break;
+      case "no_answer":
+        // ⚠️ No answer from the call service at all: free the line, retry later.
         await writeRow(c, { status: STATUS.noAnswer, next_action: "No result from the call service; will retry" });
-      }
-      n++;
+        n++;
+        break;
     }
   }
   return n;

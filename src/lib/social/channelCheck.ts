@@ -15,6 +15,7 @@
 import type { ChannelCredential } from "@/lib/social/channelCredentials";
 import { checkFacebookPage, type FacebookFailure } from "@/lib/social/adapters/facebook";
 import { checkInstagramAccount } from "@/lib/social/adapters/instagram";
+import { checkLinkedInPage, type LinkedInFailure } from "@/lib/social/adapters/linkedin";
 
 export type ChannelCheck =
   | {
@@ -71,6 +72,28 @@ export async function checkChannel(
     };
   }
 
+  if (cred.platform === "linkedin") {
+    /**
+     * 🔑 A READ OF THE PAGE, NOT A POST ⇒ checkLinkedInPage. It proves the
+     * token is alive and can see the organisation it was connected for.
+     *
+     * ⚠️ It does NOT prove `w_organization_social`: LinkedIn has no read that
+     * answers "may this member post here" without asking for a wider scope.
+     * Said in the note rather than implied by a green tick — the same honesty
+     * as YouTube below.
+     */
+    const r = await checkLinkedInPage({ token: cred.token, organizationId: cred.externalId });
+    return r.ok
+      ? {
+          ok: true,
+          canPost: true,
+          note:
+            `LinkedIn answered for ${r.name} (${r.organizationId}), so the token is alive and can see the Page. ` +
+            `⚠️ That is a read, not a test post — the posting permission is proven by the first post.`,
+        }
+      : { ok: false, kind: LINKEDIN_KIND[r.kind], message: r.message };
+  }
+
   /**
    * ⛔ SAID, NOT SILENTLY PASSED. A channel with no adapter must not come back
    * looking healthy: all that is knowable about it is what the platform told
@@ -96,9 +119,52 @@ export async function checkChannel(
   };
 }
 
+/**
+ * ⚠️ LinkedIn's words mapped onto the ones both callers already act on.
+ * `transient` becomes `network` because both callers leave the status alone
+ * for it — LinkedIn's 5xx is not LinkedIn saying no.
+ */
+const LINKEDIN_KIND: Record<LinkedInFailure, FacebookFailure> = {
+  auth: "token",
+  permission: "permission",
+  content: "unknown",
+  rate: "rate",
+  transient: "network",
+};
+
+/**
+ * 🔴 THE EXPIRY RULE, IN ONE PLACE. Until LinkedIn, every channel with an
+ * expiry date was a channel nothing could check, so the cron only looked at
+ * the date when it could NOT ask the platform. A LinkedIn token is both
+ * checkable AND dies after ~60 days ⇒ a successful check must not hide the
+ * date, or the 10-day warning silently stops the day the check starts working.
+ */
+export const EXPIRY_WARN_DAYS = 10;
+
+export function expiryVerdict(
+  expiresAt: string | null | undefined,
+  now: Date,
+): { status: "dead" | "expiring"; why: string } | null {
+  if (!expiresAt) return null;
+  const days = (new Date(expiresAt).getTime() - now.getTime()) / 86_400_000;
+  if (days <= 0) {
+    return { status: "dead", why: `The token expired on ${new Date(expiresAt).toLocaleDateString()}.` };
+  }
+  if (days <= EXPIRY_WARN_DAYS) {
+    return { status: "expiring", why: `The token expires in ${Math.ceil(days)} day(s).` };
+  }
+  return null;
+}
+
 /** Is there an adapter that can answer for this platform at all? ⚠️ Asked
  *  where the answer changes what a screen says, so "not checked" is never
  *  shown as "broken". */
 export function channelCanBeChecked(platform: string): boolean {
-  return platform === "facebook" || platform === "instagram" || platform === "youtube" || platform === "x";
+  return (
+    platform === "facebook" ||
+    platform === "instagram" ||
+    platform === "youtube" ||
+    platform === "x" ||
+    platform === "linkedin"
+  );
 }

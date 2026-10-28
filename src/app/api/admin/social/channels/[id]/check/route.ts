@@ -7,13 +7,13 @@
 // second correction into a day of nothing being posted.
 //
 // ⛔ THE TOKEN DOES NOT LEAVE THIS ROUTE in either direction: it is decrypted
-// here, sent to Facebook, and the reply is reduced to a status and a sentence.
+// here, sent to the platform, and the reply is reduced to a status and a sentence.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { loadCredentialFor } from "@/lib/social/channelCredentials";
-import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
+import { checkChannel, channelCanBeChecked, expiryVerdict } from "@/lib/social/channelCheck";
 import { captureChannelStats, capturePostStats } from "@/lib/social/stats";
 import { describeToken } from "@/lib/social/adapters/facebook";
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
    */
   const { data: row } = await db
     .from("social_accounts")
-    .select("platform")
+    .select("platform, token_expires_at")
     .eq("id", id)
     .maybeSingle();
   if (!row) {
@@ -88,11 +88,16 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       ? "pending"
       : "dead";
 
+  // ⚠️ The same expiry rule as the cron ⇒ expiryVerdict. A token that answers
+  // today and dies in a week is "Expires soon", not "Working".
+  const expiry = status === "ok" ? expiryVerdict(row.token_expires_at as string | null, new Date(now)) : null;
+  const saved = expiry ? expiry.status : status;
+
   const { error } = await db
     .from("social_accounts")
     .update({
-      status,
-      last_error: result.ok ? null : result.message,
+      status: saved,
+      last_error: expiry ? expiry.why : result.ok ? null : result.message,
       last_verified_at: now,
     })
     .eq("id", cred.id);
@@ -152,27 +157,33 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
      * pieces of indirect evidence, no answer. ⇒ Ask.
      *
      * ⛔ SCOPES ONLY, NEVER THE TOKEN. This line is rendered on a screen.
+     *
+     * ⚠️ FACEBOOK'S debug_token, so only for tokens Facebook issued. Until 28
+     * Oct this ran for every channel, sending YouTube's and X's tokens to Meta
+     * and printing "could not be described" under a good check.
      */
-    try {
-      const facts = await describeToken({ token: cred.token });
-      if (facts.ok) {
-        figures +=
-          ` 🔑 The token carries: ${facts.scopes.length ? facts.scopes.join(", ") : "NO scopes at all"}.` +
-          ` Valid: ${facts.valid ? "yes" : "NO"}.` +
-          ` Expires: ${facts.expiresAt ?? "never"}.`;
-      } else {
-        figures += ` ⚠️ The token could not be described (${facts.message}).`;
+    if (cred.platform === "facebook" || cred.platform === "instagram") {
+      try {
+        const facts = await describeToken({ token: cred.token });
+        if (facts.ok) {
+          figures +=
+            ` 🔑 The token carries: ${facts.scopes.length ? facts.scopes.join(", ") : "NO scopes at all"}.` +
+            ` Valid: ${facts.valid ? "yes" : "NO"}.` +
+            ` Expires: ${facts.expiresAt ?? "never"}.`;
+        } else {
+          figures += ` ⚠️ The token could not be described (${facts.message}).`;
+        }
+      } catch (e) {
+        figures += ` ⚠️ The token could not be described (${(e as Error).message}).`;
       }
-    } catch (e) {
-      figures += ` ⚠️ The token could not be described (${(e as Error).message}).`;
     }
   }
 
   return NextResponse.json({
-    status,
+    status: saved,
     ok: result.ok,
     // ⚠️ `ok` from Facebook is not `ok` as a channel. The note carries which.
-    note: (result.ok ? result.note : result.message) + figures,
+    note: (result.ok ? result.note : result.message) + (expiry ? ` ⚠️ ${expiry.why}` : "") + figures,
     // ⚠️ Carried separately because a reachable Page that cannot be posted to
     // is the one failure that otherwise reads as success.
     canPost: result.ok ? result.canPost : false,

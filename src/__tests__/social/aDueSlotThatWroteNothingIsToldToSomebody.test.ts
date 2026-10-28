@@ -130,32 +130,15 @@ describe("what the alert actually says", () => {
  * shape to get far enough to show it — which is why "the stats are broken"
  * was one sentence and two separate problems.
  */
-describe("⛔ a reaction breakdown is an ALIAS, not a field", () => {
+describe("⛔ a reaction breakdown comes from insights now, not aliases", () => {
+  /**
+   * ⚠️ 28 Oct 2026: the alias fix above was right and still never ran — the
+   * reactions edge itself needs pages_read_user_content. The breakdown now
+   * comes from `post_reactions_by_type_total` ⇒ facebookPostsAreMeasured.test.ts.
+   */
   const source = readFileSync(join(process.cwd(), "src/lib/social/adapters/facebook.ts"), "utf8");
-
-  it("🔴 asks for reactions.type(X).as(x), never a bare field named x", () => {
-    for (const type of ["ANGRY", "SAD", "LOVE"]) {
-      const alias = type.toLowerCase();
-      expect(
-        source,
-        `${alias} is requested without reactions.type(${type}).as(${alias})`,
-      ).toContain(`reactions.type(${type}).limit(0).summary(true).as(${alias})`);
-      // ⛔ The exact shape that produced "(#100) Tried accessing nonexisting field".
-      expect(source, `the bare-field form of ${alias} is back`).not.toContain(`,${alias}.type(${type})`);
-    }
-  });
-
-  it("⚠️ and the #100 message no longer names only ONE cause", () => {
-    /**
-     * 🔴 It said "Meta RETIRES these in waves… update the metric lists" — a
-     * confident remedy for a cause that was not the cause. A malformed field
-     * expression and a withdrawn metric produce the SAME error, and only one
-     * of them is Meta's doing ⇒ the 18 Oct lesson about a row shouting a
-     * generic remedy over a correct diagnosis.
-     */
-    const at = source.indexOf("nonexisting field/i.test(said)");
-    const near = source.slice(at, at + 1600);
-    expect(near).toMatch(/TWO THINGS LOOK LIKE THIS/);
-    expect(near, "it still asserts a withdrawn name as the only cause").toMatch(/field EXPRESSION first/);
+  it("no longer asks for the user-content reactions edge", () => {
+    expect(source).not.toMatch(/reactions\.type\(ANGRY\)/);
+    expect(source).toMatch(/post_reactions_by_type_total/);
   });
 });

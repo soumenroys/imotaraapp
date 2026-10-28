@@ -21,6 +21,7 @@ import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import {
   fetchPageStats,
   fetchPostStats,
+  facebookPostRef,
   fetchPageInsights,
   fetchPostImpressions,
 } from "@/lib/social/adapters/facebook";
@@ -274,9 +275,11 @@ export async function capturePostStats(
      * PAGE token, and these two readers are the only Facebook calls that were
      * using the raw system-user token ⇒ the note on fetchPostStats.
      */
+    // ⚠️ The id figures are read by ⇒ facebookPostRef (a bare video post id fails).
+    const ref = facebookPostRef(p.external_post_id as string, cred.externalId);
     const stats = await fetchPostStats({
       token: cred.token,
-      postId: p.external_post_id as string,
+      postId: ref,
       pageId: cred.externalId,
     });
     if (!stats.ok) {
@@ -289,7 +292,7 @@ export async function capturePostStats(
     // failure must not lose the reactions we already have.
     const seen = await fetchPostImpressions({
       token: cred.token,
-      postId: p.external_post_id as string,
+      postId: ref,
       pageId: cred.externalId,
     });
 

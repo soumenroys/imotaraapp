@@ -82,13 +82,13 @@ describe("a missing number is null, never zero", () => {
    * OMITS `shares` when a post has none. There, absent really does mean none.
    */
   it("treats an absent share count as genuinely none", () => {
-    expect(adapter).toMatch(/typeof json\.shares\?\.count === "number" \? json\.shares\.count : 0/);
+    expect(adapter).toMatch(/typeof sj\.shares\?\.count === "number" \? sj\.shares\.count : 0/);
   });
 
-  it("asks for counts, not for pages of objects", () => {
-    // 🔑 Without summary(true) this fetches reactions one by one and counts 25.
-    expect(adapter).toMatch(/reactions\.summary\(true\)\.limit\(0\)/);
-    expect(adapter).toMatch(/comments\.summary\(true\)\.limit\(0\)/);
+  it("asks for counts from INSIGHTS, not the user-content edges (28 Oct 2026)", () => {
+    // ⛔ reactions/comments edges need pages_read_user_content, which the token lacks.
+    expect(adapter).toMatch(/metric=post_reactions_by_type_total/);
+    expect(adapter).not.toMatch(/comments\.summary\(true\)/);
   });
 });
 

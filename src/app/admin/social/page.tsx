@@ -104,6 +104,64 @@ function missingPicture(gate: { notes?: string[] }, mediaKind?: string | null): 
   return (gate.notes ?? []).find((n) => n.startsWith("No picture:")) ?? null;
 }
 
+/**
+ * 🔴 A CARD THAT FAILED TO RENDER SAID NOTHING. 28 Oct 2026 the owner saw a
+ * bare broken-image icon on a LinkedIn draft; the same picture rendered fine
+ * minutes later, and nothing anywhere recorded why. ⛔ A reviewer cannot
+ * approve a card they cannot see, and "broken image" names no cause.
+ * ⇒ on failure, ask the route what went wrong (it answers in JSON) and offer
+ * one retry button. The route also logs it ⇒ picture/[id]/route.ts.
+ */
+function CardPicture({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [attempt, setAttempt] = useState(0);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  async function explain() {
+    try {
+      const res = await fetch(src, { credentials: "same-origin", cache: "no-store" });
+      if (res.ok) {
+        // ⚠️ It works now — the first try was a one-off. Show it.
+        setFailure(null);
+        setAttempt((a) => a + 1);
+        return;
+      }
+      const json = (await res.json().catch(() => null)) as { error?: string } | null;
+      setFailure(`${res.status}: ${json?.error ?? "the picture could not be made"}`);
+    } catch (e) {
+      setFailure(`The picture could not be fetched: ${(e as Error).message}`);
+    }
+  }
+
+  if (failure) {
+    return (
+      <div className="w-full max-w-xl space-y-2 rounded-lg border border-amber-400/30 bg-amber-400/5 p-3 text-xs text-amber-200">
+        <p>⚠️ This picture did not load. {failure}</p>
+        <button
+          type="button"
+          onClick={() => {
+            setFailure(null);
+            setAttempt((a) => a + 1);
+          }}
+          className="min-h-9 rounded-lg border border-white/15 px-3 font-semibold text-zinc-100 hover:bg-white/10"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      key={attempt}
+      src={attempt === 0 ? src : `${src}${src.includes("?") ? "&" : "?"}try=${attempt}`}
+      alt={alt}
+      className={className}
+      onError={() => void explain()}
+    />
+  );
+}
+
 export default function Today() {
   // 🔑 Deep links from the To do page: ?view=trouble&open=<post id>.
   const [view, setView] = useState<string>(() => {
@@ -334,8 +392,7 @@ export default function Today() {
                             <div className={post.media_kind === "carousel" ? "flex gap-3 overflow-x-auto pb-2" : ""}>
                               {cardIndexes(post).map((slide) => (
                                 <figure key={slide} className="shrink-0">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
+                                  <CardPicture
                                     src={
                                       slide === 0
                                         ? `/api/admin/social/picture/${post.id}`

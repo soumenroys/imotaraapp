@@ -71,6 +71,9 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   );
 
   if (!rendered.ok) {
+    // ⚠️ Logged, because the reviewer's screen is the only other place it shows
+    // ⇒ 28 Oct 2026, a broken card nobody could explain afterwards.
+    console.error(`[social/picture] ${id} (${post.platform}) could not be rendered: ${rendered.failure.error}`);
     return NextResponse.json({ error: rendered.failure.error }, { status: rendered.failure.status });
   }
   return rendered.picture.response;

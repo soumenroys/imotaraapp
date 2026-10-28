@@ -198,8 +198,10 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
     qr: true,
     tagsDriveDiscovery: false,
     requiresPicture: false,
-    canPublish: false,
-    blockedBy: "Community Management API approval from LinkedIn, then a token and encryption.",
+    // ✅ 28 Oct 2026. Community Management API approved (Development Tier),
+    // token stored and checked against the Page ⇒ social-publish/linkedinPost.ts.
+    canPublish: true,
+    blockedBy: "",
   },
 
   instagram: {
@@ -404,11 +406,9 @@ export function platformSpec(id: string): PlatformSpec {
 }
 
 /**
- * ⚠️ Every channel is `canPublish: false` today, and the admin says so per
- * channel rather than with one blanket banner — because the REASONS differ and
- * only one of them is work we can do alone. Collapsing them into "coming soon"
- * would hide that LinkedIn is waiting on LinkedIn while Facebook is waiting on
- * fifteen minutes in a portfolio.
+ * ⚠️ A channel that cannot publish says why PER CHANNEL rather than under one
+ * blanket banner — because the reasons differ, and "coming soon" hides which
+ * of them is work we can do alone. (✅ 28 Oct 2026: all five can publish.)
  */
 /**
  * 🔴 CHANNELS WHERE EVERY POST IS A PURCHASE, and how often they may run.

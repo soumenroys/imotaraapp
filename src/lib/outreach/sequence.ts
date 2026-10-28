@@ -14,8 +14,13 @@
 // outcome that means "no" (not interested, do not call, wrong number), a
 // meeting booked (a person takes over), or a safety flag — nothing automatic
 // writes to that person again.
+//
+// 🔑 OWNER, 28 Oct 2026: emailed only when the admin chose "yes" for email, and
+// the introduction goes at the admin's mail_date + mail_time in mail_time_zone;
+// day 7 and day 21 follow at the same local time. Any hour, any day.
 
-import { CONTACT_TABS, MAIL_INFO_DUE, STATUS, inCallingWindow, phoneOf, stoppedByAdmin, type Contact, type ContactTab } from "@/lib/voice/rules";
+import { CONTACT_TABS, MAIL_INFO_DUE, STATUS, phoneOf, stoppedByAdmin, type Contact, type ContactTab } from "@/lib/voice/rules";
+import { mailSlot, mailZone, yes } from "@/lib/voice/slots";
 
 export type Audience = "individuals" | "ngos" | "education" | "eldercare" | "corporates";
 
@@ -84,6 +89,8 @@ export function emailOf(c: Contact): string {
 export function mailCheck(c: Contact, suppressed: ReadonlySet<string>, dnc?: ReadonlySet<string>): string {
   const email = emailOf(c);
   if (!email) return "No email";
+  // ⛔ Blank is not yes: nobody is emailed on a channel the admin did not choose.
+  if (!yes(c.v.contact_by_email)) return "Contact by email is not yes";
   if (!EMAIL_RE.test(email)) return "Email looks wrong";
   if (!c.v.name) return "Missing name";
   if (/^sample\b/i.test(c.v.name)) return "Sample row - delete it";
@@ -101,25 +108,32 @@ export function mailCheck(c: Contact, suppressed: ReadonlySet<string>, dnc?: Rea
     const failedFor = c.v.mail_status.slice(MAIL.failed.length + 1).trim().toLowerCase();
     if (failedFor === email) return `${MAIL.failed} - correct the email`;
   } else if (FINAL_MAIL.includes(c.v.mail_status)) return c.v.mail_status;
-  if (!c.v.time_zone) return "Add time zone";
+  if (!mailZone(c)) return c.v.mail_time_zone || c.v.time_zone ? "Time zone not understood" : "Add time zone";
   return "OK";
 }
 
 const DAY = 86_400_000;
 
 /**
- * Which email this person is due now, or null. ⚠️ Inside their daytime only
- * (10:00–18:00 their time, never a Sunday in India) — the same window calls
- * use, so nobody gets an email at 3 a.m. because a job ran then.
+ * Which email this person is due now, or null.
+ * ⚠️ No daytime window any more (owner, 28 Oct 2026: "anytime in 24 hours, 365
+ * days … no restriction") — the admin's time IS the time.
+ *   · the details email a call asked for: at once;
+ *   · the introduction: once mail_date + mail_time has come — no date, no email;
+ *   · day 7 / day 21: that same local time, 7 and 21 days after the admin's date.
+ * ⚠️ Late is still sent (a daily limit can hold an email back a day); unlike a
+ * call, an email arriving later than planned interrupts nobody.
  */
 export function dueStep(c: Contact, suppressed: ReadonlySet<string>, now: Date, dnc?: ReadonlySet<string>): StepId | null {
   if (mailCheck(c, suppressed, dnc) !== "OK") return null;
-  if (!inCallingWindow(now, c.v.time_zone, c.v.country)) return null;
   if (c.v.mail_status === MAIL.infoDue) return "info";
 
   const sent = Number(c.v.mail_step) || 0; // how many sequence emails have gone
   if (sent >= SEQUENCE.length) return null;
-  if (sent === 0) return "intro";
+  const slot = mailSlot(c, SEQUENCE[sent].afterDays);
+  if (slot.kind === "at") return now.getTime() >= slot.at.getTime() ? SEQUENCE[sent].id : null;
+  if (sent === 0) return null; // no (readable) date: the introduction waits for the admin
+  // A sequence begun before the schedule columns existed: the old day gaps.
   const last = Date.parse(c.v.mail_last_sent);
   if (!Number.isFinite(last)) return null; // a step was recorded without a date: a person looks
   const gapDays = SEQUENCE[sent].afterDays - SEQUENCE[sent - 1].afterDays;

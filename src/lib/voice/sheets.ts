@@ -172,7 +172,7 @@ export async function ensureSystemColumns(): Promise<void> {
 }
 
 /** The Settings keys the admin console may change, as the sheet spells them. */
-export type SettingKey = "calling_enabled" | "auto_dispatch" | "max_concurrency" | "daily_cap" | "allow_individuals";
+export type SettingKey = "calling_enabled" | "auto_dispatch" | "max_concurrency" | "daily_cap" | "allow_individuals" | "retry_hours";
 
 /**
  * Write Settings values from the admin console. Updates the row that already
@@ -246,6 +246,12 @@ const WHITE = { red: 1, green: 1, blue: 1 };
 const SYSTEM_FILL = { red: 0.95, green: 0.96, blue: 0.97 };
 const SYSTEM_TEXT = { red: 0.25, green: 0.28, blue: 0.33 };
 
+/** The zones offered in the dropdowns; any other IANA name may still be typed. */
+const COMMON_ZONES = [
+  "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Asia/Dhaka", "Asia/Kathmandu", "Europe/London", "Europe/Berlin",
+  "America/New_York", "America/Chicago", "America/Los_Angeles", "Australia/Sydney", "UTC",
+];
+
 /** What each column means, shown as the header cell's note. */
 const NOTES: Partial<Record<Column, string>> = {
   phone: "YOU FILL: phone with country code, digits only, e.g. 919830012345.",
@@ -253,7 +259,7 @@ const NOTES: Partial<Record<Column, string>> = {
   organisation: "YOU FILL: organisation name (leave blank for an individual).",
   organisation_type: "YOU FILL: e.g. NGO, school, college, company, old age home.",
   country: "YOU FILL: 2-letter country code, e.g. IN.",
-  time_zone: "YOU FILL: e.g. Asia/Kolkata. Calls and emails happen 10:00–18:00 in this zone.",
+  time_zone: "YOU FILL: e.g. Asia/Kolkata. Used when mail_time_zone / call_time_zone are empty.",
   language: "YOU FILL: the language to call in (bn, hi, en …).",
   source: "YOU FILL: where we met them.",
   consent_note: "YOU FILL — REQUIRED: how they agreed to be contacted. No consent note = no call and no email.",
@@ -262,7 +268,15 @@ const NOTES: Partial<Record<Column, string>> = {
   call_reason: "YOU FILL (optional): why we are calling.",
   ambassador_notes: "YOU FILL (optional): your own notes.",
   voice_gender: "YOU FILL (optional): male, or leave empty for a female voice.",
-  email: "YOU FILL (optional): their email — they then get the outreach emails (intro, day 7, day 21).",
+  email: "YOU FILL (optional): their email. Emailed only when contact_by_email is yes.",
+  contact_by_email: "YOU FILL: yes to email this person (intro at mail_date + mail_time, then day 7 and day 21 at the same time). Empty or no = never emailed.",
+  contact_by_phone: "YOU FILL: yes to call this person at call_date + call_time. Empty or no = never called.",
+  mail_date: "YOU FILL: the day of the FIRST email, e.g. 2026-11-03. Follow-ups go 7 and 21 days later.",
+  mail_time: "YOU FILL: the time of the first email, 24-hour, e.g. 14:30. Any hour.",
+  mail_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
+  call_date: "YOU FILL: the day to call, e.g. 2026-11-03. A new, later date calls again.",
+  call_time: "YOU FILL: the time to call, 24-hour, e.g. 11:00. Any hour. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
+  call_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
   do_not_contact: "YOU FILL: type yes to stop ALL calls and emails to this person.",
   call_progress: "SYSTEM: where calling stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem · 🔴 safety.",
   mail_progress: "SYSTEM: where email stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem.",
@@ -273,6 +287,7 @@ const NOTES: Partial<Record<Column, string>> = {
 const WIDTHS: Partial<Record<Column, number>> = {
   phone: 130, name: 170, organisation: 190, consent_note: 260, email: 220, context: 200,
   call_summary: 260, next_action: 240, call_progress: 300, mail_progress: 300, what_to_do: 380, do_not_contact: 120,
+  contact_by_email: 120, contact_by_phone: 120, mail_date: 110, mail_time: 90, mail_time_zone: 140, call_date: 110, call_time: 90, call_time_zone: 140,
 };
 
 type SheetMeta = {
@@ -388,6 +403,21 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
         rule: { condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "yes" }] }, strict: false, showCustomUi: true, inputMessage: "Choose yes to stop all calls and emails to this person." },
       },
     });
+    // 🔑 The admin's schedule (owner, 28 Oct 2026): yes/no, a real date, a 24-hour time, a zone.
+    const col = (c: Column) => ({ sheetId: id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: idx(c), endColumnIndex: idx(c) + 1 });
+    for (const c of ["contact_by_email", "contact_by_phone"] as const) {
+      requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "yes" }, { userEnteredValue: "no" }] }, strict: false, showCustomUi: true, inputMessage: "yes or no" } } });
+    }
+    for (const c of ["mail_date", "call_date"] as const) {
+      requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "DATE_IS_VALID" }, strict: false, inputMessage: "A date, e.g. 2026-11-03" } } });
+      requests.push({ repeatCell: { range: col(c), cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } } }, fields: "userEnteredFormat.numberFormat" } });
+    }
+    for (const c of ["mail_time", "call_time"] as const) {
+      requests.push({ repeatCell: { range: col(c), cell: { userEnteredFormat: { numberFormat: { type: "TIME", pattern: "hh:mm" } } }, fields: "userEnteredFormat.numberFormat" } });
+    }
+    for (const c of ["mail_time_zone", "call_time_zone"] as const) {
+      requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Choose a zone, or type another, e.g. Europe/Paris. Empty = the time_zone column." } } });
+    }
     requests.push({
       setDataValidation: {
         range: { sheetId: id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: idx("email"), endColumnIndex: idx("email") + 1 },
@@ -422,19 +452,30 @@ export async function updateGuide(): Promise<void> {
   const t = quote("Start here");
   const data = [
     { range: `${t}!B2`, values: [["Contacts for Imotara's calls and outreach email. You fill the white (teal-header) columns; the system fills the grey ones."]] },
-    { range: `${t}!B5`, values: [["White (teal header): you and your team fill these — phone, name, organisation, type, country, time zone, language, source, consent note, team member, context, call reason, ambassador notes, voice_gender, email, do_not_contact. These are the only columns you can edit."]] },
+    { range: `${t}!B5`, values: [["White (teal header): you and your team fill these — phone, name, organisation, type, country, time zone, language, source, consent note, team member, context, call reason, ambassador notes, voice_gender, email, do_not_contact, and the schedule columns AH–AO. These are the only columns you can edit."]] },
     { range: `${t}!B6`, values: [["Grey (slate header): the system fills these after each call and email — status, attempts, outcome, summary, next action, mail status, and the three status columns. Locked."]] },
     { range: `${t}!B23:B29`, values: [
       ["READING A ROW (columns AE–AG, updated every 10 minutes)"],
       ["call_progress and mail_progress: ✅ done · ⏳ in queue · 🟡 waiting for its day · ⛔ a problem · 🔴 SAFETY — call them yourself today."],
       ["what_to_do: the fix for a problem on that row, in plain words. 'Nothing' means nothing is needed."],
-      ["EMAIL: type their email in column Z (with a consent note). They get an introduction, a follow-up on day 7 and a last note on day 21 — once the emails are approved in Outreach mail."],
-      ["TO STOP SOMEONE: choose yes in do_not_contact (column AD). No more calls or emails to them."],
-      ["Unsubscribe, a bounce, 'not interested', 'do not call' or a booked meeting also stop everything automatically."],
-      [""],
+      ["EMAIL: email in column Z, yes in contact_by_email (AH), and the first email's date + time in mail_date / mail_time (AJ–AK; zone in AL, or column G). Day 7 and day 21 follow at the same time. Any hour, any day."],
+      ["CALL: yes in contact_by_phone (AI), and the date + time in call_date / call_time (AM–AN; zone in AO, or column G). Any hour. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again."],
+      ["No date = nothing happens. No consent note = no call and no email. TO STOP SOMEONE: yes in do_not_contact (AD). Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
     ] },
   ];
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+  // The Settings tab explains each switch in column C — say what they mean now (owner, 28 Oct 2026).
+  const st = (await google(`/values/${encodeURIComponent(`${quote("Settings")}!A1:C50`)}`)) as { values?: string[][] };
+  const rows = st.values ?? [];
+  const say: Record<string, string> = {
+    auto_dispatch: "yes = every 5 minutes, retry unanswered calls (within retry_hours) and place callbacks people asked for. Calls at a date and time the admin set go out either way.",
+    retry_hours: "The local hours a RETRY may ring in, e.g. 09-21. A time the admin sets is used as it is, any hour. 0-24 = any hour.",
+  };
+  if (!rows.some((r) => (r[0] ?? "").trim().toLowerCase() === "retry_hours")) {
+    await google(`/values/${encodeURIComponent(`${quote("Settings")}!A:C`)}:append?valueInputOption=RAW`, { method: "POST", body: JSON.stringify({ values: [["retry_hours", "09-21", say.retry_hours]] }) });
+  }
+  const notes = rows.flatMap((r, i) => (say[(r[0] ?? "").trim().toLowerCase()] ? [{ range: `${quote("Settings")}!C${i + 1}`, values: [[say[(r[0] ?? "").trim().toLowerCase()]]] }] : []));
+  if (notes.length) await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data: notes }) });
 }
 
 /** One cell of one row, read fresh — for a last check just before a write. */

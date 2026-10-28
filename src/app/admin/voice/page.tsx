@@ -8,8 +8,8 @@
 // numbers — like the social media monitoring pages.
 //
 // ⛔ Nothing here bypasses a rule: every dial goes through the same kill switch,
-// contact check (consent, do-not-call, language, the Individuals switch) and
-// local calling hours as the automatic dispatcher ⇒ src/lib/voice/dispatch.ts.
+// contact check (consent, do-not-call, language, the Individuals switch,
+// contact_by_phone) as the automatic dispatcher ⇒ src/lib/voice/dispatch.ts.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminShell, useAdminRole } from "@/app/admin/_components/ui";
@@ -17,6 +17,7 @@ import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { LineChart, Bars, Donut } from "@/app/admin/_components/charts";
 import { CallFlow } from "./CallFlow";
+import { DailyList } from "@/app/admin/_components/DailyList";
 import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 
 type Row = {
@@ -31,7 +32,7 @@ type Row = {
   todoId?: string | null;
   handled?: boolean;
 };
-type Settings = { callingEnabled: boolean; autoDispatch: boolean; maxConcurrency: number; dailyCap: number; alertEmails: string[]; allowIndividuals?: boolean };
+type Settings = { callingEnabled: boolean; autoDispatch: boolean; maxConcurrency: number; dailyCap: number; alertEmails: string[]; allowIndividuals?: boolean; retryHours?: { start: number; end: number } };
 type Preview = {
   setup: { sheets: boolean; bolna: boolean; webhookToken: boolean };
   sheetUrl: string;
@@ -51,7 +52,7 @@ type Report = {
   byTab: Record<string, number>; byPlacedBy: Record<string, number>;
   perDay: { day: string; calls: number; connected: number; costCents: number }[]; safety: number; meetings: number;
 };
-type Tab = "contacts" | "scheduled" | "calls" | "reports" | "settings";
+type Tab = "contacts" | "daily" | "scheduled" | "calls" | "reports" | "settings";
 
 const key = (r: { tab: string; row: number }) => `${r.tab}#${r.row}`;
 /** ⛔ Every action names the row AND the phone shown, so a sheet edited meanwhile cannot ring someone else. */
@@ -59,6 +60,7 @@ const ref = (c: Row) => ({ tab: c.tab, row: c.row, phone: c.phone });
 type Ref = ReturnType<typeof ref>;
 const TABS: { id: Tab; label: string }[] = [
   { id: "contacts", label: "Contacts" },
+  { id: "daily", label: "Daily list" },
   { id: "scheduled", label: "Scheduled" },
   { id: "calls", label: "Call records" },
   { id: "reports", label: "Reports" },
@@ -170,6 +172,7 @@ export default function VoicePage() {
           </div>
         )}
         {tab === "contacts" && data?.contacts && <ContactsTab data={data} reload={load} say={setMessage} />}
+        {tab === "daily" && <DailyList kind="calls" historyHint="From the sheet's call_date / call_time, console schedules, callbacks and today's retries. For every call ever placed, with recordings, see Call records." />}
         {tab === "scheduled" && data?.contacts && <ScheduledTab data={data} reload={load} say={setMessage} />}
         {tab === "calls" && <CallsTab calls={calls} days={days} setDays={setDays} />}
         {tab === "reports" && <ReportsTab calls={calls} days={days} setDays={setDays} />}
@@ -701,6 +704,8 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
   const [busy, setBusy] = useState(false);
   const [cap, setCap] = useState(String(s?.dailyCap ?? 30));
   const [lines, setLines] = useState(String(s?.maxConcurrency ?? 2));
+  const [retryStart, setRetryStart] = useState(String(s?.retryHours?.start ?? 9));
+  const [retryEnd, setRetryEnd] = useState(String(s?.retryHours?.end ?? 21));
   if (!s) return <p className="text-zinc-500">Settings are not available — check the Google connection.</p>;
 
   const save = async (body: Record<string, unknown>, confirmText?: string) => {
@@ -724,11 +729,11 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
       />
       <Toggle
         label="Automatic calling"
-        hint="Every 5 minutes, call new contacts, retries and due follow-ups by itself. Scheduled and queued calls go out either way."
+        hint="Every 5 minutes, retry unanswered calls and place callbacks people asked for. Calls at a date and time the admin set (sheet or console) go out either way."
         on={s.autoDispatch}
         busy={busy}
         onToggle={(next, warn) => void save({ autoDispatch: next }, warn)}
-        warn="Turn automatic calling ON? The dispatcher will start calling new contacts by itself."
+        warn="Turn automatic calling ON? Unanswered calls will be retried and callbacks placed by themselves."
       />
       <Toggle
         label="Call individuals"
@@ -744,6 +749,14 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
         <button className="rounded-xl border border-zinc-600 px-4 py-1.5 font-semibold" disabled={busy} onClick={() => void save({ dailyCap: Number(cap), maxConcurrency: Number(lines) })}>
           Save limits
         </button>
+      </div>
+      <div className="flex flex-wrap items-end gap-4 border-t border-zinc-800 py-3">
+        <label>Retries from (hour, their time)<input type="number" min={0} max={23} className="block w-28 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5" value={retryStart} onChange={(e) => setRetryStart(e.target.value)} /></label>
+        <label>until (hour)<input type="number" min={1} max={24} className="block w-28 rounded-lg border border-zinc-700 bg-zinc-900 px-2 py-1.5" value={retryEnd} onChange={(e) => setRetryEnd(e.target.value)} /></label>
+        <button className="rounded-xl border border-zinc-600 px-4 py-1.5 font-semibold" disabled={busy} onClick={() => void save({ retryStart: Number(retryStart), retryEnd: Number(retryEnd) })}>
+          Save retry hours
+        </button>
+        <span className="text-zinc-400">Only retries wait for these hours — the system picks their time. A time the admin sets is used as it is, any hour. 0 to 24 = any hour.</span>
       </div>
       <SheetSetup say={say} />
       <p className="border-t border-zinc-800 pt-3 text-zinc-400">

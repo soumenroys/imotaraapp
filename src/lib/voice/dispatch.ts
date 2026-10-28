@@ -14,7 +14,7 @@ import { agentFor } from "@/lib/voice/agents";
 import { placeCall, getExecution, readExecution, type ExecutionView } from "@/lib/voice/bolna";
 import { readDirectory, writeRow, appendDnc, readCell } from "@/lib/voice/sheets";
 import {
-  ACTIVE_CALL_MINUTES, STATUS, checkContact, inCallingWindow, phoneOf, sameContact, selectDue, userData, writebackFor, normalisePhone,
+  ACTIVE_CALL_MINUTES, STATUS, checkContact, phoneOf, sameContact, selectDue, userData, writebackFor, normalisePhone,
   type Contact, type Directory, type Selection,
 } from "@/lib/voice/rules";
 
@@ -22,7 +22,6 @@ import {
 export type RowRef = { tab: string; row: number; phone: string };
 
 const SHEET_CHANGED = "The sheet changed since this page loaded - press Refresh";
-const OUTSIDE_HOURS = "Outside their calling hours (10:00-18:00 their time, no Sundays in India)";
 
 export type DispatchReport = {
   ok: boolean;
@@ -79,8 +78,9 @@ export type CallNowReport = {
 /**
  * "📞 Call now" from the console. Same gates as the dispatcher — the kill
  * switch, the contact check (consent, do-not-call, language, the individuals
- * switch) and the person's local calling hours — and the same line limits:
- * what does not fit in a free line is Queued for the next dispatch instead.
+ * switch, contact by phone = yes) — and the same line limits: what does not
+ * fit in a free line is Queued for the next dispatch instead. ⚠️ No calling
+ * hours: the admin chose this moment (owner, 28 Oct 2026: "no restriction").
  */
 export async function callNow(rows: RowRef[], by: string, now = new Date()): Promise<CallNowReport> {
   const d = await readDirectory();
@@ -99,10 +99,6 @@ export async function callNow(rows: RowRef[], by: string, now = new Date()): Pro
     const check = checkContact(c, d);
     if (check !== "OK") { report.skipped.push({ ...who, reason: check }); continue; }
     if (busy.has(phoneOf(c))) { report.skipped.push({ ...who, reason: "This number is already being called" }); continue; }
-    if (!inCallingWindow(now, c.v.time_zone, c.v.country)) {
-      report.skipped.push({ ...who, reason: OUTSIDE_HOURS });
-      continue;
-    }
     if (slots <= 0) {
       await writeRow(c, { status: STATUS.queued });
       report.queued.push(who);
@@ -132,8 +128,9 @@ export type ScheduleReport = { scheduled: number; skipped: { tab: string; name: 
 
 /**
  * Schedule rows for a time the admin chose; the 5-minute dispatcher places them
- * when due. ⚠️ Checked NOW, not at ring time: a time outside the person's
- * calling hours used to be accepted and then silently wait for the next window.
+ * when due. ⚠️ The contact is checked NOW, not at ring time, so a row that can
+ * never be called is refused here instead of silently waiting. Any hour is
+ * accepted — the admin's choice (owner, 28 Oct 2026).
  */
 export async function schedule(rows: RowRef[], at: Date): Promise<ScheduleReport> {
   const d = await readDirectory();
@@ -145,7 +142,6 @@ export async function schedule(rows: RowRef[], at: Date): Promise<ScheduleReport
     if (c.v.status === STATUS.calling) { report.skipped.push({ ...who, reason: "Already being called" }); continue; }
     const check = checkContact(c, d);
     if (check !== "OK") { report.skipped.push({ ...who, reason: check }); continue; }
-    if (!inCallingWindow(at, c.v.time_zone, c.v.country)) { report.skipped.push({ ...who, reason: OUTSIDE_HOURS }); continue; }
     await writeRow(c, { status: STATUS.scheduled, follow_up_datetime: at.toISOString() });
     report.scheduled++;
   }

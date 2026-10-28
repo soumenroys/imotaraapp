@@ -9,8 +9,9 @@
 // admin can see the whole path before pressing anything.
 //
 // ⚠️ EVERY BOX STATES A RULE THE CODE ENFORCES ⇒ src/lib/voice/rules.ts and
-// dispatch.ts (calling hours 10:00–18:00 their time, no Sundays in India; the
-// 5-minute job; 2-hour grace for a schedule; 3 tries for no answer). Change a
+// dispatch.ts (the sheet's call_date/call_time, any hour; contact_by_phone = yes;
+// the 5-minute job; 2-hour grace for a schedule; 3 tries for no answer, inside
+// the retry hours). Change a
 // rule there and this picture is wrong until it is changed here too.
 
 import { Arrow, Box, FlowFrame, Lane, ToneKey } from "@/app/admin/_components/flow";
@@ -25,22 +26,18 @@ export function CallFlow({ callingOn, autoOn }: { callingOn: boolean; autoOn: bo
             <b className={callingOn ? "text-emerald-300" : "text-red-300"}>Right now it is {callingOn ? "ON" : "OFF"}.</b>
           </Box>
           <Arrow side />
-          <Box tone="step" title="2 · Contacts: pick someone with a green OK">
-            OK means: consent note, not on do-not-call, their language is started, an agent exists. Anything else names what
-            to fix in the sheet.
+          <Box tone="step" title="2 · The sheet: yes in contact_by_phone, and a call_date + call_time">
+            Plus a consent note, not on do-not-call, their language started. Any hour, any day, in call_time_zone (or the
+            row&rsquo;s time zone). No date = no call. A new, later date calls again.
           </Box>
         </div>
 
-        <Arrow label="then choose one" />
+        <Arrow label="at that time it rings by itself — or, from this page, choose one" />
 
         {/* 3 — two ways */}
         <div className="flex flex-col gap-3 md:flex-row">
           <Lane title="3 · 📞 Call now">
-            <Box title="Inside their calling hours?">10:00–18:00 in THEIR time zone; never on a Sunday in India.</Box>
-            <div className="grid grid-cols-2 gap-2">
-              <Box tone="stop" title="No → not called">The page says why. Try later or schedule it.</Box>
-              <Box tone="step" title="Yes → is a line free?">Limits: lines at once, and calls per 24 hours.</Box>
-            </div>
+            <Box tone="step" title="Is a line free?">Limits: lines at once, and calls per 24 hours. Any hour — you chose it.</Box>
             <div className="grid grid-cols-2 gap-2">
               <Box tone="good" title="Free → rings now" />
               <Box tone="wait" title="Busy → Queued">Rings at the next free line; checked every 5 minutes.</Box>
@@ -48,11 +45,7 @@ export function CallFlow({ callingOn, autoOn }: { callingOn: boolean; autoOn: bo
           </Lane>
 
           <Lane title="3 · 🗓 Or schedule (a time in your time zone)">
-            <Box title="Is that time inside their hours?">Checked when you press Schedule, not later.</Box>
-            <div className="grid grid-cols-2 gap-2">
-              <Box tone="stop" title="No → refused">Pick a time 10:00–18:00 their time.</Box>
-              <Box tone="wait" title="Yes → Scheduled">Listed on the Scheduled tab; Cancel takes it off.</Box>
-            </div>
+            <Box tone="wait" title="Scheduled">Any hour. Listed on the Scheduled tab; Cancel takes it off.</Box>
             <div className="grid grid-cols-2 gap-2">
               <Box tone="good" title="At that time → rings">Within 5 minutes of the time, even with automatic calling off.</Box>
               <Box tone="stop" title="Over 2 hours late → missed">E.g. calling was OFF. Not called — schedule it again.</Box>
@@ -80,7 +73,7 @@ export function CallFlow({ callingOn, autoOn }: { callingOn: boolean; autoOn: bo
             The call service refused, or no result came back. Listed under <b>Needs a person</b>; nothing retries by itself.
           </Box>
           <Box tone="wait" title="No answer · callback · send-info follow-up">
-            Called again later (no answer: up to 3 tries, a different time of day; send info: 3 days on) —{" "}
+            Called again later (no answer: up to 3 tries, a different time of day, inside the retry hours; send info: 3 days on) —{" "}
             <b className={autoOn ? "text-emerald-300" : "text-amber-300"}>
               only while Automatic is ON (now {autoOn ? "ON" : "OFF"})
             </b>

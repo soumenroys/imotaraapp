@@ -21,6 +21,8 @@ const contact = (over: Partial<Record<Column, string>> = {}, tab: Contact["tab"]
     v: {
       ...blank, phone: "919830012345", name: "Asha", organisation: "Hope Trust", country: "IN", time_zone: "Asia/Kolkata",
       language: "en", consent_note: "Asked for details at the 12 Oct seminar", status: "Pending", email: "asha@hope.org",
+      // The admin's own schedule (28 Oct 2026): yes, first email Tue 21 Oct 10:55 IST — due at TUE_11_IST.
+      contact_by_email: "yes", mail_date: "2026-10-21", mail_time: "10:55",
       ...over,
     },
   };
@@ -60,22 +62,40 @@ describe("who may be emailed", () => {
   });
 });
 
-describe("the sequence: day 0, 7, 21", () => {
-  it("the introduction goes first, in their daytime", () => {
+describe("the sequence: the admin's date, then +7 and +21 days at the same local time", () => {
+  it("the introduction goes once the admin's date and time has come", () => {
     expect(dueStep(contact(), none, TUE_11_IST)).toBe("intro");
+    expect(dueStep(contact({ mail_time: "11:05" }), none, TUE_11_IST)).toBeNull();
   });
-  it("⛔ never at night their time", () => {
-    expect(dueStep(contact(), none, new Date("2026-10-21T17:30:00Z"))).toBeNull(); // 23:00 IST
+  it("⛔ no date, no email — a row without one waits for the admin", () => {
+    expect(dueStep(contact({ mail_date: "", mail_time: "" }), none, TUE_11_IST)).toBeNull();
   });
-  it("the follow-up waits seven days", () => {
-    const sentAt = new Date(TUE_11_IST.getTime() - 6 * DAY).toISOString();
-    expect(dueStep(contact({ mail_step: "1", mail_last_sent: sentAt }), none, TUE_11_IST)).toBeNull();
+  it("⛔ no is no, and blank is not yes", () => {
+    expect(mailCheck(contact({ contact_by_email: "no" }), none)).toMatch(/not yes/);
+    expect(mailCheck(contact({ contact_by_email: "" }), none)).toMatch(/not yes/);
+  });
+  it("🔑 any hour, any day: 23:00 on a Sunday in India is sent (owner, 28 Oct 2026)", () => {
+    const sunday11pm = new Date("2026-10-25T17:30:00Z");
+    expect(dueStep(contact({ mail_date: "2026-10-25", mail_time: "23:00" }), none, sunday11pm)).toBe("intro");
+  });
+  it("in the admin's chosen zone, not ours", () => {
+    // 09:00 in London on 21 Oct (BST) = 13:30 IST — not yet at 11:00 IST.
+    const c = contact({ mail_time: "09:00", mail_time_zone: "Europe/London" });
+    expect(dueStep(c, none, TUE_11_IST)).toBeNull();
+    expect(dueStep(c, none, new Date("2026-10-21T08:00:00Z"))).toBe("intro");
+  });
+  it("the follow-up is 7 days after the admin's date, at the same local time", () => {
+    const sent = { mail_step: "1", mail_last_sent: TUE_11_IST.toISOString() };
+    expect(dueStep(contact(sent), none, new Date(TUE_11_IST.getTime() + 7 * DAY - 10 * 60_000))).toBeNull(); // 10:50 on day 7
+    expect(dueStep(contact(sent), none, new Date(TUE_11_IST.getTime() + 7 * DAY))).toBe("followup");
+  });
+  it("the last note is 21 days after the admin's date — even if the follow-up went late", () => {
+    const late = new Date(TUE_11_IST.getTime() + 10 * DAY).toISOString();
+    expect(dueStep(contact({ mail_step: "2", mail_last_sent: late }), none, new Date(TUE_11_IST.getTime() + 21 * DAY))).toBe("last");
+  });
+  it("a sequence begun before the schedule columns keeps its old day gaps", () => {
     const weekAgo = new Date(TUE_11_IST.getTime() - 7 * DAY).toISOString();
-    expect(dueStep(contact({ mail_step: "1", mail_last_sent: weekAgo }), none, TUE_11_IST)).toBe("followup");
-  });
-  it("the last note is fourteen days after the follow-up", () => {
-    const at = new Date(TUE_11_IST.getTime() - 14 * DAY).toISOString();
-    expect(dueStep(contact({ mail_step: "2", mail_last_sent: at }), none, TUE_11_IST)).toBe("last");
+    expect(dueStep(contact({ mail_date: "", mail_time: "", mail_step: "1", mail_last_sent: weekAgo }), none, TUE_11_IST)).toBe("followup");
   });
   it("after three emails, nothing more", () => {
     const c = contact({ mail_step: "2", mail_last_sent: new Date(0).toISOString() });
@@ -83,10 +103,10 @@ describe("the sequence: day 0, 7, 21", () => {
     expect(w.mail_status).toBe(MAIL.done);
     expect(dueStep(contact({ ...w, mail_step: "3" }), none, TUE_11_IST)).toBeNull();
   });
-  it("🔑 a call that ended 'send me details' sends the info email next", () => {
+  it("🔑 a call that ended 'send me details' sends the info email next — no date needed", () => {
     const w = writebackFor({ outcome: "send_info" }, TUE_11_IST);
     expect(w.cells.mail_status).toBe(MAIL.infoDue);
-    expect(dueStep(contact({ mail_status: MAIL.infoDue }), none, TUE_11_IST)).toBe("info");
+    expect(dueStep(contact({ mail_status: MAIL.infoDue, mail_date: "", mail_time: "" }), none, TUE_11_IST)).toBe("info");
     expect(afterSent(contact(), "info", TUE_11_IST).mail_status).toBe(MAIL.infoSent);
   });
   it("⛔ one email per address per run, even on two tabs", () => {

@@ -12,6 +12,7 @@ import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { AUDIENCES, AUDIENCE_LABEL, STEPS, STEP_LABEL, type Audience, type StepId } from "@/lib/outreach/sequence";
 import { MailFlow } from "./MailFlow";
+import { DailyList } from "@/app/admin/_components/DailyList";
 import { scrollToTarget } from "@/app/admin/_components/scrollToTarget";
 
 type Draft = { subject: string; body: string; status: "needs_review" | "approved"; writtenAt: string; writtenBy: string; approvedAt?: string; approvedBy?: string; findings: string[] };
@@ -25,7 +26,7 @@ type Overview = {
   domainBudget: { remaining: number; cap: number; week: number }; sender: { name: string; email: string } | null;
   ready: { email: boolean; unsubscribe: boolean; sender: boolean }; sheetUrl: string; error?: string;
 };
-type Tab = "emails" | "contacts" | "settings";
+type Tab = "emails" | "daily" | "contacts" | "settings";
 
 const fmtTime = (iso: string) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—");
 
@@ -85,10 +86,10 @@ export default function OutreachPage() {
         {data && <StatusStrip d={data} />}
         {data && <MailFlow on={data.settings.enabled} auto={data.settings.sendWithoutAsking} cap={data.settings.dailyCap} />}
         <nav id="outreach-tabs" className="flex scroll-mt-4 flex-wrap gap-2">
-          {(["emails", "contacts", "settings"] as Tab[]).map((t) => (
+          {(["emails", "daily", "contacts", "settings"] as Tab[]).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`rounded-full px-4 py-1.5 font-semibold ${tab === t ? "bg-white text-zinc-900" : "border border-white/15 text-zinc-300 hover:bg-white/10"}`}>
-              {t === "emails" ? "Emails" : t === "contacts" ? "Contacts" : "Settings"}
+              {t === "emails" ? "Emails" : t === "daily" ? "Daily list" : t === "contacts" ? "Contacts" : "Settings"}
             </button>
           ))}
         </nav>
@@ -99,6 +100,7 @@ export default function OutreachPage() {
           </div>
         )}
         {data && tab === "emails" && <EmailsTab d={data} reload={load} say={setMessage} />}
+        {tab === "daily" && <DailyList kind="mail" historyHint="From the sheet's mail_date / mail_time (day 7 and day 21 follow at the same time). Every email ever sent is also in Broadcast → history, under “Outreach ·”." />}
         {data && tab === "contacts" && <ContactsTab d={data} />}
         {data && tab === "settings" && <SettingsTab d={data} reload={load} say={setMessage} />}
       </div>
@@ -233,7 +235,7 @@ function ContactsTab({ d }: { d: Overview }) {
         <span className="text-zinc-400">{d.contacts.length} with an email in the sheet</span>
       </div>
       {d.contacts.length === 0 && (
-        <p className="text-zinc-400">Nobody has an email in the sheet yet. Add it in the <b>email</b> column (with a consent note) and press Refresh. <a href={d.sheetUrl} target="_blank" rel="noreferrer" className="text-sky-300 underline">Open the sheet ↗</a></p>
+        <p className="text-zinc-400">Nobody has an email in the sheet yet. Add it in the <b>email</b> column, with a consent note, <b>yes</b> in contact_by_email and a mail_date + mail_time, then press Refresh. <a href={d.sheetUrl} target="_blank" rel="noreferrer" className="text-sky-300 underline">Open the sheet ↗</a></p>
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-left">
@@ -246,7 +248,7 @@ function ContactsTab({ d }: { d: Overview }) {
                 <td>{c.mailStep} of 3{c.mailStatus ? <div className="text-zinc-400">{c.mailStatus}</div> : null}</td>
                 <td>{fmtTime(c.lastSent)}</td>
                 <td className={c.due ? "text-emerald-300" : c.check === "OK" ? "text-zinc-300" : "text-red-300"}>
-                  {c.due ? `Due now: ${STEP_LABEL[c.due]}` : c.check === "OK" ? "Waiting for its day or their daytime" : c.check}
+                  {c.due ? `Due now: ${STEP_LABEL[c.due]}` : c.check === "OK" ? "Waiting for its scheduled date and time" : c.check}
                   {!c.due && c.check !== "OK" && <div><a href={c.sheetLink} target="_blank" rel="noreferrer" className="whitespace-nowrap text-xs text-sky-300 underline">{"open row ↗"}</a></div>}
                 </td>
               </tr>

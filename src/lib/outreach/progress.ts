@@ -13,7 +13,7 @@
 import {
   STATUS, MAX_ATTEMPTS, checkContact, missedSchedule, sheetCallDue, stoppedByAdmin, type Contact, type Directory,
 } from "@/lib/voice/rules";
-import { callSlot, mailSlot, showSlot, yes } from "@/lib/voice/slots";
+import { callServiceWarning, callSlot, mailSlot, showSlot, yes } from "@/lib/voice/slots";
 import { MAIL, SEQUENCE, STEP_LABEL, dueStep, emailOf, mailCheck, AUDIENCE_OF } from "@/lib/outreach/sequence";
 import { sendableDraft, type OutreachState } from "@/lib/outreach/store";
 
@@ -96,7 +96,8 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
   if (due === "missed") return { text: `⛔ Missed — the call time ${when} passed`, fix: "Set a new call date and time (calling was off, or the line was busy too long)." };
   if (!d.settings.callingEnabled) return { text: `⏸ Call set for ${when} — calling is OFF`, fix: "Calling must be ON at that time (Voice calls → Settings)." };
   if (due === "due") return { text: "⏳ In queue — its time has come", fix: "" };
-  return { text: `⏳ Call set for ${when}`, fix: "" };
+  const held = callServiceWarning(slot.at, slot.zone);
+  return { text: `⏳ Call set for ${when}${held ? ` ${held}` : ""}`, fix: held ? "To ring at the time you set, choose a time between 09:00 and 21:00 their time." : "" };
 }
 
 export function mailProgress(c: Contact, suppressed: ReadonlySet<string>, state: OutreachState, now: Date, dnc?: ReadonlySet<string>): { text: string; fix: string } {

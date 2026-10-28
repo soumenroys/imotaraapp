@@ -28,3 +28,17 @@ describe("a call still 'Calling' after a while", () => {
     expect(reconcileVerdict({ final: false, status: "completed" }, 4 * H)).toBe("review");
   });
 });
+
+import { callServiceWarning } from "@/lib/voice/slots";
+
+describe("an admin's call time the call service will hold is warned about, never refused (owner, 28 Oct 2026)", () => {
+  it("23:30 in Kolkata is warned", () => {
+    expect(callServiceWarning(new Date("2026-10-28T18:00:00Z"), "Asia/Kolkata")).toMatch(/09:00–21:00/);
+  });
+  it("11:00 in Kolkata is fine", () => {
+    expect(callServiceWarning(new Date("2026-10-28T05:30:00Z"), "Asia/Kolkata")).toBe("");
+  });
+  it("judged in THEIR zone: 23:30 IST is 18:00 in London — fine", () => {
+    expect(callServiceWarning(new Date("2026-10-28T18:00:00Z"), "Europe/London")).toBe("");
+  });
+});

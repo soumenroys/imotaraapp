@@ -27,8 +27,8 @@ export function CallFlow({ callingOn, autoOn }: { callingOn: boolean; autoOn: bo
           </Box>
           <Arrow side />
           <Box tone="step" title="2 · The sheet: yes in contact_by_phone, and a call_date + call_time">
-            Plus a consent note, not on do-not-call, their language started. Any hour, any day, in call_time_zone (or the
-            row&rsquo;s time zone). No date = no call. A new, later date calls again.
+            Plus a consent note, not on do-not-call, their language started. In call_time_zone (or the row&rsquo;s time zone);
+            the call service rings only 09:00–21:00 their time and holds anything else till 09:00. No date = no call.
           </Box>
         </div>
 

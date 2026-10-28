@@ -275,7 +275,7 @@ const NOTES: Partial<Record<Column, string>> = {
   mail_time: "YOU FILL: the time of the first email, 24-hour, e.g. 14:30. Any hour.",
   mail_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
   call_date: "YOU FILL: the day to call, e.g. 2026-11-03. A new, later date calls again.",
-  call_time: "YOU FILL: the time to call, 24-hour, e.g. 11:00. Any hour. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
+  call_time: "YOU FILL: the time to call, 24-hour, e.g. 11:00. ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
   call_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
   do_not_contact: "YOU FILL: type yes to stop ALL calls and emails to this person.",
   call_progress: "SYSTEM: where calling stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem · 🔴 safety.",

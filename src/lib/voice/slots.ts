@@ -144,6 +144,23 @@ export function mailSlot(c: Contact, afterDays = 0): Slot {
   return slot(c.v.mail_date, c.v.mail_time, c.v.mail_time_zone, c.v.time_zone, "Mail", afterDays);
 }
 
+/**
+ * 🔑 THE CALL SERVICE'S OWN HOURS. Bolna's calling guardrails hold a call
+ * placed outside 09:00–21:00 in the recipient's zone ("rescheduled") and ring
+ * it at the next 09:00 — measured on the 28 Oct end-to-end test. The owner
+ * chose to keep them (28 Oct 2026); an admin's time outside is warned about,
+ * never refused.
+ */
+export const CALL_SERVICE_HOURS = { start: 9, end: 21 };
+
+/** The warning for a call time the call service will hold, or "". */
+export function callServiceWarning(at: Date, zone: string): string {
+  const h = Number(at.toLocaleString("en-GB", { timeZone: zone, hour: "2-digit", hourCycle: "h23" }));
+  return h >= CALL_SERVICE_HOURS.start && h < CALL_SERVICE_HOURS.end
+    ? ""
+    : "⚠️ outside 09:00–21:00 their time — the call service holds it and rings at 09:00";
+}
+
 /** "3 Nov, 11:00" in that zone — how a slot is shown back to the admin. */
 export function showSlot(at: Date, zone: string): string {
   const s = at.toLocaleString("en-GB", { timeZone: zone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });

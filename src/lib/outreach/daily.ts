@@ -15,7 +15,7 @@
 // the Broadcast history hold the full log.
 
 import { STATUS, MAX_ATTEMPTS, checkContact, sheetCallDue, localTime, type Contact, type Directory } from "@/lib/voice/rules";
-import { callSlot, mailSlot, showSlot, yes } from "@/lib/voice/slots";
+import { callServiceWarning, callSlot, mailSlot, showSlot, yes } from "@/lib/voice/slots";
 import { AUDIENCE_OF, MAIL, SEQUENCE, STEP_LABEL, dueStep, emailOf, mailCheck } from "@/lib/outreach/sequence";
 import { sendableDraft, type OutreachState } from "@/lib/outreach/store";
 
@@ -102,7 +102,7 @@ export function dailyList(
         : s === "missed" ? "⛔ Missed — set a new call date"
         : !d.settings.callingEnabled ? "⏸ Calling is OFF"
         : s === "due" ? "⏳ In queue now"
-        : "⏳ Scheduled";
+        : `⏳ Scheduled${callServiceWarning(slot.at, slot.zone) ? ` ${callServiceWarning(slot.at, slot.zone)}` : ""}`;
       calls.push({ ...base(c), what: "Call", at: slot.at.toISOString(), theirTime: showSlot(slot.at, slot.zone), status });
     }
     // A console Schedule or a callback the person asked for.

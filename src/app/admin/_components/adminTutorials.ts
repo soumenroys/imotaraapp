@@ -163,7 +163,7 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     title: "Calling contacts — at the time you set, and reading every call back",
     steps: [
       { do: "Settings tab: switch Calling ON when you are ready.", then: "While it is OFF nothing rings. Individuals stay paused until you allow them." },
-      { do: "In the sheet: yes in contact_by_phone, and a call_date + call_time.", then: "It rings then by itself — any hour, in call_time_zone or the row's zone. No date = no call; a later date calls again." },
+      { do: "In the sheet: yes in contact_by_phone, and a call_date + call_time.", then: "It rings then by itself, in call_time_zone or the row's zone — 09:00–21:00 their time, or the call service holds it till 09:00. No date = no call." },
       { do: "Daily list tab: pick a day.", then: "Every call set for that day, today's retries, and what happened to each." },
       { do: "Contacts tab: deal with 'Needs a person' first.", then: "Safety calls, failed dials, meetings and missed times wait for you there." },
       { do: "Or press 📞 Call now, or pick a time and press Schedule.", then: "Any hour. What fits a free line rings; the rest is queued." },

@@ -27,14 +27,12 @@ import {
 } from "@/lib/social/queueHealth";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { loadCredentialFor } from "@/lib/social/channelCredentials";
-import { checkChannel, channelCanBeChecked } from "@/lib/social/channelCheck";
+import { checkChannel, channelCanBeChecked, expiryVerdict } from "@/lib/social/channelCheck";
 
 export const maxDuration = 120;
 
-/** How long before a token dies we start saying so. ⚠️ LinkedIn's live 60
- *  days, so ten days is more than one working week of warning — enough that
- *  the fix is never done in a hurry. */
-const WARN_DAYS = 10;
+// ⚠️ How long before a token dies we start saying so ⇒ EXPIRY_WARN_DAYS in
+// channelCheck.ts — shared with the button, so the two never disagree.
 
 export async function GET(req: NextRequest) {
   const auth = cronAuthorised(req);
@@ -96,6 +94,12 @@ export async function GET(req: NextRequest) {
           // post to is the failure that otherwise reads as success.
           next = result.canPost ? "ok" : "dead";
           why = result.canPost ? undefined : result.note;
+          // ⚠️ A working token can still be days from dying ⇒ expiryVerdict.
+          const expiry = result.canPost ? expiryVerdict(a.token_expires_at as string | null, now) : null;
+          if (expiry) {
+            next = expiry.status;
+            why = expiry.why;
+          }
         } else if (result.kind === "network") {
           // ⚠️ Our connectivity failing is not the platform saying no.
           verified = false;
@@ -109,13 +113,10 @@ export async function GET(req: NextRequest) {
         }
       }
     } else if (a.token_expires_at) {
-      const days = (new Date(a.token_expires_at as string).getTime() - now.getTime()) / 86_400_000;
-      if (days <= 0) {
-        next = "dead";
-        why = `The token expired on ${new Date(a.token_expires_at as string).toLocaleDateString()}.`;
-      } else if (days <= WARN_DAYS) {
-        next = "expiring";
-        why = `The token expires in ${Math.ceil(days)} day(s).`;
+      const expiry = expiryVerdict(a.token_expires_at as string, now);
+      if (expiry) {
+        next = expiry.status;
+        why = expiry.why;
       } else {
         next = was === "dead" || was === "expiring" ? "pending" : was;
       }

@@ -16,6 +16,7 @@
 // noise, and this module's job is to record honestly, not to flatter.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { scrubRaw } from "@/lib/social/scrubRaw";
 import { loadChannelCredential } from "@/lib/social/channelCredentials";
 import {
   fetchPageStats,
@@ -155,7 +156,8 @@ export async function captureChannelStats(
       impressions,
       reach,
       follower_change: followerChange,
-      raw: { page: stats.stats.raw, insights: insights.ok ? insights.insights.raw : { error: insights.message } },
+      // ⛔ Never stored whole ⇒ scrubRaw: Graph puts the token in its paging links.
+      raw: scrubRaw({ page: stats.stats.raw, insights: insights.ok ? insights.insights.raw : { error: insights.message } }),
       note: (opts.note ?? "") + insightNote || null,
     },
     // ⛔ Named, so a correction lands on the same row rather than failing.
@@ -254,7 +256,7 @@ export async function capturePostStats(
           saves: ig.stats.saved,
           reach: ig.stats.reach,
           impressions: ig.stats.views,
-          raw: ig.stats.raw,
+          raw: scrubRaw(ig.stats.raw),
         },
         { onConflict: "post_id,captured_on" },
       );
@@ -309,7 +311,7 @@ export async function capturePostStats(
         angry: stats.stats.angry,
         sad: stats.stats.sad,
         love: stats.stats.love,
-        raw: stats.stats.raw,
+        raw: scrubRaw(stats.stats.raw),
       },
       { onConflict: "post_id,captured_on" },
     );

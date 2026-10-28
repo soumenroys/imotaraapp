@@ -137,7 +137,7 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
      * ⛔ It said "Meta RETIRES these in waves, so this is almost certainly a
      * name that has been withdrawn" and sent the reader to update the metric
      * lists. On 19 Oct the real cause was neither: the request asked for a
-     * FIELD CALLED `angry`, when Graph wants `reactions.type(ANGRY).as(angry)`.
+     * FIELD CALLED `angry` (Graph wanted an aliased filter of `reactions`).
      * A malformed field expression and a withdrawn metric produce the SAME
      * #100, and only one of them is Meta's doing.
      *
@@ -152,9 +152,9 @@ export function classifyGraphError(err: GraphError): { kind: FacebookFailure; me
       message:
         `Facebook does not recognise that field or metric: ${said} ` +
         (alias
-          ? `⚠️ TWO THINGS LOOK LIKE THIS. Either the request asked for a field that does not exist — ` +
-            `a reaction breakdown must be written \`reactions.type(ANGRY).as(angry)\`, not \`angry.type(ANGRY)\` — ` +
-            `or Meta has withdrawn the name. ▶️ Check the field EXPRESSION first; it is the half we control.`
+          ? `⚠️ THREE THINGS LOOK LIKE THIS: a field that does not exist on that KIND of object (a ` +
+            `video id asked for a post's fields — 28 Oct 2026), a malformed field expression, or a name ` +
+            `Meta has withdrawn. ▶️ Check what the id points at first, then the expression; both are ours.`
           : `⚠️ Meta retires insights metrics in waves, so this is likely a withdrawn name rather than ` +
             `anything wrong with the Page or the token. ▶️ Update the metric lists in facebook.ts.`),
     };
@@ -640,6 +640,20 @@ export type PostStats = {
   raw: Record<string, unknown>;
 };
 
+/**
+ * 🔴 THE ID A POST'S FIGURES ARE READ BY — `{pageId}_{postId}`.
+ *
+ * ⛔ A video's resolved `post_id` comes back BARE (no page prefix), and a bare
+ * id is read as a "status": "(#12) singular statuses API is deprecated for
+ * versions v2.4 and higher". Photo posts already carry the prefix.
+ * ⚠️ Three videos from 19–25 Oct stored the VIDEO id instead (before the
+ * post_id lookup existed); prefixing cannot rescue those, and they leave the
+ * 14-day window by 8 Nov.
+ */
+export function facebookPostRef(externalId: string, pageId: string): string {
+  return externalId.includes("_") ? externalId : `${pageId}_${externalId}`;
+}
+
 export async function fetchPostStats(args: {
   token: string;
   postId: string;
@@ -666,85 +680,79 @@ export async function fetchPostStats(args: {
   const page = await pageAccessToken({ token: args.token, pageId: args.pageId, fetchImpl: args.fetchImpl });
   if (!page.ok) return page;
 
+  /**
+   * 🔴 READ THROUGH INSIGHTS, NOT THE POST'S OWN EDGES — 28 Oct 2026.
+   *
+   * ⛔ Until today this asked `/{post}?fields=reactions…,comments…`, and for
+   * every picture post Facebook answered "(#10) This endpoint requires the
+   * 'pages_read_user_content' permission or the 'Page Public Content Access'
+   * feature". Reactions and comments are USER content; our token was never
+   * granted it, so not one Facebook post was ever measured.
+   *
+   * 🔑 Post INSIGHTS need only `read_insights` + `pages_read_engagement`, which
+   * the token carries (Meta's insights reference, read 28 Oct 2026), and
+   * `post_reactions_by_type_total` gives the breakdown in one call — the sign
+   * of the reaction this brand needs is still measured.
+   *
+   * ⚠️ COMMENTS ARE NOT AVAILABLE THIS WAY ⇒ NULL, never 0. A comment count
+   * needs the user-content permission; a zero would read as "nobody wrote".
+   */
   try {
-    /**
-     * 🔑 `summary(true)` is what returns a COUNT rather than a page of
-     * objects. Without it this asks Facebook for every reaction one by one and
-     * then counts the first twenty-five of them.
-     */
     const res = await doFetch(
-      graph(encodeURIComponent(args.postId)) +
-        /**
-         * 🔴 THE REACTION TYPES, NOT JUST THE TOTAL — and for this brand that
-         * is the measurement that matters most.
-         *
-         * A total of 40 reactions says a post did well. Forty ANGRY and SAD
-         * reactions on a mental-health post says something has gone wrong, and
-         * until now the two were the same number. ⛔ A feedback loop that
-         * rewards engagement without reading its SIGN would treat a post
-         * people are upset by as a success and ask for more like it.
-         *
-         * ⚠️ Each type needs its own summary edge — Graph has no single field
-         * that breaks reactions down. `limit(0)` keeps them as counts rather
-         * than pages of objects.
-         */
-        /**
-         * 🔴 `.as(alias)`, AND IT WAS MISSING — so this has NEVER worked.
-         *
-         * ⛔ It asked for `angry.type(ANGRY)…`, which requests a FIELD CALLED
-         * `angry`. There is no such field. Graph breaks reactions down by
-         * asking the SAME field several times with different filters and
-         * naming each result: `reactions.type(ANGRY).as(angry)`.
-         *
-         * ⚠️ Facebook said so plainly — "(#100) Tried accessing nonexisting
-         * field (angry)" — and nobody saw it for weeks, because every other
-         * post failed EARLIER on a missing `pages_read_engagement` permission
-         * and never reached this call. One defect hid behind another, and it
-         * took a post with a different id shape to get far enough to show it.
-         */
-        `?fields=reactions.summary(true).limit(0),comments.summary(true).limit(0),shares` +
-        `,reactions.type(ANGRY).limit(0).summary(true).as(angry)` +
-        `,reactions.type(SAD).limit(0).summary(true).as(sad)` +
-        `,reactions.type(LOVE).limit(0).summary(true).as(love)` +
-        // ⛔ The PAGE token, not the one passed in ⇒ the note on `pageId`.
-        `&access_token=${encodeURIComponent(page.token)}`,
+      graph(`${encodeURIComponent(args.postId)}/insights`) +
+        `?metric=post_reactions_by_type_total&access_token=${encodeURIComponent(page.token)}`,
       { signal: AbortSignal.timeout(15_000), cache: "no-store" },
     );
-    type Summary = { summary?: { total_count?: number } };
     const json = (await res.json()) as {
-      reactions?: Summary;
-      comments?: Summary;
-      shares?: { count?: number };
-      angry?: Summary;
-      sad?: Summary;
-      love?: Summary;
+      data?: { name?: string; values?: { value?: unknown }[] }[];
       error?: GraphError;
     };
     if (json.error) return { ok: false, ...classifyGraphError(json.error) };
 
-    const num = (v: unknown) => (typeof v === "number" ? v : null);
+    /**
+     * ⚠️ THE SHAPE IS NOT DOCUMENTED — the reference names the metric and
+     * gives no sample. An object keyed by reaction type is what a "by type"
+     * metric returns elsewhere in Graph, so that is what is READ; anything
+     * else leaves every figure NULL rather than guessing. `raw` is stored so
+     * the first real reply can be checked ⇒ scrubRaw.
+     */
+    const value = json.data?.[0]?.values?.at(-1)?.value;
+    const byType =
+      value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+    // 🔑 Inside an object that answered, an absent type means none of it.
+    const count = (k: string) => (byType ? (typeof byType[k] === "number" ? (byType[k] as number) : 0) : null);
+    const reactions = byType
+      ? Object.values(byType).reduce<number>((n, v) => n + (typeof v === "number" ? v : 0), 0)
+      : null;
+
+    /**
+     * ⚠️ SHARES, ASKED SEPARATELY AND ALLOWED TO FAIL. A refusal here must not
+     * lose the reactions above; it leaves shares NULL.
+     */
+    let shares: number | null = null;
+    try {
+      const sres = await doFetch(
+        graph(encodeURIComponent(args.postId)) + `?fields=shares&access_token=${encodeURIComponent(page.token)}`,
+        { signal: AbortSignal.timeout(15_000), cache: "no-store" },
+      );
+      const sj = (await sres.json()) as { shares?: { count?: number }; error?: GraphError };
+      // ⚠️ Facebook omits `shares` when there are none — absent is an answer here.
+      if (!sj.error) shares = typeof sj.shares?.count === "number" ? sj.shares.count : 0;
+    } catch {
+      // ⚠️ Left NULL — see above.
+    }
+
     return {
       ok: true,
       stats: {
-        reactions: num(json.reactions?.summary?.total_count),
-        comments: num(json.comments?.summary?.total_count),
-        /**
-         * ⚠️ `shares` is ABSENT when a post has none — Facebook omits the
-         * field rather than returning zero. Here, and only here, absent does
-         * mean none: the field is part of the response shape, so its absence
-         * is an answer rather than a refusal.
-         */
-        shares: typeof json.shares?.count === "number" ? json.shares.count : 0,
+        reactions,
+        comments: null,
+        shares,
         impressions: null,
-        /**
-         * ⚠️ NULL WHEN THE EDGE DID NOT ANSWER, not 0. An older post, a
-         * permission change or a Graph version that drops the edge would
-         * otherwise read as "nobody was angry", which is the reassuring
-         * answer and the wrong one.
-         */
-        angry: num(json.angry?.summary?.total_count),
-        sad: num(json.sad?.summary?.total_count),
-        love: num(json.love?.summary?.total_count),
+        // ⚠️ Graph's names for these two types are `anger` and `sorry`.
+        angry: count("anger"),
+        sad: count("sorry"),
+        love: count("love"),
         raw: json as Record<string, unknown>,
       },
     };

@@ -103,7 +103,7 @@ export const TUTORIALS: Record<string, { title: string; steps: Step[]; footnote?
     steps: [
       {
         do: "Read the row for the channel you want — it says what is blocking it.",
-        then: "The reasons differ. Facebook needs fifteen minutes from you; LinkedIn is waiting on LinkedIn.",
+        then: "The reasons differ — an expired token, a missing permission, a Page not assigned. The row names the one that applies.",
       },
       {
         do: "Get a token from the platform. The form tells you exactly where.",

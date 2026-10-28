@@ -22,6 +22,7 @@ import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters
 import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
 import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
 import { publishToX, uploadXMedia } from "@/lib/social/adapters/x";
+import { postToLinkedIn } from "@/lib/social/linkedinPost";
 import { renderPostPictureBytes, type PictureSource } from "@/lib/social/renderPicture";
 import { publicOrigin, videoUrlFor } from "@/lib/social/cardUrl";
 import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
@@ -612,6 +613,45 @@ export async function GET(req: NextRequest) {
         const r = await publishToX({ token: cred.token, text: post.body as string, mediaId });
         result = r.ok ? { ok: true, postId: r.postId, url: r.url } : { ok: false, kind: r.kind, message: r.message };
       }
+    } else if (platform === "linkedin") {
+      let picture: Uint8Array | undefined;
+      if (post.media_kind === "graphic") {
+        const rendered = await renderPostPictureBytes({
+          platform,
+          language: post.language as string,
+          subject: post.subject as string | null,
+          body: post.body as string,
+          media_kind: post.media_kind as string | null,
+          visual_recipe: post.visual_recipe,
+          topic_pool: post.topic_pool as string | null,
+          illustration: post.illustration as PictureSource["illustration"],
+        });
+        if (!rendered.ok) {
+          await db
+            .from("social_posts")
+            .update(release(post, rendered.failure.error))
+            .eq("id", post.id);
+          outcomes.push({
+            id: post.id as string,
+            platform,
+            language: post.language as string,
+            result: "failed",
+            detail: `The picture could not be rendered, so nothing was posted: ${rendered.failure.error}`,
+          });
+          continue;
+        }
+        picture = rendered.bytes;
+      }
+
+      // 🔑 Upload, wait for LinkedIn to finish processing, then post ⇒
+      // linkedinPost.ts, which also decides which failures may be live.
+      result = await postToLinkedIn({
+        token: cred.token,
+        organizationId: cred.externalId,
+        text: post.body as string,
+        picture,
+        altText: (post.subject as string | null) ?? undefined,
+      });
     } else {
       /**
        * ⛔ A CHANNEL THAT SAYS IT CAN PUBLISH AND HAS NO BRANCH HERE.
@@ -624,8 +664,8 @@ export async function GET(req: NextRequest) {
        *
        * 🔑 THE CASE THAT IS ACTUALLY REACHABLE is this one: somebody flips
        * `canPublish` to true in platforms.ts — a one-word change that reads
-       * like paperwork — and the posts go nowhere. ⚠️ LinkedIn is the next
-       * channel to flip it, which is why this is here now rather than after.
+       * like paperwork — and the posts go nowhere. ✅ LinkedIn flipped it on
+       * 28 Oct 2026, with its branch above.
        *
        * ⚠️ I first wrote a `!canPublish` branch here too. It was DEAD: this
        * route already refuses such a post higher up, marking it `held` and

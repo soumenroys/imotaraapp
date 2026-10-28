@@ -438,16 +438,18 @@ describe("⛔ nothing claims to publish without an adapter", () => {
     }
   });
 
-  it("🔑 LinkedIn is still blocked, and on the thing that actually blocks it", () => {
+  it("🔑 LinkedIn publishes — and only because its route branch exists", () => {
     /**
-     * ⚠️ The adapter exists as of 19 Oct and is fully tested — but posting as
-     * an organisation needs `w_organization_social`, which belongs to the
-     * Community Management API and is NOT self-serve. ⛔ Code being ready is
-     * not access being granted, and this is the line that stops the two being
-     * confused ⇒ feedback_verify_env_var_before_shipped_claim.
+     * ⚠️ Until 28 Oct this pinned LinkedIn as BLOCKED: the adapter existed, the
+     * Community Management API had not been granted. Granted 28 Oct (Development
+     * Tier), token stored and checked against the Page. ⛔ The flag alone does
+     * nothing but route posts to the "no adapter branch" refusal, so the branch
+     * is pinned with it.
      */
-    expect(PLATFORMS.linkedin.canPublish).toBe(false);
-    expect(PLATFORMS.linkedin.blockedBy).toMatch(/community management/i);
+    expect(PLATFORMS.linkedin.canPublish).toBe(true);
+    expect(fs.readFileSync(path.join(process.cwd(), "src/app/api/cron/social-publish/route.ts"), "utf8")).toMatch(
+      /platform === "linkedin"\) \{[\s\S]{0,2500}postToLinkedIn\(/,
+    );
   });
 });
 

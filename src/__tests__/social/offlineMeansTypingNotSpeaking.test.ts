@@ -16,6 +16,8 @@
 
 import { describe, it, expect } from "vitest";
 import { FACTS } from "@/lib/social/writer";
+import { AUDIENCE_FOCUS } from "@/lib/outreach/writer";
+import { THEMES } from "@/lib/broadcast/autoBroadcast";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -35,5 +37,31 @@ describe("what the writer is told about offline", () => {
     const trends = readFileSync(join(process.cwd(), "src/lib/social/trends.ts"), "utf8");
     expect(trends).not.toMatch(/; works offline;/);
     expect(trends).not.toMatch(/talk to, any hour, even offline/);
+  });
+});
+
+/**
+ * ⚠️ 28 Oct, the same day: the outreach writer had its OWN strengths list per
+ * audience — "speak instead of type · … · works offline" for eldercare — and
+ * the monthly newsletter a theme "It works offline". Fixing FACTS fixed neither.
+ */
+describe("the mail writers say the same", () => {
+  it("no audience's strengths say a bare 'works offline'", () => {
+    for (const [audience, f] of Object.entries(AUDIENCE_FOCUS)) {
+      expect(f.lead, audience).not.toMatch(/(^|· )works offline/);
+      if (/offline/.test(f.lead)) expect(f.lead, audience).toMatch(/typing works[\s\S]*speaking needs a connection/);
+    }
+  });
+
+  it("an audience led by SPEAKING is not told about offline at all", () => {
+    for (const [audience, f] of Object.entries(AUDIENCE_FOCUS)) {
+      if (/^speak/.test(f.lead)) expect(f.lead, audience).not.toMatch(/offline/);
+    }
+  });
+
+  it("the newsletter's offline theme says typing, and that voice needs a connection", () => {
+    const t = THEMES.find((x) => x.id === "offline")!;
+    expect(t.brief).toMatch(/^Typing works offline/);
+    expect(t.brief).toMatch(/voice needs a connection/);
   });
 });

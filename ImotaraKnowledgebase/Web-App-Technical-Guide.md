@@ -1,6 +1,6 @@
 # Imotara — Web App Technical Guide
 
-The web app (`imotaraapp`, `github.com/soumenroys/imotaraapp`) is both the user-facing web client at **www.imotara.com** and the **entire backend** for the mobile app — all API routes, payments, admin, org, and Connect logic live here. Current release: **v1.6.0**.
+The web app (`imotaraapp`, `github.com/soumenroys/imotaraapp`) is both the user-facing web client at **www.imotara.com** and the **entire backend** for the mobile app — all API routes, payments, admin, org, and Connect logic live here. Current release: **v1.6.2**.
 
 ## 1. Tech stack
 

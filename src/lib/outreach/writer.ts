@@ -86,6 +86,9 @@ const BANNED = [
   "dear friend", "congratulations", "100% free", "risk free", "unsubscribe here",
 ];
 
+export const NOTHING_SENT =
+  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b/;
+
 /** The house-style checks a draft must pass — the broadcast templates' rules, in code. */
 export function checkMailStyle(subject: string, body: string): string[] {
   const out: string[] = [];
@@ -103,6 +106,13 @@ export function checkMailStyle(subject: string, body: string): string[] {
     const re = new RegExp(`(^|[^a-z])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^a-z])`, "i");
     if (re.test(hay)) out.push(`Promotional wording: “${w}”.`);
   }
+  /**
+   * ⛔ "STAYS ON THE DEVICE" IS STORAGE. Each message's text is sent to an AI
+   * service for the reply (cloud is the default on web and mobile), so a
+   * sentence saying nothing leaves the phone is false — the writer drew it
+   * from the true one on 28 Oct, in 4 of 20 drafts ⇒ storedIsNotSent.
+   */
+  if (NOTHING_SENT.test(hay)) out.push("Says nothing leaves the phone — false: each message is sent to an AI service for the reply. Say it is STORED on the device.");
   const links = body.match(/https?:\/\/\S+/g) ?? [];
   if (links.length > 1) out.push("At most one link.");
   if (links.some((l) => !l.startsWith(SITE))) out.push(`The only link allowed is ${SITE}.`);

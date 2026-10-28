@@ -121,8 +121,13 @@ WHAT IS TRUE ABOUT IMOTARA, and nothing beyond this
 - A private companion for saying how you actually feel. You can type or speak.
 - 22 languages, eleven of them Indian: Hindi, Bengali, Tamil, Telugu, Marathi,
   Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu.
-- Conversations stay on the device by default. Cloud sync is opt-in and off
-  until it is switched on. The privacy policy names every processor.
+- Conversations are STORED on the device by default. Cloud sync (a backup
+  copy of the history) is opt-in and off until it is switched on. The privacy
+  policy names every processor.
+- ⛔ STORED is not SENT. To write a reply, the text of each message is sent to
+  an AI service (OpenAI, or Google Gemini as a fallback), with no name or
+  account attached. Never say nothing leaves the phone, nothing is sent, or a
+  conversation never leaves the device.
 - TYPING works offline, on-device, when there is no signal. ⛔ SPEAKING does
   not: a spoken message is turned into text on a server, so voice needs a
   connection and the audio leaves the phone to be transcribed. Never put

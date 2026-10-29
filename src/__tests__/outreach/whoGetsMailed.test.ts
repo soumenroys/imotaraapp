@@ -193,3 +193,34 @@ describe("🔑 every email is written ahead, switch on or off (owner, 25 Oct)", 
     expect(body.indexOf("writeMissingDrafts(")).toBeLessThan(body.indexOf("settings.enabled"));
   });
 });
+
+describe("🔑 an outreach email is a plain letter (Promotions tab, 29 Oct 2026)", () => {
+  process.env.BROADCAST_UNSUBSCRIBE_SECRET ||= "test-secret";
+  const m = buildMessage(
+    { subject: "A note", body: "Hello {{name|there}},\n\nA plain note.\n\nWould that help?" },
+    { email: "asha@hope.org", name: "Asha", organisation: "" },
+    { name: "Suchismita Sen", email: "suchismita.sen@imotara.com" },
+  );
+  it("has no logo, no app-store links and no template card", () => {
+    expect(m.html).not.toMatch(/<img/i);
+    expect(m.html).not.toMatch(/play\.google\.com|apps\.apple\.com/);
+    expect(m.html).not.toMatch(/background:#f6f7f9/);
+    expect(m.text).not.toMatch(/Google Play|App Store/);
+  });
+  it("⛔ still carries the one-click unsubscribe, in the body and the headers", async () => {
+    expect(m.html).toMatch(/Unsubscribe<\/a>/);
+    expect(m.text).toMatch(/Unsubscribe: https?:\/\//);
+    // The secret is read when the module loads ⇒ load a fresh copy with it set.
+    const { vi } = await import("vitest");
+    vi.resetModules();
+    vi.stubEnv("BROADCAST_UNSUBSCRIBE_SECRET", "test-secret");
+    const fresh = await import("@/lib/outreach/send");
+    const m2 = fresh.buildMessage({ subject: "A note", body: "Hello {{name|there}},\n\nHi.\n\nOk?" }, { email: "a@b.org", name: "A", organisation: "" }, { name: "S", email: "s@imotara.com" });
+    expect(Object.keys(m2.headers ?? {}).join(" ")).toMatch(/List-Unsubscribe-Post/);
+    vi.unstubAllEnvs();
+  });
+  it("the words are untouched", () => {
+    expect(m.text).toContain("Hello Asha,");
+    expect(m.text).toContain("A plain note.");
+  });
+});

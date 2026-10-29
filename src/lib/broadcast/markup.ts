@@ -507,6 +507,40 @@ export function footerText(unsubscribeHref: string): string {
 }
 
 /**
+ * 🔑 THE PLAIN LETTER — outreach only. Owner, 29 Oct 2026: the end-to-end test
+ * email landed in Gmail **Promotions**. An outreach email is one person writing
+ * to one person, so it carries no logo, no app-store links and no grey card —
+ * the template furniture above is "the textbook Promotions-tab signature".
+ * ⛔ What stays, because the law and the reader need it: the one-click
+ * unsubscribe and the postal address. Broadcasts keep the designed layout.
+ */
+export function plainFooterHtml(unsubscribeHref: string): string {
+  const addr = postalAddress();
+  return (
+    `<div style="margin-top:24px;font-size:12px;line-height:1.6;color:#6b7280">` +
+    `<a href="${siteBase()}" style="color:#4f46e5">imotara.com</a>` +
+    ` &middot; <a href="${unsubscribeHref}" style="color:#4f46e5">Unsubscribe</a>` +
+    (addr ? `<div data-im="postal-address">${esc(addr)}</div>` : "") +
+    `</div>`
+  );
+}
+
+export function plainFooterText(unsubscribeHref: string): string {
+  const addr = postalAddress();
+  return `\n\n—\nimotara.com\nUnsubscribe: ${unsubscribeHref}${addr ? `\n${addr}` : ""}`;
+}
+
+/** A letter, not a newsletter: no background, no card, no header. */
+export function plainEmailDocument(bodyHtml: string, footerHtml = ""): string {
+  return (
+    `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;` +
+    `font-size:15px;line-height:1.6;color:#1f2937;max-width:600px">` +
+    bodyHtml + footerHtml +
+    `</div>`
+  );
+}
+
+/**
  * The finished document: body and unsubscribe footer inside one container.
  *
  * The cron used to concatenate `body_html + footer`, which put the footer

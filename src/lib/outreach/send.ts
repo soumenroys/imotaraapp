@@ -2,16 +2,17 @@
 // Turning an approved draft into one person's email, and sending it.
 //
 // 🔑 THE BROADCAST SENDER, NOT A SECOND ONE. Same Resend client, the same
-// rendering (emailDocument / markup), the same signed one-click unsubscribe
-// and footer — so an outreach email is held to everything a broadcast is.
+// rendering (markup), the same signed one-click unsubscribe — so an outreach
+// email is held to everything a broadcast is. ⚠️ But it is laid out as a
+// plain letter, not the broadcast template ⇒ plainEmailDocument.
 //
 // ⚠️ Unsubscribe tokens bind an id that the suppression table stores as a
 // uuid, so outreach mail carries one fixed id of its own rather than a word.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { emailDocument, headerHtml, mergeFields, renderHtml, renderText } from "@/lib/broadcast/markup";
+import { mergeFields, plainEmailDocument, plainFooterHtml, plainFooterText, renderHtml, renderText } from "@/lib/broadcast/markup";
 import { sendOne, type BroadcastMessage, type SendOutcome } from "@/lib/broadcast/resendClient";
-import { unsubscribeFooterHtml, unsubscribeFooterText, unsubscribeHeaders } from "@/lib/broadcast/unsubscribe";
+import { unsubscribeHeaders, unsubscribeUrl } from "@/lib/broadcast/unsubscribe";
 import { availableIdentities } from "@/lib/broadcast/identities";
 import type { Draft } from "@/lib/outreach/store";
 
@@ -32,8 +33,9 @@ export function buildMessage(draft: Pick<Draft, "subject" | "body">, to: Recipie
     from: from.name ? `${from.name} <${from.email}>` : from.email,
     to: to.email,
     subject: mergeFields(withOrganisation(draft.subject, to.organisation), fields, false),
-    html: emailDocument(mergeFields(renderHtml(body), fields, true), unsubscribeFooterHtml(to.email, broadcastId), headerHtml("")),
-    text: mergeFields(renderText(body), fields, false) + unsubscribeFooterText(to.email, broadcastId),
+    // 🔑 A plain letter, not the broadcast template ⇒ markup.plainEmailDocument (Promotions, 29 Oct 2026).
+    html: plainEmailDocument(mergeFields(renderHtml(body), fields, true), plainFooterHtml(unsubscribeUrl(to.email, broadcastId))),
+    text: mergeFields(renderText(body), fields, false) + plainFooterText(unsubscribeUrl(to.email, broadcastId)),
     replyTo: from.email,
     headers: unsubscribeHeaders("broadcast", to.email, broadcastId),
   };

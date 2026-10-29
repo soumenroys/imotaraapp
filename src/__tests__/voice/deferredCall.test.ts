@@ -20,9 +20,19 @@ describe("a call still 'Calling' after a while", () => {
   it("a final result is applied", () => {
     expect(reconcileVerdict({ final: true, status: "completed" }, 10 * H)).toBe("apply");
   });
-  it("an ordinary call gets 3 hours, then frees the line", () => {
-    expect(reconcileVerdict({ final: false, status: "in-progress" }, 2 * H)).toBe("wait");
-    expect(reconcileVerdict({ final: false, status: "in-progress" }, 4 * H)).toBe("no_answer");
+  it("🔴 a held call that is RINGING NOW, 10 h after we placed it, is waited for (29 Oct)", () => {
+    for (const status of ["queued", "initiated", "ringing", "in-progress", "call-disconnected"]) {
+      // "wait" or "deferred" — both leave the row "Calling" so the result is taken when it comes.
+      expect(["wait", "deferred"], status).toContain(reconcileVerdict({ final: false, status }, 10.5 * H));
+    }
+  });
+  it("a call the service no longer reports at all frees the line after 3 hours", () => {
+    expect(reconcileVerdict(null, 2 * H)).toBe("wait");
+    expect(reconcileVerdict(null, 4 * H)).toBe("no_answer");
+    expect(reconcileVerdict({ final: false, status: "" }, 4 * H)).toBe("no_answer");
+  });
+  it("…and a live status is not waited on for ever", () => {
+    expect(reconcileVerdict({ final: false, status: "in-progress" }, (DEFERRED_WAIT_HOURS + 1) * H)).toBe("no_answer");
   });
   it("⛔ a completed call with no outcome goes to a person, never back to retries", () => {
     expect(reconcileVerdict({ final: false, status: "completed" }, 4 * H)).toBe("review");

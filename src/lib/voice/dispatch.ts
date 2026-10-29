@@ -208,10 +208,22 @@ export const DEFERRED_NOTE = "Held by the call service until its allowed calling
 /** What the reconcile pass does with a call still "Calling" after a while. ⚠️ PURE ⇒ deferredCall.test.ts. */
 export function reconcileVerdict(view: Pick<ExecutionView, "final" | "status"> | null, ageMs: number): "apply" | "deferred" | "wait" | "review" | "no_answer" {
   if (view?.final) return "apply";
+  if (view?.status === "completed") {
+    // ⛔ They DID talk to us — the outcome just never arrived. Calling them again would be the worst reading of an empty field.
+    return ageMs <= 3 * 3600_000 ? "wait" : "review";
+  }
   if (view && DEFERRED_STATUSES.has(view.status) && ageMs <= DEFERRED_WAIT_HOURS * 3600_000) return "deferred";
+  /**
+   * 🔴 A CALL BOLNA STILL REPORTS AS LIVE IS WAITED FOR. 29 Oct 2026: the held
+   * 23:30 call rang at 10:00 — 10.5 h after we placed it. Mid-call its status
+   * was "in-progress", which is neither final nor deferred, so the 3-hour rule
+   * wrote "No answer" while the person was talking; the "send_info" result 7 s
+   * later was thrown away as "already". The age is from when WE placed it, not
+   * when it rang ⇒ any status Bolna still reports is live, up to the same 36 h.
+   */
+  if (view?.status && ageMs <= DEFERRED_WAIT_HOURS * 3600_000) return "wait";
   if (ageMs <= 3 * 3600_000) return "wait";
-  // ⛔ They DID talk to us — the outcome just never arrived. Calling them again would be the worst reading of an empty field.
-  return view?.status === "completed" ? "review" : "no_answer";
+  return "no_answer";
 }
 
 async function reconcile(d: Directory, now: Date): Promise<number> {

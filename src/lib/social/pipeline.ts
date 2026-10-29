@@ -528,6 +528,19 @@ export function poolsLeftForToday(available: string[], usedToday: string[]): str
  * to give it more turns, so a raw rotation would "fall back" from an angle to
  * itself and clash again for exactly the same reason.
  */
+/**
+ * The title shape this turn must take, for an angle that rotates them ⇒
+ * topicPools `titleForms`. "" when the angle has none.
+ */
+export function titleFormLine(forms: string[] | undefined, postsSoFar: number): string {
+  if (!forms?.length) return "";
+  const form = forms[((postsSoFar % forms.length) + forms.length) % forms.length];
+  return (
+    ` TITLE: shape it like "${form}", with the feeling in place of {feeling}. ` +
+    `⛔ Not "How … shows up" or "… in a day" — that frame is used up.`
+  );
+}
+
 export function angleOrder(cycle: string[], postsSoFar: number): string[] {
   if (cycle.length === 0) {
     throw new Error("social/pipeline: this schedule has no topic pool, so there is nothing to write about.");
@@ -918,7 +931,7 @@ export async function prepareGenerated(
   const contextFor = (p: string) => {
     const a = TOPIC_POOLS.find((t) => t.id === p);
     return {
-      brief: a?.brief ?? args.schedule.brief,
+      brief: (a?.brief ?? args.schedule.brief) + titleFormLine(a?.titleForms, args.postsSoFar),
       shape: a?.shape ?? shapeFor(args.schedule, args.postsSoFar),
       word: p === "untranslatable" ? pickWord(args.postsSoFar) : null,
       mistake: p === "built-wrong" ? pickMistake(args.postsSoFar) : null,

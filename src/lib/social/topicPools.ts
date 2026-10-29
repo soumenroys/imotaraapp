@@ -72,6 +72,17 @@ export type TopicPool = {
    * channel ⇒ usablePools, rather than quietly posted in the wrong form.
    */
   shape?: ContentType;
+  /**
+   * 🔴 TITLE SHAPES, ROTATED IN CODE, for an angle whose titles all come out
+   * the same. 29 Oct 2026: 5 of the last 14 Instagram posts were this angle,
+   * every one "How <feeling> shows up / feels in a day" — so the subject check
+   * (rightly) refused the next one three times a night: "75% of the meaningful
+   * words are shared". The feeling changed; the frame never did.
+   * ⇒ The frame is chosen here, by turn, not left to the model, which always
+   * reaches for the safe one ⇒ trap_a_menu_handed_to_a_model_is_not_a_rotation.
+   * `{feeling}` is where the feeling goes.
+   */
+  titleForms?: string[];
 };
 
 /**
@@ -127,6 +138,15 @@ export const TOPIC_POOLS: TopicPool[] = [
       "this or sends it to someone. " +
       "⚠️ Write it so that the person it describes feels seen, not diagnosed.",
     shape: "carousel",
+    titleForms: [
+      "Five quiet signs of {feeling}",
+      "What {feeling} sounds like out loud",
+      "{feeling}, in everyday words",
+      "The small things {feeling} makes us do",
+      "When {feeling} doesn't use its own name",
+      "Things people say when they mean {feeling}",
+      "The everyday disguises of {feeling}",
+    ],
     angle:
       "FOUR OR FIVE ways one ordinary feeling actually shows up — each one a phrase somebody really says " +
       "out loud, or a small thing they really do. Name the feeling plainly in the first slide, then let " +

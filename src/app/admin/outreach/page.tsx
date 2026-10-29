@@ -71,7 +71,7 @@ export default function OutreachPage() {
   return (
     <AdminShell
       title="Outreach mail"
-      lede="Fill the sheet; approved emails go out by themselves — an introduction, a follow-up and a last note, in each person's daytime."
+      lede="Fill the sheet; approved emails go out by themselves — an introduction at the date and time set in the sheet, then a follow-up on day 7 and a last note on day 21 at the same time."
       current="outreach"
       role={role}
     >

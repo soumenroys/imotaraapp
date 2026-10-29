@@ -372,7 +372,7 @@ export function setupSource(supabase: SupabaseClient): TodoSource {
       const dir = d as Awaited<ReturnType<typeof readDirectory>> | null;
       const callOn = Boolean(dir?.settings.callingEnabled && dir?.settings.autoDispatch);
       out.push(step(7, callOn, "Switch Calling and Automatic calling ON",
-        callOn ? "Calls go out by themselves in each person's daytime." : `Calling is ${dir?.settings.callingEnabled ? "ON" : "OFF"}, automatic is ${dir?.settings.autoDispatch ? "ON" : "OFF"}.`,
+        callOn ? "Calls go out by themselves at the date and time set in the sheet (09:00–21:00 their time)." : `Calling is ${dir?.settings.callingEnabled ? "ON" : "OFF"}, automatic is ${dir?.settings.autoDispatch ? "ON" : "OFF"}.`,
         "/admin/voice?tab=settings", "Open Voice calls → Settings"));
       return out;
     },

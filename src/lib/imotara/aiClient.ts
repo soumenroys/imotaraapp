@@ -395,6 +395,20 @@ const sleep = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
  * "save" a call would throw away the better reply precisely when it was about
  * to arrive.
  */
+
+/**
+ * 🔑 BILLING ONLY — THE REPLY IS UNTOUCHED. OpenAI discounts the part of a
+ * prompt it has seen before ("cached input", ¼ of the price), and
+ * `prompt_cache_key` helps requests that share that part reach the same cache.
+ * Measured 29 Oct 2026: ~74% of chat input was already cached; every reply
+ * carries the same ~60K-token framework first.
+ * ⚠️ Not exported: this is a "use server" file, where a sync export fails the
+ * build ⇒ trap_use_server_file_exports_only_async.
+ */
+function promptCacheKey(feature: string | undefined): string {
+  return `imotara-${feature ?? "chat"}`;
+}
+
 export async function callImotaraAI(
   prompt: string,
   options: CallImotaraAIOptions = {},
@@ -521,6 +535,7 @@ async function callImotaraAIPrimary(
         ],
         max_tokens: maxTokens,
         temperature,
+        prompt_cache_key: promptCacheKey(options.feature),
       }),
       signal: controller.signal,
     });
@@ -1376,6 +1391,7 @@ async function* streamImotaraAIPrimary(
         max_tokens: maxTokens,
         temperature,
         stream: true,
+        prompt_cache_key: promptCacheKey(options.feature),
       }),
       signal: controller.signal,
     });

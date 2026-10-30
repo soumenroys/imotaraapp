@@ -142,12 +142,15 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
                         </div>
                     </div>
 
-                    <h1
+                    {/* h2, not h1: this box sits in the root layout, so an h1 here
+                        gave EVERY page two — Bing flagged it 30 Oct 2026. The
+                        dialog is named by aria-labelledby, not by heading level. */}
+                    <h2
                         id="consent-title"
                         className="mb-3 text-center text-[22px] font-semibold leading-snug tracking-[-0.01em] text-zinc-900 dark:text-zinc-50"
                     >
                         {copy.title}
-                    </h1>
+                    </h2>
 
                     {/* The warm line leads. Owner decision 2026-10-13: what Imotara
                         IS comes before what it is not, so the first thing someone in

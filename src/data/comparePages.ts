@@ -355,7 +355,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             },
             {
                 criterion: "Does it work in your language?",
-                imotara: "22 languages, including 11 Indian languages, for chat and voice.",
+                imotara: "22 languages, for chat and voice.",
                 other: "English-only is a real limit, not a detail.",
             },
             {
@@ -387,23 +387,23 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
         ],
         related: [
             { href: "/compare/ai-companion-vs-therapy", label: "Is a companion app the same as therapy?" },
-            { href: "/compare/mental-health-apps-in-indian-languages", label: "Apps in Indian languages" },
+            { href: "/compare/mental-health-apps-in-indian-languages", label: "Apps in your own language" },
             { href: "/privacy", label: "Imotara's privacy policy" },
         ],
     },
 
     "mental-health-apps-in-indian-languages": {
         slug: "mental-health-apps-in-indian-languages",
-        question: "Are there mental health apps in Indian languages?",
+        question: "Are there mental health apps in my own language?",
         shortAnswer:
-            "Yes, though far fewer than in English. Imotara works in 22 languages, eleven of them Indian — Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia and Urdu — for both chat and voice, on the free tier as well as the paid one.",
-        metaTitle: "Mental health apps in Indian languages — Imotara",
+            "Yes, though far fewer than in English. Imotara works in 22 languages — English, Hindi, Bengali, Marathi, Tamil, Telugu, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, Arabic, Hebrew, Russian, Chinese, Japanese, Spanish, French, German, Portuguese and Indonesian — for both chat and voice, on the free tier as well as the paid one.",
+        metaTitle: "Mental health apps in your own language — Imotara",
         metaDescription:
-            "Emotional wellbeing in Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Kannada, Malayalam, Punjabi, Odia and Urdu — chat and voice, on the free tier.",
+            "Emotional wellbeing in 22 languages — from Hindi, Bengali and Tamil to Arabic, Spanish and Japanese — chat and voice, on the free tier.",
         keywords: [
             "mental health app in hindi",
             "mental health app in bengali",
-            "emotional support app indian languages",
+            "emotional support app in my language",
             "companion app in tamil",
             "mood tracker in marathi",
         ],
@@ -419,7 +419,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             {
                 heading: "Language is not country, and the difference is a safety issue",
                 body: [
-                    "Bengali is also spoken in Bangladesh, Tamil in Sri Lanka and Singapore, Urdu mostly in Pakistan, Punjabi in both India and Pakistan. An app that infers your helpline from the language you chose will hand some people a number they cannot call.",
+                    "Bengali, Tamil, Urdu, Punjabi, Arabic, Spanish and Portuguese are each spoken in more than one country. An app that infers your helpline from the language you chose will hand some people a number they cannot call.",
                     "Imotara resolves the crisis service from country, separately from language, and names findahelpline.com for anywhere not covered.",
                 ],
             },

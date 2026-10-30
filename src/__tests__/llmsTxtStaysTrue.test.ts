@@ -121,8 +121,11 @@ describe("llms.txt says what Imotara is not", () => {
         expect(LLMS).toMatch(/not therapy, not a doctor, and not a crisis service/i);
     });
 
-    it("names a real helpline", () => {
-        expect(LLMS).toMatch(/Tele-MANAS/);
-        expect(LLMS).toMatch(/14416/);
+    // 🔑 Owner, 30 Oct 2026: worldwide — no one country's number. The real
+    // route is the reader's own country, with the worldwide directory behind it.
+    it("names a real helpline route, for any country", () => {
+        expect(LLMS).toMatch(/helpline for the user's own country/);
+        expect(LLMS).toMatch(/findahelpline\.com/);
+        expect(LLMS).not.toMatch(/Tele-MANAS|14416/);
     });
 });

@@ -48,7 +48,7 @@ const faqs = [
   },
   {
     q: "Is Imotara free?",
-    a: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud AI replies a day and your last 7 days of history; Imotara Plus adds unlimited replies and full history.",
+    a: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud replies a day and your last 7 days of history; Imotara Plus adds unlimited replies and full history.",
   },
   {
     q: "Is my emotional data private?",

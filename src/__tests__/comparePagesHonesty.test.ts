@@ -35,6 +35,16 @@ describe("compare pages", () => {
             }
         });
 
+        // 🔑 Owner, 30 Oct 2026: read worldwide — no one country's helpline,
+        // no currency. ("India" itself is allowed here: one page is about
+        // Indian languages.)
+        it(`${slug} gives no one country's helpline or price`, () => {
+            const all = JSON.stringify(page);
+            for (const local of ["Tele-MANAS", "14416", "₹"]) {
+                expect(all).not.toContain(local);
+            }
+        });
+
         // 🔴 Every one of these pages is read by someone deciding whether an
         // app is enough. At least one must point at a real service.
         it(`${slug} names a real crisis route or states it is not therapy`, () => {

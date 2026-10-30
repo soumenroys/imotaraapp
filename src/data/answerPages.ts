@@ -59,9 +59,15 @@ export interface AnswerPage {
     related: { href: string; label: string }[];
 }
 
-/** 🔴 Verbatim from src/lib/safety/crisisResources.ts — never typed from memory. */
+/**
+ * 🔴 WORLDWIDE, no country named. Owner, 30 Oct 2026: these pages are read
+ * across the world, so the line must work in any country. findahelpline.com
+ * is the worldwide entry in src/lib/safety/crisisResources.ts and resolves the
+ * reader's own country; the in-app crisis card still shows each country's own
+ * numbers. ⇒ src/__tests__/answerPagesAreSafe.test.ts
+ */
 const CRISIS =
-    "If you are thinking of harming yourself, please contact a real service now. In India, Tele-MANAS on 14416 is free and open around the clock, or 112 for emergencies. Anywhere else, findahelpline.com lists the service for your country.";
+    "If you are thinking of harming yourself, please contact a real service now. If you are in danger, call your local emergency number. Otherwise, findahelpline.com lists the helplines in your country.";
 
 const NOT_THERAPY =
     "Imotara is a wellness companion for self-reflection. It is not therapy, it does not diagnose, and it is not a crisis service.";
@@ -162,7 +168,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
         ],
         whenToGetHelp: [
             CRISIS,
-            "If this happens most nights for weeks, or you are frightened to go to bed, that is worth a GP appointment. Persistent night anxiety is common and very treatable, and the treatments work.",
+            "If this happens most nights for weeks, or you are frightened to go to bed, that is worth seeing a doctor about. Persistent night anxiety is common and very treatable, and the treatments work.",
             "If you wake gasping, with a racing heart or chest pain, get it checked physically first — panic and several ordinary medical causes feel identical from the inside.",
         ],
         related: [
@@ -227,14 +233,19 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
 
     "overthinking-before-sleep": {
         slug: "overthinking-before-sleep",
-        question: "How do I stop overthinking when I am trying to sleep?",
+        // 🔑 30 Oct 2026, Search Console: "how to stop overthinking at night" ×14
+        // and "what to do when you can't sleep because of overthinking" — the
+        // words people use are "at night", so the question says it too.
+        question: "How do I stop overthinking at night when I am trying to sleep?",
         shortAnswer:
             "You mostly do not stop it by trying to stop it. What works better is giving the thoughts somewhere to go before you lie down, and giving your attention something undemanding to hold once you have. Fighting the thinking keeps you awake more reliably than the thinking does.",
-        metaTitle: "How to stop overthinking before sleep — Imotara",
+        metaTitle: "How to stop overthinking at night — Imotara",
         metaDescription:
-            "Why thoughts get loud at bedtime, why suppressing them backfires, and what actually helps — plus when sleeplessness is worth seeing a doctor about.",
+            "Why thoughts get loud at bedtime, why suppressing them backfires, what to do when you have been lying awake for a while — and when sleeplessness is worth seeing a doctor about.",
         keywords: [
             "how to stop overthinking at night",
+            "what to do when you can't sleep because of overthinking",
+            "overthinking at night",
             "racing thoughts before sleep",
             "cant sleep mind wont stop",
             "how to quiet your mind at bedtime",
@@ -252,6 +263,20 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
                 body: [
                     "Instructing yourself not to think about something requires monitoring whether you have stopped — which is thinking about it. Then you get annoyed at still being awake, and the annoyance is a second problem on top of the first.",
                     "Most of the distress of a sleepless night is not the thoughts. It is the arithmetic: how little sleep is left, how bad tomorrow will be.",
+                ],
+            },
+            {
+                heading: "If you have been lying awake a while",
+                body: [
+                    "If it feels like twenty minutes or more, get up. Go somewhere dim, do something dull — fold laundry, read something unexciting on paper — and go back to bed only when you feel sleepy. It sounds backwards, and it is one of the core parts of CBT-I: it stops the bed becoming the place where you lie and think.",
+                    "Leave the clock alone while you do it. Checking the time restarts the arithmetic, and the arithmetic is what keeps you up.",
+                ],
+            },
+            {
+                heading: "If you wake in the small hours and it starts again",
+                body: [
+                    "Waking briefly in the night is normal; most people do it several times and never remember. What turns it into a bad night is the thinking that switches on with it.",
+                    "Do not try to solve anything then. Problems look larger at that hour than they will at breakfast. If it is on tomorrow's list, it can wait there — and if it is not, putting it there is the one thing worth doing before you settle again.",
                 ],
             },
         ],
@@ -413,7 +438,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
             {
                 heading: "If you cannot get to therapy right now",
                 body: [
-                    "Cost and waiting lists are real, and telling someone to 'just see a professional' is not always usable advice. What remains available: a GP, who is often the fastest route in; free helplines, which exist for more than emergencies; and writing things down, which is not treatment but is not nothing.",
+                    "Cost and waiting lists are real, and telling someone to 'just see a professional' is not always usable advice. What remains available: a family doctor, who is often the fastest route in; free helplines, which exist for more than emergencies; and writing things down, which is not treatment but is not nothing.",
                     NOT_THERAPY + " It is somewhere to put things in the meantime, and the meantime can be long.",
                 ],
             },
@@ -421,7 +446,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
         tryNow: [
             "Write down how long it has been going on. Not how bad — how long. That is the number that decides.",
             "List what it is costing: sleep, work, people. Seeing it written down tends to settle the question.",
-            "If you decide yes, make the first contact a small one — a GP appointment, or a helpline, not a search for the perfect therapist.",
+            "If you decide yes, make the first contact a small one — a doctor's appointment, or a helpline, not a search for the perfect therapist.",
         ],
         whenToGetHelp: [
             CRISIS,

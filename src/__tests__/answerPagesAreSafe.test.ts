@@ -31,11 +31,21 @@ describe("answer pages", () => {
         it(`${slug} names a real crisis service, country-aware`, () => {
             expect(page.whenToGetHelp.length).toBeGreaterThanOrEqual(2);
             const help = page.whenToGetHelp.join(" ");
-            // India's real number AND the worldwide directory. Naming only one
-            // country is the exact defect fixed in imotaraapp 3ef1937, where
-            // ~140 countries were shown no helpline at all.
-            expect(help).toContain("14416");
+            // The worldwide directory AND the reader's own emergency number.
+            // Naming only one country is the exact defect fixed in imotaraapp
+            // 3ef1937, where ~140 countries were shown no helpline at all.
             expect(help).toContain("findahelpline.com");
+            expect(help).toContain("local emergency number");
+        });
+
+        // 🔑 Owner, 30 Oct 2026: these pages are read worldwide — no country,
+        // no country's number, no currency. (The in-app crisis card is still
+        // country-aware; that is a different surface.)
+        it(`${slug} is written for every country`, () => {
+            const all = JSON.stringify(page);
+            for (const local of ["India", "Tele-MANAS", "14416", "₹", " GP "]) {
+                expect(all).not.toContain(local);
+            }
         });
 
         // ⛔ This is a wellness companion, not a clinician. These verbs are the

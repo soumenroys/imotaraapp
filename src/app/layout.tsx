@@ -17,6 +17,7 @@ import AppearanceInit from "@/components/imotara/AppearanceInit";
 import RtlInit from "@/components/imotara/RtlInit";
 import ConsentGateMount from "@/components/legal/ConsentGateMount";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
+import VisitTally from "@/components/analytics/VisitTally";
 import PageTransition from "@/components/imotara/PageTransition";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -428,6 +429,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         {/* Renders nothing unless NEXT_PUBLIC_GA_MEASUREMENT_ID is set. */}
         <GoogleAnalytics />
+        <VisitTally />
 
         <JsonLd />
         {/* Hidden on full-height app routes (/chat) — see SiteFooterSlot.

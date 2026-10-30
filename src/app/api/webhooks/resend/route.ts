@@ -16,6 +16,7 @@ export const maxDuration = 30;
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { retryUnmatched } from "@/lib/broadcast/deliveryReports";
 
 const WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET?.trim() ?? "";
 const API_KEY = process.env.RESEND_API_KEY?.trim() ?? "";
@@ -110,8 +111,13 @@ export async function POST(req: NextRequest) {
 
   if (!row) {
     // Either mail sent outside this feature (the Connect/wallet mailers), or
-    // an event that overtook our own write. Acknowledge either way: a non-2xx
-    // makes Resend retry, and retrying will not conjure the row.
+    // an event that overtook our own write.
+    //
+    // 🔴 THE SECOND IS COMMON (measured 30 Oct 2026: 52 delivered + 5 bounced
+    // reports lost this way) — the queue writes resend_id only after the whole
+    // batch is accepted, and Gmail confirms in a second or two. A YOUNG
+    // unmatched report is therefore answered 503, so Resend sends it again
+    // once the row exists ⇒ lib/broadcast/deliveryReports.
     //
     // 🔴 But a dead address or a complaint is still recorded. Outreach mail
     // (lib/outreach) is sent one-to-one with no row here, and its bounce must
@@ -126,6 +132,9 @@ export async function POST(req: NextRequest) {
         .upsert({ email: to, reason: suppressFor }, { onConflict: "email", ignoreDuplicates: true });
       await skipQueued(supabase, to, suppressFor);
       console.warn("[resend-webhook] unmatched", suppressFor, to, "— suppressed");
+    }
+    if (retryUnmatched((event as unknown as { created_at?: string }).created_at, new Date())) {
+      return NextResponse.json({ ok: false, retry: true, unmatched: emailId, type: event.type }, { status: 503 });
     }
     return NextResponse.json({ ok: true, unmatched: emailId, type: event.type, suppressed: Boolean(suppressFor && to) });
   }

@@ -10,6 +10,8 @@ export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { domainsWithoutMail } from "@/lib/broadcast/mailDomains";
+import { reconcileSent } from "@/lib/broadcast/deliveryReports";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import {
   sendBatch, MAX_BATCH, isResendConfigured,
@@ -72,6 +74,9 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = getSupabaseAdmin();
+
+  // 🔑 Delivery reports that never arrived, fetched from Resend a few at a time ⇒ lib/broadcast/deliveryReports.
+  await reconcileSent(supabase);
 
   // ── 0. Anything due? ───────────────────────────────────────────────────────
   // A scheduled broadcast becomes a sending one the first tick after its time
@@ -161,6 +166,23 @@ export async function GET(req: NextRequest) {
       }
       rows = rows.filter((x) => !why.has(x.email));
       if (rows.length === 0) return NextResponse.json({ ok: true, drained: 0, skipped: why.size, reason: "only suppressed addresses in this slice" });
+    }
+  }
+
+  // 🔴 A domain with no mail server cannot receive this — and Resend reports it as a SOFT
+  // bounce, so it was never suppressed and was mailed again (measured 30 Oct 2026: 5 of
+  // 11 bounces). Skipped and suppressed as a permanent bounce, before it costs reputation.
+  if (rows && rows.length > 0) {
+    const dead = await domainsWithoutMail(rows.map((r) => r.email));
+    if (dead.size > 0) {
+      const gone = rows.filter((r) => dead.has(r.email.split("@")[1]?.toLowerCase() ?? ""));
+      for (const r of gone) {
+        await supabase.from("broadcast_sends").update({ status: "skipped", skip_reason: "hard_bounce", error: "no mail server for this domain" }).eq("id", r.id).eq("status", "queued");
+        await supabase.from("broadcast_suppressions").upsert({ email: r.email.toLowerCase(), reason: "hard_bounce", source_broadcast_id: broadcast.id }, { onConflict: "email", ignoreDuplicates: true });
+      }
+      console.warn("[broadcast-queue] no mail server — skipped", gone.map((r) => r.email));
+      rows = rows.filter((r) => !gone.includes(r));
+      if (rows.length === 0) return NextResponse.json({ ok: true, drained: 0, skipped: gone.length, reason: "no mail server" });
     }
   }
 

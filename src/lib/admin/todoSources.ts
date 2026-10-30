@@ -68,6 +68,9 @@ export function voiceSource(): TodoSource {
           case STATUS.wrongNumber:
             out.push({ ...base, id: id("wrongnumber"), urgency: "soon", title: `Wrong number for ${who}`, detail: "Correct the phone in the sheet, then press Retry — or choose yes in “Stop all contact?”.", action: "Open Needs a person" });
             break;
+          case STATUS.brokeOff:
+            out.push({ ...base, id: id("brokeoff"), urgency: "soon", manual: true, title: `${who} picked up, but the call ended early`, detail: "Listen to it in Call records. Then call again yourself, set a new call date, or leave it. Never retried automatically.", action: "Mark done once decided" });
+            break;
           case STATUS.interested:
             out.push({ ...base, id: id("interested"), urgency: "soon", manual: true, title: `${who} is interested — follow up personally`, detail: c.v.call_summary, action: "Mark done once followed up" });
             break;

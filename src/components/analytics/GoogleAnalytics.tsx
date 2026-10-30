@@ -13,7 +13,7 @@
 import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { gaMeasurementId } from "@/lib/analytics/ga";
+import { gaMeasurementId, isUntrackedPath } from "@/lib/analytics/ga";
 
 declare global {
     interface Window {
@@ -40,6 +40,9 @@ function PageViews({ measurementId }: { measurementId: string }) {
     const searchParams = useSearchParams();
 
     useEffect(() => {
+        // Our own admin pages and the scanner-visited unsubscribe page are not
+        // visitors ⇒ lib/analytics/ga.ts isUntrackedPath.
+        if (isUntrackedPath(pathname)) return;
         // 🔴 DO NOT "optimise" this back to `if (typeof window.gtag !== "function") return;`
         //
         // That was the original code and it sent NOTHING, ever. This effect runs
@@ -73,7 +76,12 @@ function PageViews({ measurementId }: { measurementId: string }) {
 
 export default function GoogleAnalytics() {
     const measurementId = gaMeasurementId();
+    // Landing straight on an untracked page (an admin opening /admin, a scanner
+    // opening /unsubscribe) must not even load gtag: its config call alone
+    // records first_visit and session_start.
+    const pathname = usePathname();
     if (!measurementId) return null;
+    if (isUntrackedPath(pathname)) return null;
 
     return (
         <>

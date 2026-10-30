@@ -106,7 +106,7 @@ function EnglishContent() {
   return (
     <div className="space-y-5 text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">
       <p>
-        In 2023, a screenshot from a popular AI companion app went viral. The AI had written
+        In 2023, a screenshot from a popular companion app went viral. The AI had written
         to a user: <em>"I know exactly how you feel. I've been through this too."</em> The AI,
         of course, had been through nothing. It had no memory, no history, no suffering. But it
         said what the user needed to hear — and for a moment, it worked.
@@ -149,7 +149,7 @@ function EnglishContent() {
       </p>
 
       <p className="mt-8 border-l-2 border-indigo-500/40 pl-4 italic text-zinc-400">
-        Imotara is an AI companion — not a therapist, not a friend, not a substitute for human
+        Imotara is a private companion whose replies come from software — not a therapist, not a friend, not a substitute for human
         connection. It is honest about that. And in that honesty, it tries to be genuinely useful.
       </p>
     </div>

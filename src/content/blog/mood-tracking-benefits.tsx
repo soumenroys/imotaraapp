@@ -132,7 +132,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
         </li>
         <li>
           <strong className="text-zinc-200">Remove friction.</strong> Use whatever tool is already on your
-          phone. A note app, a mood tracking app, or an AI companion like Imotara where you can write a
+          phone. A note app, a mood tracking app, or a private companion like Imotara where you can write a
           message and get a gentle reflection back.
         </li>
         <li>

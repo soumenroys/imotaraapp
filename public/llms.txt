@@ -19,7 +19,7 @@
 
 ## What is Imotara?
 
-Imotara is an AI companion for emotional wellness and self-reflection. It is not a therapy app and not a medical service — it is a private space where someone can say how they actually feel, see their emotional patterns over time, and get a reply that listens rather than lectures.
+Imotara is a private companion for emotional wellness and self-reflection. Replies come from software, not a person. It is not a therapy app and not a medical service — it is a private space where someone can say how they actually feel, see their emotional patterns over time, and get a reply that listens rather than lectures.
 
 It was built in India and is designed for people worldwide, with an unusual focus on Indian languages.
 

@@ -91,7 +91,7 @@ In plain terms:
 
 ## Cohorts / Teams
 
-Group your members — a class, a department, a beneficiary group — and set the AI companion's tone per group. EDU orgs see these as **Classrooms**; enterprises see **Teams/Departments** (same feature).
+Group your members — a class, a department, a beneficiary group — and set the companion's tone per group. EDU orgs see these as **Classrooms**; enterprises see **Teams/Departments** (same feature).
 
 1. Open **Org dashboard → Teams** ("Teams & Groups").
 2. **Create a cohort:** give it a name (e.g. "Class 10A" or "Sales Team"), an optional description, an optional seat limit, and a **tone policy**: **🤝 Close Friend**, **🌿 Calm Companion**, **🎯 Coach**, or **📚 Mentor** (defaults to Close Friend).

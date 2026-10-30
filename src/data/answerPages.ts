@@ -454,7 +454,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
             "If you are using alcohol or anything else to manage how you feel, mention that specifically — it changes what help is appropriate.",
         ],
         related: [
-            { href: "/compare/ai-companion-vs-therapy", label: "Is an AI companion the same as therapy?" },
+            { href: "/compare/ai-companion-vs-therapy", label: "Is a companion app the same as therapy?" },
             { href: "/answers/crying-for-no-reason", label: "Crying for no reason?" },
         ],
     },

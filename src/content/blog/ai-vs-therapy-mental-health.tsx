@@ -9,7 +9,7 @@ export const meta: BlogPost = {
     "AI mental wellness apps and therapy both support emotional health — but in very different ways. Here's an honest breakdown of what each does, and when to choose which.",
   date: "2026-04-20",
   category: "Mental Health",
-  tags: ["AI vs therapy", "mental health", "when to see a therapist", "AI companion", "emotional wellness"],
+  tags: ["AI vs therapy", "mental health", "when to see a therapist", "companion app", "emotional wellness"],
   author: {
     name: "Soumen Roy",
     role: "Founder, Imotara",
@@ -66,7 +66,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </h2>
 
       <p>
-        AI companions like Imotara are not therapy. They don't diagnose. They don't treat. They are not
+        Companion apps like Imotara are not therapy. They don't diagnose. They don't treat. They are not
         staffed by clinicians. They don't replace the therapeutic relationship.
       </p>
 
@@ -77,7 +77,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        AI companions are well-suited for:
+        Companion apps are well-suited for:
       </p>
 
       <ul className="ml-4 list-disc space-y-1">
@@ -100,7 +100,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        AI companions don't solve this problem — but they can help bridge it. For someone who can't afford
+        Companion apps don't solve this problem — but they can help bridge it. For someone who can't afford
         therapy, doesn't have access to a therapist, or lives in a culture where seeking mental health
         support is stigmatised, a private AI wellness app offers something they otherwise wouldn't have:
         a space to be heard.
@@ -111,7 +111,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </h2>
 
       <p>
-        The danger arises when AI companions are positioned — or used — as direct replacements for clinical
+        The danger arises when companion apps are positioned — or used — as direct replacements for clinical
         care. Someone experiencing severe depression, suicidal ideation, psychosis, or active trauma needs
         professional support. An AI app should never delay or replace that.
       </p>
@@ -133,7 +133,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        An AI companion used alongside therapy can help you:
+        A companion app used alongside therapy can help you:
       </p>
 
       <ul className="ml-4 list-disc space-y-1">
@@ -152,7 +152,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
           <thead>
             <tr className="border-b border-white/10 text-left text-[11px] font-semibold uppercase tracking-[0.15em] text-zinc-500">
               <th className="px-4 py-3">Situation</th>
-              <th className="px-4 py-3">AI Companion</th>
+              <th className="px-4 py-3">Companion app</th>
               <th className="px-4 py-3">Therapy</th>
             </tr>
           </thead>
@@ -189,7 +189,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
 
       <p>
         If you're struggling with something serious — please talk to a professional. If you want a quiet
-        space to reflect on how you're feeling today, an AI companion might be exactly right.
+        space to reflect on how you're feeling today, a private companion might be exactly right.
       </p>
     </div>
   );

@@ -6,7 +6,7 @@ export const meta: BlogPost = {
   slug: "what-is-imotara",
   title: "What is Imotara?",
   description:
-    "Imotara is a quiet, private space to talk about how you feel — no judgement, no social feed, no noise. Just a gentle AI companion that listens.",
+    "Imotara is a quiet, private space to talk about how you feel — no judgement, no social feed, no noise. Just a gentle, private companion that listens.",
   date: "2026-01-15",
   category: "Product",
   tags: ["introduction", "companion", "emotional wellness", "privacy"],

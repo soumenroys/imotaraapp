@@ -227,14 +227,19 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
 
     "overthinking-before-sleep": {
         slug: "overthinking-before-sleep",
-        question: "How do I stop overthinking when I am trying to sleep?",
+        // 🔑 30 Oct 2026, Search Console: "how to stop overthinking at night" ×14
+        // and "what to do when you can't sleep because of overthinking" — the
+        // words people use are "at night", so the question says it too.
+        question: "How do I stop overthinking at night when I am trying to sleep?",
         shortAnswer:
             "You mostly do not stop it by trying to stop it. What works better is giving the thoughts somewhere to go before you lie down, and giving your attention something undemanding to hold once you have. Fighting the thinking keeps you awake more reliably than the thinking does.",
-        metaTitle: "How to stop overthinking before sleep — Imotara",
+        metaTitle: "How to stop overthinking at night — Imotara",
         metaDescription:
-            "Why thoughts get loud at bedtime, why suppressing them backfires, and what actually helps — plus when sleeplessness is worth seeing a doctor about.",
+            "Why thoughts get loud at bedtime, why suppressing them backfires, what to do when you have been lying awake for a while — and when sleeplessness is worth seeing a doctor about.",
         keywords: [
             "how to stop overthinking at night",
+            "what to do when you can't sleep because of overthinking",
+            "overthinking at night",
             "racing thoughts before sleep",
             "cant sleep mind wont stop",
             "how to quiet your mind at bedtime",
@@ -252,6 +257,20 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
                 body: [
                     "Instructing yourself not to think about something requires monitoring whether you have stopped — which is thinking about it. Then you get annoyed at still being awake, and the annoyance is a second problem on top of the first.",
                     "Most of the distress of a sleepless night is not the thoughts. It is the arithmetic: how little sleep is left, how bad tomorrow will be.",
+                ],
+            },
+            {
+                heading: "If you have been lying awake a while",
+                body: [
+                    "If it feels like twenty minutes or more, get up. Go somewhere dim, do something dull — fold laundry, read something unexciting on paper — and go back to bed only when you feel sleepy. It sounds backwards, and it is one of the core parts of CBT-I: it stops the bed becoming the place where you lie and think.",
+                    "Leave the clock alone while you do it. Checking the time restarts the arithmetic, and the arithmetic is what keeps you up.",
+                ],
+            },
+            {
+                heading: "If you wake in the small hours and it starts again",
+                body: [
+                    "Waking briefly in the night is normal; most people do it several times and never remember. What turns it into a bad night is the thinking that switches on with it.",
+                    "Do not try to solve anything then. Problems look larger at that hour than they will at breakfast. If it is on tomorrow's list, it can wait there — and if it is not, putting it there is the one thing worth doing before you settle again.",
                 ],
             },
         ],

@@ -250,10 +250,17 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
         question: "Do you have to pay for a mental health app?",
         shortAnswer:
             "No. A genuinely useful free tier is possible, and you should be suspicious of any app that blocks a conversation mid-sentence to sell you something. Imotara's free tier is permanent: twenty cloud replies a day, unlimited on-device replies, and all 22 languages, with no card required.",
-        metaTitle: "Do you have to pay for a mental health app? — Imotara",
+        // 🔑 30 Oct 2026, Search Console: "mental health app cost / price",
+        // "therapy app cost", "counselling app cost / price" — all shown at
+        // positions 63–77, all landing on a page that never said "cost".
+        metaTitle: "What does a mental health app cost? Do you have to pay? — Imotara",
         metaDescription:
-            "What a free tier should include, what paying actually buys, and the warning signs of a paywall placed where it does harm.",
+            "What mental health apps cost and why apps with a human therapist cost far more, what a free tier should include, what paying actually buys, and the warning signs of a paywall placed where it does harm.",
         keywords: [
+            "mental health app cost",
+            "mental health app price",
+            "therapy app cost",
+            "counselling app cost",
             "free mental health app",
             "free ai therapy app no subscription",
             "mental health app without paying",
@@ -269,6 +276,13 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             { criterion: "History", imotara: "Kept on your device.", other: "Unlimited history and cross-device sync." },
         ],
         sections: [
+            {
+                heading: "What mental health apps cost",
+                body: [
+                    "There are broadly three kinds of price. Self-help and companion apps are usually free to start, with a paid plan charged monthly or yearly. Apps that connect you with a human therapist or counsellor charge for that person's time, per session or in bundles, which is why they cost far more. And some services are free because someone else pays — a government, a charity, or an advertiser.",
+                    "These are different things, not cheaper and dearer versions of the same thing. If what you need is therapy, a cheaper app is not a substitute for it, and the price worth comparing is that of the human service. " + NOT_THERAPY + " Its free tier is permanent; Imotara Plus is ₹149 a month or ₹1,299 a year in India.",
+                ],
+            },
             {
                 heading: "The one rule a wellness paywall should follow",
                 body: [

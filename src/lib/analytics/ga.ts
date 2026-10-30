@@ -35,3 +35,19 @@ export function gaMeasurementId(): string | null {
 export function analyticsEnabled(): boolean {
     return gaMeasurementId() !== null;
 }
+
+/**
+ * 🔑 31 Oct 2026, the S4 analytics review: in the last 28 days 38% of all page
+ * views were our OWN admin pages (admin, social posting), and 153 were the
+ * unsubscribe page — opened mostly by mail security scanners following the
+ * link in every email, each one a brand-new "user" who never comes back. Both
+ * made "new users 518 / returning 12" a measure of us and of scanners, not of
+ * visitors. ⇒ GA is not loaded, and no page view is sent, on these paths.
+ */
+const UNTRACKED_PREFIXES = ["/admin", "/unsubscribe"] as const;
+
+/** True for pages whose visits are not visitors: our own admin, and scanners. */
+export function isUntrackedPath(pathname: string | null | undefined): boolean {
+    if (!pathname) return false;
+    return UNTRACKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}

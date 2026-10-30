@@ -10,9 +10,10 @@
 
 import { createSign } from "node:crypto";
 import {
-  ADMIN_COLUMNS, CONTACT_TABS, COLUMNS, LAST_COLUMN, columnLetter, parseContacts, staleStatusRows, parseDnc, parseLanguages, parseSettings, parseTeam,
-  type Column, type Contact, type ContactTab, type Directory,
+  ADMIN_COLUMNS, CONTACT_TABS, COLUMNS, columnMoves, layoutOf, letterFor, parseContacts, staleStatusRows, parseDnc, parseLanguages, parseSettings, parseTeam,
+  type Column, type Contact, type ContactTab, type Directory, type Layout,
 } from "@/lib/voice/rules";
+import { COUNTRIES, countryLabel } from "@/lib/voice/countries";
 
 /** ⚠️ Not a secret: the id is in every link to the sheet. Override with VOICE_SHEET_ID. */
 const DEFAULT_SHEET_ID = "1KrmVD2vjDq6QVbWl1Vt9qbiwtI47lB05ZFt8IblESjY";
@@ -114,11 +115,37 @@ export function sheetLink(gids: Record<string, number> | null | undefined, tab?:
 
 const quote = (tab: string) => `'${tab.replace(/'/g, "''")}'`;
 
+/**
+ * ⚠️ OPEN RANGES: the whole tab, or its whole first row — never "A1:BZ".
+ * Google refuses a range wider than the tab's grid, and a column moved or added
+ * by the team must still be seen.
+ */
+const wholeTab = (tab: string) => quote(tab);
+const headerRow = (tab: string) => `${quote(tab)}!1:1`;
+
+/**
+ * 🔑 Each tab's layout, read FRESH from its header row before every write.
+ * ⛔ Never cached across calls: Sheet setup moves columns, and a layout from
+ * before a move would write a call result into somebody else's column.
+ */
+async function layouts(tabs: readonly string[]): Promise<Record<string, Layout>> {
+  const unique = [...new Set(tabs)];
+  const ranges = unique.map((t) => `ranges=${encodeURIComponent(headerRow(t))}`).join("&");
+  const data = (await google(`/values:batchGet?${ranges}`)) as { valueRanges?: { values?: string[][] }[] };
+  return Object.fromEntries(unique.map((t, i) => [t, layoutOf(data.valueRanges?.[i]?.values?.[0])]));
+}
+
+/** The A1 cell of one column on one row. ⚠️ Throws when the tab has no such column — a guess would write into the wrong one. */
+function cellRef(tab: string, at: Layout, col: Column, row: number): string {
+  if (at[col] < 0) throw new Error(`The "${tab}" tab has no "${col}" column — press Sheet setup in the admin to add it.`);
+  return `${quote(tab)}!${letterFor(at[col])}${row}`;
+}
+
 /** Every tab in one request. ⚠️ A missing Settings tab is normal ⇒ safe defaults. */
 export async function readDirectory(): Promise<Directory> {
   const tabs = [...CONTACT_TABS, "Languages", "Team", "Do not call"];
   // ⚠️ Open-ended: a tab past row 1000 used to be invisible to calling, email and the status sync (review, 24 Oct).
-  const ranges = tabs.map((t) => `ranges=${encodeURIComponent(`${quote(t)}!A1:${LAST_COLUMN}`)}`).join("&");
+  const ranges = tabs.map((t) => `ranges=${encodeURIComponent(wholeTab(t))}`).join("&");
   const data = (await google(`/values:batchGet?${ranges}&valueRenderOption=FORMATTED_VALUE`)) as {
     valueRanges?: { values?: string[][] }[];
   };
@@ -145,11 +172,12 @@ export async function readDirectory(): Promise<Directory> {
 
 /** Write some cells of one contact row. ⚠️ RAW: nothing the agent says becomes a formula. */
 export async function writeRow(c: Pick<Contact, "tab" | "row">, cells: Partial<Record<Column, string>>): Promise<void> {
+  if (Object.keys(cells).length === 0) return;
+  const at = (await layouts([c.tab]))[c.tab];
   const data = Object.entries(cells).map(([col, value]) => ({
-    range: `${quote(c.tab)}!${columnLetter(col as Column)}${c.row}`,
+    range: cellRef(c.tab, at, col as Column, c.row),
     values: [[value ?? ""]],
   }));
-  if (data.length === 0) return;
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
 }
 
@@ -161,14 +189,50 @@ export async function appendDnc(phone: string, name: string, reason: string): Pr
 }
 
 /**
- * Head the columns the system added (Y call_id, Z–AC outreach email), so the
- * team sees what lives there. Idempotent: it writes header text only.
+ * Every column the system knows gets its header: rewritten where it already is
+ * (so "Call Date" reads call_date), added after the last header where it is
+ * missing. Idempotent: header text only — no data cell is touched.
  */
 export async function ensureSystemColumns(): Promise<void> {
-  const from = COLUMNS.indexOf("call_id");
-  const headers = COLUMNS.slice(from);
-  const data = CONTACT_TABS.map((t) => ({ range: `${quote(t)}!${columnLetter("call_id")}1:${LAST_COLUMN}1`, values: [[...headers]] }));
+  const ranges = CONTACT_TABS.map((t) => `ranges=${encodeURIComponent(headerRow(t))}`).join("&");
+  const got = (await google(`/values:batchGet?${ranges}`)) as { valueRanges?: { values?: string[][] }[] };
+  const data = CONTACT_TABS.flatMap((t, i) => {
+    const header = got.valueRanges?.[i]?.values?.[0] ?? [];
+    const at = layoutOf(header);
+    let next = header.length;
+    return COLUMNS.map((c) => ({ range: `${quote(t)}!${letterFor(at[c] >= 0 ? at[c] : next++)}1`, values: [[c]] }));
+  });
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+}
+
+/**
+ * 🔑 Move each contact tab's columns into the COLUMNS order — the admin's on
+ * the left, the system's on the right (owner, 29 Oct 2026). Sheets' own column
+ * move: every cell, note, format and formula goes with its column, so no row's
+ * data is retyped or lost. Safe to press again: an ordered tab needs no moves.
+ * ⚠️ Run after ensureSystemColumns (every column must have its header).
+ */
+export async function reorderColumns(): Promise<{ tab: string; moves: number }[]> {
+  const gids = await tabGids();
+  const ranges = CONTACT_TABS.map((t) => `ranges=${encodeURIComponent(headerRow(t))}`).join("&");
+  const got = (await google(`/values:batchGet?${ranges}`)) as { valueRanges?: { values?: string[][] }[] };
+  const out: { tab: string; moves: number }[] = [];
+  const requests: unknown[] = [];
+  CONTACT_TABS.forEach((t, i) => {
+    const sheetId = gids[t];
+    if (sheetId === undefined) return;
+    const moves = columnMoves(got.valueRanges?.[i]?.values?.[0] ?? []);
+    out.push({ tab: t, moves: moves.length });
+    if (!moves.length) return;
+    // ⚠️ Unfreeze first: a move across the frozen edge is refused. protectAndFormat freezes again.
+    requests.push({ updateSheetProperties: { properties: { sheetId, gridProperties: { frozenColumnCount: 0 } }, fields: "gridProperties.frozenColumnCount" } });
+    for (const m of moves) {
+      requests.push({ moveDimension: { source: { sheetId, dimension: "COLUMNS", startIndex: m.from, endIndex: m.from + 1 }, destinationIndex: m.to } });
+    }
+  });
+  // One request: the moves apply in order, all or none.
+  if (requests.length) await google(`:batchUpdate`, { method: "POST", body: JSON.stringify({ requests }) });
+  return out;
 }
 
 /** The Settings keys the admin console may change, as the sheet spells them. */
@@ -205,8 +269,13 @@ export async function writeSettings(values: Partial<Record<SettingKey, string>>)
  * sheet's own "Check" formula column is left empty (the system recomputes it).
  */
 export async function appendContact(tab: ContactTab, cells: Partial<Record<Column, string>>): Promise<number> {
-  const row = COLUMNS.map((c) => cells[c] ?? "");
-  const res = (await google(`/values/${encodeURIComponent(`${quote(tab)}!A:${LAST_COLUMN}`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  const at = (await layouts([tab]))[tab];
+  const row: string[] = new Array(Math.max(...COLUMNS.map((c) => at[c])) + 1).fill("");
+  for (const [col, value] of Object.entries(cells)) {
+    cellRef(tab, at, col as Column, 1); // ⚠️ throws on a column the tab lacks
+    row[at[col as Column]] = value ?? "";
+  }
+  const res = (await google(`/values/${encodeURIComponent(`${quote(tab)}!A:${letterFor(row.length - 1)}`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     method: "POST",
     body: JSON.stringify({ values: [row] }),
   })) as { updates?: { updatedRange?: string } };
@@ -217,8 +286,10 @@ export async function appendContact(tab: ContactTab, cells: Partial<Record<Colum
 
 /** Many cells across many rows in ONE request — for the status columns, rewritten every few minutes. */
 export async function writeMany(updates: { c: Pick<Contact, "tab" | "row">; cells: Partial<Record<Column, string>> }[]): Promise<number> {
+  if (updates.length === 0) return 0;
+  const at = await layouts(updates.map((u) => u.c.tab));
   const data = updates.flatMap(({ c, cells }) =>
-    Object.entries(cells).map(([col, value]) => ({ range: `${quote(c.tab)}!${columnLetter(col as Column)}${c.row}`, values: [[value ?? ""]] })),
+    Object.entries(cells).map(([col, value]) => ({ range: cellRef(c.tab, at[c.tab], col as Column, c.row), values: [[value ?? ""]] })),
   );
   for (let i = 0; i < data.length; i += 500) {
     await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data: data.slice(i, i + 500) }) });
@@ -246,20 +317,29 @@ const WHITE = { red: 1, green: 1, blue: 1 };
 const SYSTEM_FILL = { red: 0.95, green: 0.96, blue: 0.97 };
 const SYSTEM_TEXT = { red: 0.25, green: 0.28, blue: 0.33 };
 
-/** The zones offered in the dropdowns; any other IANA name may still be typed. */
-const COMMON_ZONES = [
-  "Asia/Kolkata", "Asia/Dubai", "Asia/Singapore", "Asia/Dhaka", "Asia/Kathmandu", "Europe/London", "Europe/Berlin",
-  "America/New_York", "America/Chicago", "America/Los_Angeles", "Australia/Sydney", "UTC",
-];
+/**
+ * The zones offered in the dropdowns: every listed country's own zone, plus the
+ * main zones of the countries that span several. Any other IANA name may still be typed.
+ */
+const COMMON_ZONES = [...new Set([
+  "Asia/Kolkata",
+  ...COUNTRIES.flatMap((c) => (c.zone ? [c.zone] : [])),
+  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "America/Toronto", "America/Vancouver",
+  "America/Mexico_City", "America/Sao_Paulo", "Australia/Sydney", "Australia/Melbourne", "Australia/Brisbane", "Australia/Perth",
+  "Asia/Jakarta", "Europe/Moscow", "UTC",
+])];
+
+/** Every half hour, for the time dropdowns. ⚠️ Not strict: "14:45" or "2 pm" may still be typed. */
+const HALF_HOURS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 
 /** What each column means, shown as the header cell's note. */
 const NOTES: Partial<Record<Column, string>> = {
-  phone: "YOU FILL: phone with country code, digits only, e.g. 919830012345.",
+  phone: "YOU FILL: the phone number. Choose the country and the country code is added for you (98300 12345 with India = +91 98300 12345). A number starting with + is used as typed.",
   name: "YOU FILL: the person's name.",
   organisation: "YOU FILL: organisation name (leave blank for an individual).",
-  organisation_type: "YOU FILL: e.g. NGO, school, college, company, old age home.",
-  country: "YOU FILL: 2-letter country code, e.g. IN.",
-  time_zone: "YOU FILL: e.g. Asia/Kolkata. Used when mail_time_zone / call_time_zone are empty.",
+  organisation_type: "YOU FILL (optional): e.g. school, college, hospice. Empty = the tab says it (NGOs → NGO, Eldercare → old age home, Education → educational institution, Corporates → company).",
+  country: "YOU FILL: choose from the list (or type the 2-letter code, e.g. IN). It adds the country code to the phone and, where the country has one time zone, sets the time zone.",
+  time_zone: "YOU FILL (optional where the country has one zone): choose from the list. Empty = the country's zone. ⚠️ USA, Canada, Mexico, Brazil, Australia, Russia and Indonesia have several — choose one. Used when mail_time_zone / call_time_zone are empty.",
   language: "YOU FILL: the language to call in (bn, hi, en …).",
   source: "YOU FILL: where we met them.",
   consent_note: "YOU FILL — REQUIRED: how they agreed to be contacted. No consent note = no call and no email.",
@@ -271,17 +351,20 @@ const NOTES: Partial<Record<Column, string>> = {
   email: "YOU FILL (optional): their email. Emailed only when contact_by_email is yes.",
   contact_by_email: "YOU FILL: yes to email this person (intro at mail_date + mail_time, then day 7 and day 21 at the same time). Empty or no = never emailed.",
   contact_by_phone: "YOU FILL: yes to call this person at call_date + call_time. Empty or no = never called.",
-  mail_date: "YOU FILL: the day of the FIRST email, e.g. 2026-11-03. Follow-ups go 7 and 21 days later.",
-  mail_time: "YOU FILL: the time of the first email, 24-hour, e.g. 14:30. Any hour.",
+  mail_date: "YOU FILL: the day of the FIRST email — double-click for a calendar, or type 2026-11-03. Follow-ups go 7 and 21 days later.",
+  mail_time: "YOU FILL: the time of the first email — choose from the list, or type any time, e.g. 14:45. 24-hour. Any hour.",
   mail_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
-  call_date: "YOU FILL: the day to call, e.g. 2026-11-03. A new, later date calls again.",
-  call_time: "YOU FILL: the time to call, 24-hour, e.g. 11:00. ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
+  call_date: "YOU FILL: the day to call — double-click for a calendar, or type 2026-11-03. A new, later date calls again.",
+  call_time: "YOU FILL: the time to call — choose from the list, or type any time, e.g. 11:15. 24-hour. ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
   call_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
   asked_for_call: "YOU FILL: yes ONLY if the person themselves asked us to call (website, 'call me' to the team). Write when and how in consent_note. Until TRAI DLT is done, individuals are called only with yes here.",
   do_not_contact: "YOU FILL: type yes to stop ALL calls and emails to this person.",
   call_progress: "SYSTEM: where calling stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem · 🔴 safety.",
   mail_progress: "SYSTEM: where email stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem.",
   what_to_do: "SYSTEM: what to do about a problem on this row. Empty or 'Nothing' means nothing is needed.",
+  contact_number: "RETIRED: no longer used — the number goes in phone. Read only when phone is empty.",
+  disclose_upfront: "RETIRED: the assistant always says it is a virtual assistant.",
+  Check: "RETIRED: the system checks every row itself — see call_progress and what_to_do.",
 };
 
 /** Extra widths (pixels) for the columns people read most. */
@@ -309,8 +392,8 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
   const byTitle = new Map(meta.sheets.map((s) => [s.properties.title, s]));
   const sa = serviceAccountEmail();
   const requests: unknown[] = [];
-  const idx = (c: Column) => COLUMNS.indexOf(c);
-  const progressCols = [idx("call_progress"), idx("what_to_do") + 1];
+  // 🔑 Where each column REALLY is on each tab — never assumed from the order in code.
+  const lay = await layouts(CONTACT_TABS);
 
   const dropOurs = (s: SheetMeta) => {
     for (const p of s.protectedRanges ?? []) {
@@ -336,11 +419,17 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
     const s = byTitle.get(tab);
     if (!s) continue;
     const id = s.properties.sheetId;
+    const at = lay[tab];
+    const missing = COLUMNS.filter((c) => at[c] < 0);
+    if (missing.length) throw new Error(`The "${tab}" tab has no ${missing.join(", ")} column — nothing was locked.`);
+    const idx = (c: Column) => at[c];
+    const progressCols = [Math.min(idx("call_progress"), idx("mail_progress"), idx("what_to_do")), Math.max(idx("call_progress"), idx("mail_progress"), idx("what_to_do")) + 1];
     dropOurs(s);
     // Our own colour rules on the status columns, replaced each time (descending, so indexes stay valid).
     (s.conditionalFormats ?? [])
       .map((r, i) => ({ r, i }))
-      .filter(({ r }) => r.ranges.some((g) => (g.startColumnIndex ?? 0) >= progressCols[0] && (g.endColumnIndex ?? 0) <= progressCols[1]))
+      // ⚠️ TOUCHING, not inside: a column move can split one of our rules across the moved columns.
+      .filter(({ r }) => r.ranges.some((g) => g.startColumnIndex !== undefined && g.startColumnIndex < progressCols[1] && (g.endColumnIndex ?? Infinity) > progressCols[0]))
       .reverse()
       .forEach(({ i }) => requests.push({ deleteConditionalFormatRule: { sheetId: id, index: i } }));
 
@@ -353,7 +442,8 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
 
     requests.push({ updateSheetProperties: { properties: { sheetId: id, gridProperties: { frozenRowCount: 1, frozenColumnCount: idx("name") + 1 } }, fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount" } });
     // Header: teal where the admin types, slate where the system writes.
-    COLUMNS.forEach((c, i) => {
+    COLUMNS.forEach((c) => {
+      const i = idx(c);
       const mine = ADMIN_COLUMNS.includes(c);
       requests.push({
         repeatCell: {
@@ -416,6 +506,12 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
     for (const c of ["mail_time", "call_time"] as const) {
       requests.push({ repeatCell: { range: col(c), cell: { userEnteredFormat: { numberFormat: { type: "TIME", pattern: "hh:mm" } } }, fields: "userEnteredFormat.numberFormat" } });
     }
+    for (const c of ["mail_time", "call_time"] as const) {
+      requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: HALF_HOURS.map((h) => ({ userEnteredValue: h })) }, strict: false, showCustomUi: true, inputMessage: "Choose a time, or type any other, e.g. 14:45 (24-hour)." } } });
+    }
+    // 🔑 Owner, 29 Oct 2026: country and time zone chosen from a list.
+    requests.push({ setDataValidation: { range: col("country"), rule: { condition: { type: "ONE_OF_LIST", values: COUNTRIES.map((k) => ({ userEnteredValue: countryLabel(k) })) }, strict: false, showCustomUi: true, inputMessage: "Choose the country — its code is added to the phone. Or type the 2-letter code." } } });
+    requests.push({ setDataValidation: { range: col("time_zone"), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Empty = the country's zone (one-zone countries). USA, Canada, Australia … choose one." } } });
     for (const c of ["mail_time_zone", "call_time_zone"] as const) {
       requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Choose a zone, or type another, e.g. Europe/Paris. Empty = the time_zone column." } } });
     }
@@ -453,15 +549,17 @@ export async function updateGuide(): Promise<void> {
   const t = quote("Start here");
   const data = [
     { range: `${t}!B2`, values: [["Contacts for Imotara's calls and outreach email. You fill the white (teal-header) columns; the system fills the grey ones."]] },
-    { range: `${t}!B5`, values: [["White (teal header): you and your team fill these — phone, name, organisation, type, country, time zone, language, source, consent note, team member, context, call reason, ambassador notes, voice_gender, email, do_not_contact, the schedule columns AH–AO and asked_for_call (AP). These are the only columns you can edit."]] },
-    { range: `${t}!B6`, values: [["Grey (slate header): the system fills these after each call and email — status, attempts, outcome, summary, next action, mail status, and the three status columns. Locked."]] },
-    { range: `${t}!B23:B29`, values: [
-      ["READING A ROW (columns AE–AG, updated every 10 minutes)"],
+    { range: `${t}!B5`, values: [["White (teal header), on the LEFT: you and your team fill these — phone, name, organisation, country, time zone, language, consent note, source, email, the schedule (contact_by_email, contact_by_phone, mail_date/time/zone, call_date/time/zone), asked_for_call, and the optional ones after. These are the only columns you can edit."]] },
+    { range: `${t}!B6`, values: [["Grey (slate header), on the RIGHT: the system fills these after each call and email — call_progress, mail_progress, what_to_do, then status, attempts, outcome, summary, mail status. Locked. The last three (contact_number, disclose_upfront, Check) are retired."]] },
+    { range: `${t}!B23:B30`, values: [
+      ["READING A ROW (call_progress, mail_progress, what_to_do — updated every 10 minutes)"],
       ["call_progress and mail_progress: ✅ done · ⏳ in queue · 🟡 waiting for its day · ⛔ a problem · 🔴 SAFETY — call them yourself today."],
       ["what_to_do: the fix for a problem on that row, in plain words. 'Nothing' means nothing is needed."],
-      ["EMAIL: email in column Z, yes in contact_by_email (AH), and the first email's date + time in mail_date / mail_time (AJ–AK; zone in AL, or column G). Day 7 and day 21 follow at the same time. Any hour, any day."],
-      ["CALL: yes in contact_by_phone (AI), and the date + time in call_date / call_time (AM–AN; zone in AO, or column G). The call service rings 09:00–21:00 their time and holds other times till 09:00. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again. INDIVIDUALS: called only with yes in asked_for_call (AP) until TRAI DLT is done."],
-      ["No date = nothing happens. No consent note = no call and no email. TO STOP SOMEONE: yes in do_not_contact (AD). Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
+      ["COUNTRY: choose it from the list. The phone gets the country code by itself, and where the country has one time zone, time_zone may stay empty. organisation_type may stay empty too — the tab says it."],
+      ["EMAIL: email, yes in contact_by_email, and the first email's date + time in mail_date / mail_time (zone in mail_time_zone, or time_zone). Day 7 and day 21 follow at the same time. Any hour, any day."],
+      ["CALL: yes in contact_by_phone, and the date + time in call_date / call_time (zone in call_time_zone, or time_zone). The call service rings 09:00–21:00 their time and holds other times till 09:00. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again. INDIVIDUALS: called only with yes in asked_for_call until TRAI DLT is done."],
+      ["No date = nothing happens. No consent note = no call and no email. TO STOP SOMEONE: yes in do_not_contact. Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
+      ["Dates: double-click the cell for a calendar. Times: choose from the list, or type any time (24-hour)."],
     ] },
   ];
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
@@ -481,6 +579,7 @@ export async function updateGuide(): Promise<void> {
 
 /** One cell of one row, read fresh — for a last check just before a write. */
 export async function readCell(c: Pick<Contact, "tab" | "row">, col: Column): Promise<string> {
-  const r = (await google(`/values/${encodeURIComponent(`${quote(c.tab)}!${columnLetter(col)}${c.row}`)}`)) as { values?: string[][] };
+  const at = (await layouts([c.tab]))[c.tab];
+  const r = (await google(`/values/${encodeURIComponent(cellRef(c.tab, at, col, c.row))}`)) as { values?: string[][] };
   return String(r.values?.[0]?.[0] ?? "").trim();
 }

@@ -66,7 +66,7 @@ export function voiceSource(): TodoSource {
             if (!(c.v.email ?? "").trim()) out.push({ ...base, id: id("sendinfo"), urgency: "today", manual: true, title: `Send ${who} the details they asked for`, detail: "They asked on a call. There is no email in the sheet, so this is by hand (or add their email).", action: "Mark done once sent" });
             break;
           case STATUS.wrongNumber:
-            out.push({ ...base, id: id("wrongnumber"), urgency: "soon", title: `Wrong number for ${who}`, detail: "Correct the phone in the sheet (column A), then press Retry — or type yes in do_not_contact.", action: "Open Needs a person" });
+            out.push({ ...base, id: id("wrongnumber"), urgency: "soon", title: `Wrong number for ${who}`, detail: "Correct the phone in the sheet, then press Retry — or type yes in do_not_contact.", action: "Open Needs a person" });
             break;
           case STATUS.interested:
             out.push({ ...base, id: id("interested"), urgency: "soon", manual: true, title: `${who} is interested — follow up personally`, detail: c.v.call_summary, action: "Mark done once followed up" });

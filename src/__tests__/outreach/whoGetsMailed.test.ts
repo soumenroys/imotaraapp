@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { COLUMNS, STATUS, columnLetter, letterFor, phoneOf, writebackFor, type Column, type Contact } from "@/lib/voice/rules";
+import { COLUMNS, STATUS, letterFor, phoneOf, writebackFor, type Column, type Contact } from "@/lib/voice/rules";
 import { MAIL, afterSent, dueStep, mailCheck, selectMail } from "@/lib/outreach/sequence";
 import { checkMailStyle, SIGNATURE, parseMail } from "@/lib/outreach/writer";
 import { buildMessage, OUTREACH_ID } from "@/lib/outreach/send";
@@ -36,9 +36,7 @@ describe("the sheet's columns past Z", () => {
   it("letters run Z, AA, AB, AC", () => {
     expect(letterFor(25)).toBe("Z");
     expect(letterFor(26)).toBe("AA");
-    expect(columnLetter("email")).toBe("Z");
-    expect(columnLetter("mail_last_sent")).toBe("AC");
-    expect(columnLetter("call_id")).toBe("Y");
+    expect(letterFor(41)).toBe("AP");
   });
 });
 

@@ -26,24 +26,24 @@ const day = (iso: string) => {
 
 /** How to fix each "not callable" reason, in the admin's words. */
 const CALL_FIX: [RegExp, string][] = [
-  [/extra 0 after/i, "Remove the 0 straight after the country code in column A — UK 020 8863 4637 is 44 20 8863 4637."],
-  [/no country code/i, "Start the phone in column A with the country code and drop the leading 0 — UK 01494 680873 is 44 1494 680873."],
-  [/too many digits/i, "Check the phone in column A — it has more digits than any real number."],
-  [/country code/i, "Type the phone with country code in column A, e.g. 919830012345."],
-  [/Missing name/i, "Type the person's name in column C."],
+  [/extra 0 after/i, "Remove the 0 straight after the country code in the phone — UK 020 8863 4637 is 44 20 8863 4637."],
+  [/no country code/i, "Choose the country (the code is then added for you), or start the phone with + and the country code — UK 01494 680873 is +44 1494 680873."],
+  [/too many digits/i, "Check the phone number — it has more digits than any real number."],
+  [/country code/i, "Type the phone and choose the country — its code is added for you."],
+  [/Missing name/i, "Type the person's name."],
   [/Sample row/i, "Delete this sample row."],
-  [/consent note/i, "Write how they agreed to be contacted in column J (consent_note)."],
-  [/Individuals paused/i, "Individuals are called only if they asked us to call: choose yes in asked_for_call (column AP) and write in consent_note when and how they asked. Everyone else waits for TRAI DLT registration."],
+  [/consent note/i, "Write how they agreed to be contacted in consent_note."],
+  [/Individuals paused/i, "Individuals are called only if they asked us to call: choose yes in asked_for_call and write in consent_note when and how they asked. Everyone else waits for TRAI DLT registration."],
   [/Language not started/i, "This language is not approved for calls yet — the owner sets it to Start on the Languages tab."],
-  [/No agent/i, "No calling voice exists for this language and voice — choose another voice_gender (column X)."],
-  [/time zone/i, "Type the time zone in call_time_zone (or column G), e.g. Asia/Kolkata."],
+  [/No agent/i, "No calling voice exists for this language and voice — choose another voice_gender."],
+  [/time zone/i, "Choose the time zone in time_zone (or call_time_zone for this call only). Countries with several zones — USA, Canada, Australia … — need one chosen."],
 ];
 
 const MAIL_FIX: [RegExp, string][] = [
-  [/Email looks wrong|correct the email/i, "Correct the email in column Z — it is retried by itself once fixed."],
-  [/consent note/i, "Write how they agreed to be contacted in column J (consent_note)."],
-  [/time zone/i, "Type the time zone in mail_time_zone (or column G), e.g. Asia/Kolkata."],
-  [/Missing name/i, "Type the person's name in column C."],
+  [/Email looks wrong|correct the email/i, "Correct the email address — it is retried by itself once fixed."],
+  [/consent note/i, "Write how they agreed to be contacted in consent_note."],
+  [/time zone/i, "Choose the time zone in time_zone (or mail_time_zone for email only). Countries with several zones — USA, Canada, Australia … — need one chosen."],
+  [/Missing name/i, "Type the person's name."],
 ];
 
 /** How to fix a date or time the system could not read. */
@@ -63,7 +63,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
   switch (s) {
     case STATUS.safety: return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
     case STATUS.review: return { text: "⛔ Needs review — no result came back", fix: "Listen to the call in Voice calls → Call records, then decide what to do next." };
-    case STATUS.dialFailed: return { text: "⛔ Error — the call could not be placed", fix: `${c.v.next_action || "Dial failed."} Check the phone number (column A), then press Retry in Voice calls → Needs a person.` };
+    case STATUS.dialFailed: return { text: "⛔ Error — the call could not be placed", fix: `${c.v.next_action || "Dial failed."} Check the phone number (phone), then press Retry in Voice calls → Needs a person.` };
     case STATUS.calling:
       return c.v.next_action.startsWith("Held by the call service")
         ? { text: "⏳ Held by the call service — rings in its allowed hours (their time)", fix: "" }
@@ -83,7 +83,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
     case STATUS.meeting: return { text: "✅ Done — meeting booked", fix: "Ambassador: hold the meeting." };
     case STATUS.notInterested: return { text: "✅ Done — not interested (never called again)", fix: "" };
     case STATUS.dnc: return { text: "✅ Done — asked not to be called (never again)", fix: "" };
-    case STATUS.wrongNumber: return { text: "⛔ Wrong number", fix: "Correct the phone in column A, then press Retry in Voice calls → Needs a person. (Or type yes in do_not_contact.)" };
+    case STATUS.wrongNumber: return { text: "⛔ Wrong number", fix: "Correct the phone, then press Retry in Voice calls → Needs a person. (Or type yes in do_not_contact.)" };
   }
   const check = checkContact(c, d);
   if (check !== "OK") return { text: `⛔ Not callable — ${check}`, fix: fixFor(check, CALL_FIX) };

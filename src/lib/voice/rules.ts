@@ -15,29 +15,50 @@
 
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
 import { agentFor } from "@/lib/voice/agents";
+import { countryCode, countryZone, normalisePhoneFor } from "@/lib/voice/countries";
 import { callSlot, callZone, yes, zoneOffsetMinutes } from "@/lib/voice/slots";
 
 export const CONTACT_TABS = ["Individuals", "NGOs", "Education", "Eldercare", "Corporates"] as const;
 export type ContactTab = (typeof CONTACT_TABS)[number];
 
 /**
- * The sheet's columns A–X, in order, plus Y which the system adds — and Z–AC
- * for outreach email (owner, 24 Oct 2026: one row = one person for calls AND
- * mail). Z `email` is the team's to fill; AA–AC the system writes.
+ * 🔑 THE COLUMNS, IN THE ORDER THE SHEET SHOWS THEM (owner, 29 Oct 2026: "the
+ * columns admin fills on the left, the system's on the right"). What the admin
+ * types first; what the system writes after; three retired columns last.
+ *
+ * ⚠️ The code finds every column BY ITS HEADER NAME, never by its letter ⇒
+ * layoutOf. This order is what Sheet setup moves the columns into
+ * (sheets.reorderColumns), and the fallback when a tab has no headers at all.
  */
 export const COLUMNS = [
+  // ── The admin's ──
+  "phone", "name", "organisation", "country", "time_zone", "language", "consent_note", "source",
+  "email", "contact_by_email", "contact_by_phone",
+  "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
+  "asked_for_call", "organisation_type", "team_member", "voice_gender", "context", "call_reason",
+  "ambassador_notes", "do_not_contact",
+  // ── The system's ──
+  "call_progress", "mail_progress", "what_to_do",
+  "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action", "follow_up_datetime", "call_id",
+  "mail_status", "mail_step", "mail_last_sent",
+  // ── Retired (owner, 29 Oct 2026): phone is the only number; the check and the disclosure are the system's ──
+  "contact_number", "disclose_upfront", "Check",
+] as const;
+
+/**
+ * The order the sheet had until Sheet v2 (29 Oct 2026). ⚠️ Only for a tab whose
+ * header row names none of the columns — the code otherwise goes by name.
+ */
+export const LEGACY_COLUMNS: readonly string[] = [
   "phone", "contact_number", "name", "organisation", "organisation_type", "country", "time_zone",
   "language", "source", "consent_note", "team_member", "context", "call_reason", "disclose_upfront",
   "Check", "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action",
   "follow_up_datetime", "ambassador_notes", "voice_gender", "call_id",
   "email", "mail_status", "mail_step", "mail_last_sent",
   "do_not_contact", "call_progress", "mail_progress", "what_to_do",
-  // 🔑 AH–AO, the admin's own schedule (owner, 28 Oct 2026) ⇒ lib/voice/slots.
-  // ⚠️ Appended, never inserted: every column before them keeps its letter.
   "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
-  // 🔑 AP — the person themselves asked us to call (owner, 28 Oct 2026) ⇒ checkContact.
   "asked_for_call",
-] as const;
+];
 
 /**
  * 🔑 THE COLUMNS AN ADMIN FILLS — the only ones left unlocked when the sheet is
@@ -70,13 +91,52 @@ export function letterFor(index: number): string {
   return out;
 }
 
-/** Column letter for a field ⇒ writing a single cell back. ⚠️ Past Z it is two letters. */
+/** The column's letter in the CANONICAL order — what Sheet setup arranges. ⚠️ Writes go by layoutOf, not this. */
 export function columnLetter(col: Column): string {
   return letterFor(COLUMNS.indexOf(col));
 }
 
-/** The last column the system reads or writes, e.g. "AC". */
-export const LAST_COLUMN = letterFor(COLUMNS.length - 1);
+/** Where each column sits in one tab: its 0-based index, or -1 when the tab has no such header. */
+export type Layout = Record<Column, number>;
+
+/** "Call Date" / "call_date " / "CALL_DATE" all name call_date. */
+const headerKey = (h: string) => String(h ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+
+/**
+ * 🔑 A tab's layout, from its header row. A column is found by its NAME, so
+ * moving, inserting or reordering columns in the sheet never makes the system
+ * read or write the wrong cell.
+ * ⚠️ A header row that names NONE of the columns (an empty tab) falls back to
+ * the old fixed order, so a tab that was never headed still reads as before.
+ */
+export function layoutOf(header: readonly string[] | undefined): Layout {
+  const keys = (header ?? []).map(headerKey);
+  const found = Object.fromEntries(COLUMNS.map((c) => [c, keys.indexOf(headerKey(c))])) as Layout;
+  if (COLUMNS.some((c) => found[c] >= 0)) return found;
+  return Object.fromEntries(COLUMNS.map((c) => [c, LEGACY_COLUMNS.indexOf(c)])) as Layout;
+}
+
+/**
+ * The column moves that put a tab's columns into the COLUMNS order, applied one
+ * after another (Sheets' moveDimension: the whole column moves, data and all).
+ * A column the tab does not have is skipped; columns the system does not know
+ * end up after ours, in their own order. [] when the tab is already in order.
+ */
+export function columnMoves(header: readonly string[]): { from: number; to: number }[] {
+  const cur = header.map(headerKey);
+  const moves: { from: number; to: number }[] = [];
+  let to = 0;
+  for (const c of COLUMNS) {
+    const from = cur.indexOf(headerKey(c));
+    if (from < 0) continue;
+    if (from !== to) {
+      moves.push({ from, to });
+      cur.splice(to, 0, ...cur.splice(from, 1));
+    }
+    to++;
+  }
+  return moves;
+}
 
 /** The status labels as the sheet shows them. */
 export const STATUS = {
@@ -203,21 +263,40 @@ export const SYSTEM_STATE: readonly Column[] = [
  * and a half-finished email sequence (review, 24 Oct). ⇒ outreach/syncSheet.
  */
 export function staleStatusRows(tab: ContactTab, rows: string[][]): { tab: ContactTab; row: number }[] {
-  const at = (c: Column) => COLUMNS.indexOf(c);
+  const at = layoutOf(rows[0]);
   const out: { tab: ContactTab; row: number }[] = [];
   rows.slice(1).forEach((r, i) => {
-    const cell = (c: Column) => String(r[at(c)] ?? "").trim();
+    const cell = (c: Column) => (at[c] < 0 ? "" : String(r[at[c]] ?? "").trim());
     if (cell("phone") || cell("contact_number") || cell("name")) return;
     if (SYSTEM_STATE.some((c) => cell(c))) out.push({ tab, row: i + 2 });
   });
   return out;
 }
 
+/**
+ * 🔑 What an empty organisation_type means on each tab (owner, 29 Oct 2026:
+ * "organisation_type should be optional … it is already in the tab").
+ */
+export const TAB_ORGANISATION_TYPE: Record<ContactTab, string> = {
+  Individuals: "individual",
+  NGOs: "NGO",
+  Education: "educational institution",
+  Eldercare: "old age home",
+  Corporates: "company",
+};
+
 export function parseContacts(tab: ContactTab, rows: string[][]): Contact[] {
+  const at = layoutOf(rows[0]);
   const out: Contact[] = [];
   rows.slice(1).forEach((r, i) => {
-    const v = Object.fromEntries(COLUMNS.map((c, k) => [c, String(r[k] ?? "").trim()])) as Record<Column, string>;
+    const v = Object.fromEntries(COLUMNS.map((c) => [c, at[c] < 0 ? "" : String(r[at[c]] ?? "").trim()])) as Record<Column, string>;
     if (!v.phone && !v.contact_number && !v.name) return;
+    // 🔑 The dropdown shows "IN — India (+91)"; everything downstream wants "IN".
+    const typedCountry = v.country;
+    v.country = countryCode(typedCountry);
+    // 🔑 An empty time_zone takes the country's — only where the country has ONE zone ⇒ countries.ts.
+    if (!v.time_zone) v.time_zone = countryZone(typedCountry) ?? "";
+    if (!v.organisation_type) v.organisation_type = TAB_ORGANISATION_TYPE[tab];
     out.push({ tab, row: i + 2, v });
   });
   return out;
@@ -269,8 +348,13 @@ export function parseDnc(rows: string[][]): Set<string> {
 
 // ── The check (replaces the sheet's Check column) ────────────────────────────
 
+/**
+ * 🔑 The number to call: phone, with the country's code added when the admin
+ * typed a national number ⇒ countries.normalisePhoneFor. contact_number is
+ * retired (owner, 29 Oct 2026: "phone only") and read only when phone is empty.
+ */
 export function phoneOf(c: Contact): string {
-  return normalisePhone(c.v.contact_number || c.v.phone);
+  return normalisePhoneFor(c.v.phone || c.v.contact_number, c.v.country);
 }
 
 /**
@@ -518,7 +602,7 @@ export function userData(c: Contact, d: Pick<Directory, "team">, now: Date): Rec
   return {
     name: c.v.name,
     organisation: c.v.organisation,
-    organisation_type: c.v.organisation_type || (c.tab === "Individuals" ? "individual" : ""),
+    organisation_type: c.v.organisation_type || TAB_ORGANISATION_TYPE[c.tab],
     country: c.v.country.toUpperCase(),
     context: c.v.context,
     call_reason: c.v.call_reason || "scheduled",

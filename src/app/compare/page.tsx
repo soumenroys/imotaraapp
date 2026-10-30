@@ -15,7 +15,7 @@ const SITE_URL = "https://www.imotara.com";
 export const metadata: Metadata = {
     title: "Honest comparisons — Imotara",
     description:
-        "Is a companion app the same as therapy? Should you talk to a person instead? What a free tier should include, how to choose an app, and which ones work in Indian languages.",
+        "Is a companion app the same as therapy? Should you talk to a person instead? What a free tier should include, how to choose an app, and which ones work in your own language.",
     alternates: { canonical: `${SITE_URL}/compare` },
     openGraph: {
             ...OG_IMAGE,

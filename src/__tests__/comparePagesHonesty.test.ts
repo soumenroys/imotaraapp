@@ -36,13 +36,14 @@ describe("compare pages", () => {
         });
 
         // 🔑 Owner, 30 Oct 2026: read worldwide — no one country's helpline,
-        // no currency. ("India" itself is allowed here: one page is about
-        // Indian languages.)
-        it(`${slug} gives no one country's helpline or price`, () => {
+        // no currency, no "India"/"Indian", and no "AI" (Imotara is a private
+        // companion). Web addresses keep their old lowercase slugs on purpose.
+        it(`${slug} gives no one country's helpline or price, and says no "AI"`, () => {
             const all = JSON.stringify(page);
             for (const local of ["Tele-MANAS", "14416", "₹"]) {
                 expect(all).not.toContain(local);
             }
+            expect(all).not.toMatch(/\b(India|Indian|AI)\b/);
         });
 
         // 🔴 Every one of these pages is read by someone deciding whether an

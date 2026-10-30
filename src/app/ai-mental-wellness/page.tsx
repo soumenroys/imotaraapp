@@ -117,7 +117,7 @@ export default function AiMentalWellnessPage() {
 
         {/* Why it matters */}
         <section className="imotara-glass-soft rounded-2xl px-6 py-6 sm:px-8">
-          <h2 className="text-lg font-semibold text-zinc-100">Why mental wellness needs a private AI companion</h2>
+          <h2 className="text-lg font-semibold text-zinc-100">Why mental wellness needs a private companion</h2>
           <p className="mt-3 text-sm leading-6 text-zinc-300">
             Most people don&apos;t have daily access to a therapist — and not everyone is comfortable journaling alone.
             Imotara fills that gap: a quiet, always-available companion that helps you process emotions, spot patterns,

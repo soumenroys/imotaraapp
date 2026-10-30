@@ -9,7 +9,7 @@ export const meta: BlogPost = {
     "Many of us struggle to put emotions into words. Here's a practical, gentle guide to expressing how you feel — and why talking about it actually helps.",
   date: "2026-04-20",
   category: "Mental Health",
-  tags: ["emotional expression", "mental wellness", "self-awareness", "feelings", "AI companion"],
+  tags: ["emotional expression", "mental wellness", "self-awareness", "feelings", "private companion"],
   author: {
     name: "Soumen Roy",
     role: "Founder, Imotara",
@@ -69,8 +69,8 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        That single word or phrase is a door. Once you say it — out loud, in writing, to a friend or to an
-        AI companion — more usually follows naturally.
+        That single word or phrase is a door. Once you say it — out loud, in writing, to a friend or to a
+        private companion — more usually follows naturally.
       </p>
 
       <h2 className="mt-8 text-base font-semibold text-zinc-100 sm:text-lg">
@@ -121,7 +121,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        AI companions like Imotara offer another option — a private, always-available space to write or speak
+        Private companions like Imotara offer another option — a private, always-available space to write or speak
         what you're feeling and receive a gentle, non-judgmental reflection. Not a replacement for human
         connection, but a useful bridge when human connection isn't possible.
       </p>

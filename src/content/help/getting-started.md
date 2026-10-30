@@ -4,7 +4,7 @@ A friendly walkthrough of your first steps: what Imotara is, using it with or wi
 
 ## What is Imotara?
 
-Imotara is a private, emotion-aware AI companion that helps you understand your feelings, track your mood over time, and grow emotionally — without ads, without data tracking, and without paywalls interrupting your conversations. It's available as a web app at www.imotara.com, plus iOS and Android apps. Imotara is a wellness companion for self-reflection and emotional awareness — it is **not** therapy and is not a replacement for professional mental health care. If you ever need clinical help, please reach out to a professional or the crisis helplines listed in the app (see our Safety & Crisis article).
+Imotara is a private, emotion-aware companion that helps you understand your feelings, track your mood over time, and grow emotionally — without ads, without data tracking, and without paywalls interrupting your conversations. It's available as a web app at www.imotara.com, plus iOS and Android apps. Imotara is a wellness companion for self-reflection and emotional awareness — it is **not** therapy and is not a replacement for professional mental health care. If you ever need clinical help, please reach out to a professional or the crisis helplines listed in the app (see our Safety & Crisis article).
 
 ## The welcome screen you see first
 

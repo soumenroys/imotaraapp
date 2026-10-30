@@ -4901,7 +4901,7 @@ export default function ChatPage() {
               </div>
             </div>
             {/* Crisis note — and who is replying. 🔑 Owner, 30 Oct 2026: Imotara is
-                positioned as a "private companion", not an "AI companion", so this
+                positioned as a "private companion" (the old wording is retired), so this
                 line is where a reader learns that no person writes the replies. */}
             <p className="mx-auto mt-1.5 max-w-3xl text-center text-[10px] text-zinc-600">
               If you&apos;re in crisis or need immediate help, please reach out to a{" "}

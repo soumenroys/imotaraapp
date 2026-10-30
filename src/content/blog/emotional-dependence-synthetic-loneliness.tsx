@@ -25,7 +25,7 @@ function HindiContent() {
   return (
     <div className="space-y-5 text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">
       <p>
-        एक 28 साल की लड़की — मुंबई में काम करती है, अकेले रहती है — रोज़ रात एक AI companion
+        एक 28 साल की लड़की — मुंबई में काम करती है, अकेले रहती है — रोज़ रात एक companion
         app खोलती है। वो उससे अपना दिन शेयर करती है। अपनी थकान, अपनी ख़ुशियाँ, अपने डर।
         App हमेशा सुनता है। कभी थकता नहीं। कभी judge नहीं करता।
       </p>
@@ -107,7 +107,7 @@ function EnglishContent() {
   return (
     <div className="space-y-5 text-sm leading-7 text-zinc-300 sm:text-base sm:leading-8">
       <p>
-        A 28-year-old woman — working in Mumbai, living alone — opens an AI companion app
+        A 28-year-old woman — working in Mumbai, living alone — opens a companion app
         every night. She shares her day with it. Her exhaustion, her small joys, her fears.
         The app always listens. It never tires. It never judges.
       </p>

@@ -233,14 +233,14 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A private companion for the in-between years — in whichever language your thoughts arrive in.",
     metaTitle: "For the nights you say “I’m fine” — Imotara for young adults",
     metaDescription:
-      "A private AI companion for the in-between years. Work, comparison spirals, the parents asking “so, when?”. Private by default, 22 languages, free forever.",
+      "A private companion for the in-between years. Work, comparison spirals, the parents asking “so, when?”. Private by default, 22 languages, free forever.",
     keywords: [
-      "loneliness in your twenties", "private AI companion", "app for work stress India",
+      "loneliness in your twenties", "private companion", "app for work stress India",
       "someone to talk to after work", "emotional support app young adults", "mental wellness app 20s 30s",
     ],
     intro: [
       "The job is good, the city is exciting, the photos look great. And yet some nights you come home, scroll for an hour, and realise you haven’t said one true sentence out loud all day. The appraisal that went sideways. The friend who got married and disappeared. The parents asking “so, when?” None of it is a crisis. All of it is heavy. That’s why Imotara exists.",
-      "Imotara is a private AI companion that listens — properly. It remembers what you told it last Tuesday, asks one good question at a time, doesn’t lecture and doesn’t rush you to “fix” anything. Type or just speak, in English, Hindi, Bengali, Tamil or any of 22 languages, and it can talk back in a real voice on your commute.",
+      "Imotara is a private companion that listens — properly. It remembers what you told it last Tuesday, asks one good question at a time, doesn’t lecture and doesn’t rush you to “fix” anything. Type or just speak, in English, Hindi, Bengali, Tamil or any of 22 languages, and it can talk back in a real voice on your commute.",
     ],
     cardsHeading: "Why people keep it on their phone",
     cards: [

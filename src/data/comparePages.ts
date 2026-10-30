@@ -84,20 +84,20 @@ const CRISIS_LINE =
 export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
     "ai-companion-vs-therapy": {
         slug: "ai-companion-vs-therapy",
-        question: "Is an AI companion the same as therapy?",
+        question: "Is a companion app the same as therapy?",
         shortAnswer:
-            "No. Therapy is a clinical relationship with a trained, accountable professional who can assess, diagnose and treat. An AI companion like Imotara is a place to put feelings into words between those conversations, or when none are available. The two are not substitutes, and anything marketed as an AI therapist should be treated with suspicion.",
-        metaTitle: "Is an AI companion the same as therapy? — Imotara",
+            "No. Therapy is a clinical relationship with a trained, accountable professional who can assess, diagnose and treat. A private companion like Imotara is a place to put feelings into words between those conversations, or when none are available. The two are not substitutes, and any app marketed as a therapist should be treated with suspicion.",
+        metaTitle: "Is a companion app the same as therapy? — Imotara",
         metaDescription:
-            "A plain answer: what an AI companion can and cannot do, how it differs from therapy, and when to see a professional instead. From Imotara, which is not therapy and says so.",
+            "A plain answer: what a companion app can and cannot do, how it differs from therapy, and when to see a professional instead. From Imotara, which is not therapy and says so.",
         keywords: [
-            "is ai therapy real therapy",
-            "ai companion vs therapy",
-            "can an ai app replace a therapist",
-            "is an ai therapy app safe",
-            "difference between ai companion and counselling",
+            "is a companion app the same as therapy",
+            "companion app vs therapy",
+            "can an app replace a therapist",
+            "is a mental health app safe",
+            "difference between a companion app and counselling",
         ],
-        columns: { imotara: "An AI companion (Imotara)", other: "Therapy with a professional" },
+        columns: { imotara: "A private companion (Imotara)", other: "Therapy with a professional" },
         rows: [
             {
                 criterion: "What it is",
@@ -132,9 +132,9 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
         ],
         sections: [
             {
-                heading: "What an AI companion is genuinely good at",
+                heading: "What a private companion is genuinely good at",
                 body: [
-                    "Putting a feeling into words is itself useful, and it is often the part people cannot do at 2am with nobody awake. An AI companion is available at exactly that hour, costs nothing to start, and does not get tired of you returning to the same thing.",
+                    "Putting a feeling into words is itself useful, and it is often the part people cannot do at 2am with nobody awake. A private companion is available at exactly that hour, costs nothing to start, and does not get tired of you returning to the same thing.",
                     "It is also patient with repetition and with language. Imotara works in 22 languages, so you can describe a feeling in the language you actually feel it in rather than translating yourself into English first — which is, for a great many people, the difference between saying the true thing and saying the sayable thing.",
                     "And it notices patterns. Mood recorded over weeks shows you things a single conversation cannot: that Sundays are hard, that something improved after a change you had stopped noticing.",
                 ],
@@ -144,7 +144,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
                 body: [
                     NOT_THERAPY,
                     "It cannot assess risk the way a clinician can. It cannot adjust a treatment plan, write to your doctor, or notice the thing you are carefully not saying. It has no professional body standing behind it and no duty of care in the legal sense.",
-                    "Anything sold to you as an AI therapist is overclaiming. Reflection and treatment are different activities, and a product that blurs them is a product that will eventually be trusted with something it cannot hold.",
+                    "Any app sold to you as a therapist is overclaiming. Reflection and treatment are different activities, and a product that blurs them is a product that will eventually be trusted with something it cannot hold.",
                 ],
             },
             {
@@ -163,7 +163,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             "You want someone who remembers you as a person across years and can be held accountable for your care.",
         ],
         related: [
-            { href: "/compare/ai-companion-vs-human-counsellor", label: "AI companion or a real person?" },
+            { href: "/compare/ai-companion-vs-human-counsellor", label: "A companion app or a real person?" },
             { href: "/faq", label: "Straight answers about Imotara" },
             { href: "/help", label: "Help and safety" },
         ],
@@ -171,19 +171,19 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
 
     "ai-companion-vs-human-counsellor": {
         slug: "ai-companion-vs-human-counsellor",
-        question: "Should I talk to an AI companion or a real person?",
+        question: "Should I talk to a companion app or a real person?",
         shortAnswer:
-            "Talk to a person whenever you can and whenever it matters. An AI companion is for the hours when no person is available, when you cannot afford one yet, or when you want to work out what you think before saying it aloud to someone.",
-        metaTitle: "AI companion or a real person? — Imotara",
+            "Talk to a person whenever you can and whenever it matters. A private companion is for the hours when no person is available, when you cannot afford one yet, or when you want to work out what you think before saying it aloud to someone.",
+        metaTitle: "A companion app or a real person? — Imotara",
         metaDescription:
-            "When an AI companion helps and when you should talk to a human instead. Honest about both, from Imotara, which offers each.",
+            "When a companion app helps and when you should talk to a human instead. Honest about both, from Imotara, which offers each.",
         keywords: [
-            "ai companion vs real person",
-            "should i talk to an ai or a human",
-            "is it bad to talk to an ai about feelings",
-            "online counsellor vs ai app",
+            "companion app vs real person",
+            "should i talk to an app or a person",
+            "is it bad to talk to an app about feelings",
+            "online counsellor vs companion app",
         ],
-        columns: { imotara: "An AI companion", other: "A human companion or counsellor" },
+        columns: { imotara: "A private companion", other: "A human companion or counsellor" },
         rows: [
             {
                 criterion: "Available at 3am",
@@ -216,7 +216,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
                 heading: "The case for saying it to a person",
                 body: [
                     "Being heard by another human does something that being processed does not. If you have the option, take it — a friend, a family member, a counsellor, anyone who will sit with it.",
-                    "A person also notices what you leave out. They remember what you said last month and hear that this month is different. No current AI does that in the way a person who knows you does.",
+                    "A person also notices what you leave out. They remember what you said last month and hear that this month is different. No app does that in the way a person who knows you does.",
                 ],
             },
             {
@@ -230,7 +230,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             {
                 heading: "Imotara offers both, deliberately",
                 body: [
-                    "The AI companion is the free tier and always will be. Imotara Connect is a verified human wellness companion, billed by the minute from prepaid minutes, where you pay only for minutes actually used.",
+                    "The private companion is the free tier and always will be. Imotara Connect is a verified human wellness companion, billed by the minute from prepaid minutes, where you pay only for minutes actually used.",
                     "Connect companions are wellness companions, not clinicians. " + NOT_THERAPY,
                 ],
             },
@@ -238,10 +238,10 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
         notFor: [
             "You are in immediate danger. " + CRISIS_LINE,
             "You are using the app to avoid a conversation you know you need to have. It will wait with you, but it cannot have it for you.",
-            "You need clinical care. Neither the AI companion nor a Connect companion is a therapist.",
+            "You need clinical care. Neither the private companion nor a Connect companion is a therapist.",
         ],
         related: [
-            { href: "/compare/ai-companion-vs-therapy", label: "Is an AI companion the same as therapy?" },
+            { href: "/compare/ai-companion-vs-therapy", label: "Is a companion app the same as therapy?" },
             { href: "/for/everyone", label: "What Imotara is" },
         ],
     },
@@ -386,7 +386,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             "You are choosing on behalf of someone in crisis right now. " + CRISIS_LINE,
         ],
         related: [
-            { href: "/compare/ai-companion-vs-therapy", label: "Is an AI companion the same as therapy?" },
+            { href: "/compare/ai-companion-vs-therapy", label: "Is a companion app the same as therapy?" },
             { href: "/compare/mental-health-apps-in-indian-languages", label: "Apps in Indian languages" },
             { href: "/privacy", label: "Imotara's privacy policy" },
         ],
@@ -404,7 +404,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             "mental health app in hindi",
             "mental health app in bengali",
             "emotional support app indian languages",
-            "ai companion in tamil",
+            "companion app in tamil",
             "mood tracker in marathi",
         ],
         columns: { imotara: "Imotara", other: "English-only apps" },

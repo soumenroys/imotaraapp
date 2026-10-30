@@ -16,7 +16,7 @@ export default function AgeRestrictedPage() {
           suitable for minors.
         </p>
         <p className="mt-4 text-xs leading-relaxed text-zinc-500">
-          Our AI companion on the main chat is still available to you and provides
+          Your private companion on the main chat is still available to you and provides
           free, unlimited support.
         </p>
         <div className="mt-8 flex flex-col items-center gap-3">

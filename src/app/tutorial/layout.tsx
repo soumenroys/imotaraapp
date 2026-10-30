@@ -9,7 +9,7 @@ export const metadata: Metadata = {
             ...OG_IMAGE,
     title: "Imotara Tutorial — Every Feature Explained",
     description:
-      "Learn how to use Imotara: talk with your AI companion, track emotions, personalize your experience, and understand your data — in 3 levels of detail.",
+      "Learn how to use Imotara: talk with your private companion, track emotions, personalize your experience, and understand your data — in 3 levels of detail.",
     url: "https://www.imotara.com/tutorial",
     siteName: "Imotara",
     type: "website",

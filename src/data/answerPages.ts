@@ -59,9 +59,15 @@ export interface AnswerPage {
     related: { href: string; label: string }[];
 }
 
-/** 🔴 Verbatim from src/lib/safety/crisisResources.ts — never typed from memory. */
+/**
+ * 🔴 WORLDWIDE, no country named. Owner, 30 Oct 2026: these pages are read
+ * across the world, so the line must work in any country. findahelpline.com
+ * is the worldwide entry in src/lib/safety/crisisResources.ts and resolves the
+ * reader's own country; the in-app crisis card still shows each country's own
+ * numbers. ⇒ src/__tests__/answerPagesAreSafe.test.ts
+ */
 const CRISIS =
-    "If you are thinking of harming yourself, please contact a real service now. In India, Tele-MANAS on 14416 is free and open around the clock, or 112 for emergencies. Anywhere else, findahelpline.com lists the service for your country.";
+    "If you are thinking of harming yourself, please contact a real service now. If you are in danger, call your local emergency number. Otherwise, findahelpline.com lists the helplines in your country.";
 
 const NOT_THERAPY =
     "Imotara is a wellness companion for self-reflection. It is not therapy, it does not diagnose, and it is not a crisis service.";
@@ -162,7 +168,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
         ],
         whenToGetHelp: [
             CRISIS,
-            "If this happens most nights for weeks, or you are frightened to go to bed, that is worth a GP appointment. Persistent night anxiety is common and very treatable, and the treatments work.",
+            "If this happens most nights for weeks, or you are frightened to go to bed, that is worth seeing a doctor about. Persistent night anxiety is common and very treatable, and the treatments work.",
             "If you wake gasping, with a racing heart or chest pain, get it checked physically first — panic and several ordinary medical causes feel identical from the inside.",
         ],
         related: [
@@ -432,7 +438,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
             {
                 heading: "If you cannot get to therapy right now",
                 body: [
-                    "Cost and waiting lists are real, and telling someone to 'just see a professional' is not always usable advice. What remains available: a GP, who is often the fastest route in; free helplines, which exist for more than emergencies; and writing things down, which is not treatment but is not nothing.",
+                    "Cost and waiting lists are real, and telling someone to 'just see a professional' is not always usable advice. What remains available: a family doctor, who is often the fastest route in; free helplines, which exist for more than emergencies; and writing things down, which is not treatment but is not nothing.",
                     NOT_THERAPY + " It is somewhere to put things in the meantime, and the meantime can be long.",
                 ],
             },
@@ -440,7 +446,7 @@ export const ANSWER_PAGES: Record<AnswerSlug, AnswerPage> = {
         tryNow: [
             "Write down how long it has been going on. Not how bad — how long. That is the number that decides.",
             "List what it is costing: sleep, work, people. Seeing it written down tends to settle the question.",
-            "If you decide yes, make the first contact a small one — a GP appointment, or a helpline, not a search for the perfect therapist.",
+            "If you decide yes, make the first contact a small one — a doctor's appointment, or a helpline, not a search for the perfect therapist.",
         ],
         whenToGetHelp: [
             CRISIS,

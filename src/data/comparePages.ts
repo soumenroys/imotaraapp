@@ -77,8 +77,9 @@ export interface ComparePage {
 const NOT_THERAPY =
     "Imotara is a wellness companion for self-reflection and emotional awareness. It is not therapy, it does not diagnose, and it is not a crisis service.";
 
+/** 🔴 WORLDWIDE, no country named — owner, 30 Oct 2026. ⇒ answerPages.ts CRISIS. */
 const CRISIS_LINE =
-    "If you are in danger or thinking of harming yourself, contact a real service now — in India, Tele-MANAS on 14416, free and around the clock, or 112 for emergencies. Anywhere else, findahelpline.com lists the service for your country.";
+    "If you are thinking of harming yourself, contact a real service now. If you are in danger, call your local emergency number. Otherwise, findahelpline.com lists the helplines in your country.";
 
 export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
     "ai-companion-vs-therapy": {
@@ -120,7 +121,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             },
             {
                 criterion: "Cost",
-                imotara: "Free tier forever — twenty cloud replies a day and unlimited on-device replies. Imotara Plus is ₹149 / month or ₹1,299 / year.",
+                imotara: "Free tier forever — twenty cloud replies a day and unlimited on-device replies. Imotara Plus is one monthly or yearly plan, and the price for where you live is shown before you pay.",
                 other: "Varies widely; often the main barrier.",
             },
             {
@@ -368,7 +369,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
                 heading: "Why the crisis question matters more than the features",
                 body: [
                     "Most of the time an app's crisis behaviour is invisible, which is exactly why it goes unchecked. The test is simple: does it show a service that exists in your country?",
-                    "This is not hypothetical. Imotara's own crisis lookup once defaulted to Indian numbers for undetected countries and showed nothing at all for around 140 others. It was found, fixed at the root rather than patched at each call site, and the fix is why the claim above can be made at all.",
+                    "This is not hypothetical. Imotara's own crisis lookup once defaulted to one country's numbers when it could not tell where you were, and showed nothing at all for around 140 others. It was found, fixed at the root rather than patched at each call site, and the fix is why the claim above can be made at all.",
                 ],
             },
             {

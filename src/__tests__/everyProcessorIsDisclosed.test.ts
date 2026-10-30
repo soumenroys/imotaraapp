@@ -91,6 +91,9 @@ const PROCESSOR_HOSTS: Record<string, string> = {
     "androidpublisher.googleapis.com": "Google Play",
     "api.storekit.apple.com": "Apple",
     "api.storekit-sandbox.apple.com": "Apple",
+    // Email delivery — already named. Called directly (not through the SDK) since 30 Oct 2026
+    // to fetch delivery reports the webhook lost ⇒ lib/broadcast/deliveryReports.
+    "api.resend.com": "Resend",
 };
 
 /**

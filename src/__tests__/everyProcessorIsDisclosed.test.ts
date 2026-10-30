@@ -152,6 +152,12 @@ const BENIGN_HOSTS = new Set([
      */
     "cdn.jsdelivr.net",
     /**
+     * IndexNow ⇒ src/lib/seo/indexNow.ts (30 Oct 2026). ✅ Benign: called
+     * server-side by a cron with nothing but our own PUBLIC page URLs and the
+     * public site key. No visitor, account or conversation data.
+     */
+    "api.indexnow.org",
+    /**
      * Facebook's Graph API, called SERVER-SIDE by the social scheduler
      * ⇒ src/lib/social/adapters/facebook.ts.
      *

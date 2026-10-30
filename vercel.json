@@ -64,6 +64,10 @@
     {
       "path": "/api/cron/outreach-mail",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/indexnow",
+      "schedule": "17 * * * *"
     }
   ],
   "headers": [

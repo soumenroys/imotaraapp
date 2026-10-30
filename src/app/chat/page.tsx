@@ -115,6 +115,7 @@ import {
   EN_FELT_A_LOT_RE,
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
+import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
@@ -2934,6 +2935,10 @@ export default function ChatPage() {
     const text = (override ?? draft).trim();
     if (!text) return;
     if (text.length > 2000) return; // enforced by UI counter; silently block
+
+    // Anonymous "messages per visit" tally — a count only, never the text
+    // ⇒ lib/analytics/visitTallyClient.ts (owner, 31 Oct 2026).
+    noteMessageSent();
 
     let targetId = activeId;
     let createdNewThread = false;

@@ -208,6 +208,13 @@ export const STATUS = {
   queued: "Queued",
   calling: "Calling",
   noAnswer: "No answer",
+  /**
+   * 🔑 They PICKED UP, and the call ended before any result — hung up after the
+   * greeting, or could not hear (Saswati, 30 Oct 2026: twice logged "No answer").
+   * ⛔ Not retried by itself: someone who hung up is not rung again by a machine;
+   * a person decides (Call now, or a new call date).
+   */
+  brokeOff: "Picked up, call ended early",
   callback: "Callback requested",
   sendInfo: "Send info",
   interested: "Interested",
@@ -238,7 +245,7 @@ export const NO_MORE_CALLS: readonly string[] = [
 ];
 
 /** Statuses a person must act on — the console lists them first. */
-export const NEEDS_A_PERSON: readonly string[] = [STATUS.safety, STATUS.review, STATUS.dialFailed, STATUS.meeting, STATUS.sendInfo, STATUS.wrongNumber];
+export const NEEDS_A_PERSON: readonly string[] = [STATUS.safety, STATUS.review, STATUS.dialFailed, STATUS.meeting, STATUS.sendInfo, STATUS.wrongNumber, STATUS.brokeOff];
 
 /**
  * A scheduled call this late is not placed: the admin chose THAT time, and a
@@ -717,7 +724,12 @@ export function elevenLocal(now: Date, days: number, timeZone: string): string {
   return new Date(guess.getTime() - zoneOffsetMinutes(guess, timeZone) * 60_000).toISOString();
 }
 
-export function writebackFor(x: Extraction, now: Date, timeZone = "Asia/Kolkata"): Writeback {
+/**
+ * @param answered the call service reported the call COMPLETED — someone picked
+ * up. ⚠️ An outcome of "no_answer" then is the summary model's guess about a call
+ * that broke off, not a phone that rang out ⇒ STATUS.brokeOff.
+ */
+export function writebackFor(x: Extraction, now: Date, timeZone = "Asia/Kolkata", answered = false): Writeback {
   const outcome = (x.outcome ?? "").trim().toLowerCase();
   const cells: Writeback["cells"] = {
     outcome,
@@ -753,8 +765,16 @@ export function writebackFor(x: Extraction, now: Date, timeZone = "Asia/Kolkata"
       cells.status = STATUS.wrongNumber; break;
     case "interested":
       cells.status = STATUS.interested; break;
+    case "voicemail":
+      cells.status = STATUS.noAnswer; break;
     default:
-      // no_answer, voicemail, or nothing extracted ⇒ retried by the rules.
+      if (answered) {
+        // They picked up, and nothing came of it ⇒ a person decides; never retried by a machine.
+        cells.status = STATUS.brokeOff;
+        if (!cells.next_action) cells.next_action = "They answered, but the call ended early — listen to it, then call again yourself or set a new call date.";
+        break;
+      }
+      // no_answer, or nothing extracted ⇒ retried by the rules.
       cells.status = STATUS.noAnswer; break;
   }
   return w;

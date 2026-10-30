@@ -152,7 +152,8 @@ export async function schedule(rows: RowRef[], at: Date): Promise<ScheduleReport
 export async function unschedule(rows: RowRef[]): Promise<number> {
   const d = await readDirectory();
   // Wrong number: once the admin corrects the number, Retry puts it back (review, 24 Oct).
-  const undoable: string[] = [STATUS.scheduled, STATUS.queued, STATUS.dialFailed, STATUS.wrongNumber];
+  // Picked up but ended early: once a person has decided, Retry puts it back too (30 Oct 2026).
+  const undoable: string[] = [STATUS.scheduled, STATUS.queued, STATUS.dialFailed, STATUS.wrongNumber, STATUS.brokeOff];
   let n = 0;
   for (const r of rows) {
     const c = d.contacts.find((x) => x.tab === r.tab && x.row === r.row);
@@ -185,7 +186,8 @@ export async function applyResult(v: ExecutionView, d?: Directory, now = new Dat
 
   // ⚠️ A non-completed final status (no-answer, busy, failed) has no extraction.
   const extraction = v.status === "completed" ? { ...v.extraction, summary: v.extraction.summary || v.summary } : { outcome: "no_answer" };
-  const w = writebackFor(extraction, now, c.v.time_zone || "Asia/Kolkata");
+  // 🔑 "completed" = someone picked up; an unanswered call ends "no-answer" ⇒ writebackFor.
+  const w = writebackFor(extraction, now, c.v.time_zone || "Asia/Kolkata", v.status === "completed");
   await writeRow(c, w.cells);
   if (w.addToDnc) await appendDnc(phoneOf(c), c.v.name, "Asked on call not to be called again");
   if (w.safety || w.meeting || w.sendInfo) await alertTeam(dir, c, w, extraction);

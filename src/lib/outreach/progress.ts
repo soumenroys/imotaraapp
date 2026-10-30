@@ -77,6 +77,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
       return tries >= MAX_ATTEMPTS
         ? { text: `✅ Done — no answer after ${tries} tries`, fix: "" }
         : { text: `🟡 No answer (${tries} of ${MAX_ATTEMPTS}) — retried ${d.settings.autoDispatch ? "automatically" : "only if you call again"}`, fix: "" };
+    case STATUS.brokeOff: return { text: "🟡 Picked up — call ended early", fix: "They answered, then the call ended before anything was agreed. Listen to it in Voice calls → Call records; call again yourself, or set a new call date. Not retried automatically." };
     case STATUS.callback: return { text: `⏳ Callback — ${day(c.v.follow_up_datetime)}`, fix: d.settings.autoDispatch ? "" : "Automatic calling is OFF — call them back yourself from Voice calls." };
     case STATUS.sendInfo: return { text: "✅ Done — asked for details (email follows)", fix: "" };
     case STATUS.interested: return { text: "✅ Done — interested", fix: "Ambassador: follow up personally." };

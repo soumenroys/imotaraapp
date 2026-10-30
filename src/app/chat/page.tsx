@@ -4900,7 +4900,9 @@ export default function ChatPage() {
                 </button>
               </div>
             </div>
-            {/* Crisis note */}
+            {/* Crisis note — and who is replying. 🔑 Owner, 30 Oct 2026: Imotara is
+                positioned as a "private companion", not an "AI companion", so this
+                line is where a reader learns that no person writes the replies. */}
             <p className="mx-auto mt-1.5 max-w-3xl text-center text-[10px] text-zinc-600">
               If you&apos;re in crisis or need immediate help, please reach out to a{" "}
               <a
@@ -4912,6 +4914,7 @@ export default function ChatPage() {
                 crisis helpline
               </a>
               . Imotara is a reflection companion, not a substitute for professional support.
+              Replies come from software, not a person.
             </p>
           </div>
         </main>

@@ -29,7 +29,7 @@ import { checkWordClaim } from "@/lib/social/untranslatableWords";
  * three — it is the one finding that fires on a FACT the reviewer cannot check
  * either ⇒ src/lib/social/untranslatableWords.ts.
  */
-export type GateListId = "clinical" | "abuse" | "careless" | "unvetted-word";
+export type GateListId = "clinical" | "abuse" | "careless" | "unvetted-word" | "privacy";
 
 export type GateFinding = {
   list: GateListId;
@@ -411,6 +411,14 @@ function firstClaim(lower: string, occurrences: Occurrence[]): Occurrence | null
  * that was not in the text handed to this function: the gate cannot read a
  * picture, so the picture may only contain words it has already read.
  */
+/**
+ * "Nothing is sent", "nothing leaves your phone", "never leaves the device" —
+ * the privacy claim this product cannot make. Matched on lower-cased text.
+ * ⇒ src/__tests__/outreach/storedIsNotSent.test.ts, src/__tests__/social/nothingIsSentIsFalse.test.ts.
+ */
+export const NOTHING_SENT =
+  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b/;
+
 export function checkVoice(text: string, language: string, overlay?: GateOverlay): GateResult {
   if (!isSupportedLanguage(language)) {
     throw new Error(`voiceGate: ${language} is not one of the 22 languages this product speaks.`);
@@ -500,6 +508,28 @@ export function checkVoice(text: string, language: string, overlay?: GateOverlay
     }
   } else {
     listsUnavailable.push("careless");
+  }
+
+  // ── Privacy claims. 🔴 30 Oct 2026: two queued Facebook posts said "Nothing is
+  // sent anywhere unless you switch it on" and "nothing from your conversations
+  // leaves your phone" — FALSE: every message goes to an AI service for the
+  // reply. What is true is that conversations are STORED on the device unless
+  // cloud backup is on. The outreach mail writer already refused this; the
+  // social gate did not, and both posts reached the queue. English pattern ⇒
+  // a real check on English posts only, reported as unavailable elsewhere.
+  if (language === "en") {
+    listsRun.push("privacy");
+    const m = lower.match(NOTHING_SENT);
+    if (m) {
+      add("privacy:nothing-sent", {
+        list: "privacy",
+        rule: "a claim that nothing leaves the phone",
+        matched: m[0],
+        because: "false: every message is sent to an AI service for the reply. Say conversations are STORED on the phone unless cloud backup is switched on.",
+      });
+    }
+  } else {
+    listsUnavailable.push("privacy");
   }
 
   /**

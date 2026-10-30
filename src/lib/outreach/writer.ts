@@ -17,7 +17,7 @@
 
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { FACTS } from "@/lib/social/writer";
-import { checkVoice } from "@/lib/social/voiceGate";
+import { checkVoice, NOTHING_SENT } from "@/lib/social/voiceGate";
 import { templatesFor } from "@/lib/broadcast/templates";
 import { SITE } from "@/lib/broadcast/templates/types";
 import { AUDIENCE_LABEL, STEP_LABEL, type Audience, type StepId } from "@/lib/outreach/sequence";
@@ -86,8 +86,8 @@ const BANNED = [
   "dear friend", "congratulations", "100% free", "risk free", "unsubscribe here",
 ];
 
-export const NOTHING_SENT =
-  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b/;
+/** ⇒ now lives in the social gate, so posts and emails share ONE rule (30 Oct 2026). */
+export { NOTHING_SENT };
 
 /** The house-style checks a draft must pass — the broadcast templates' rules, in code. */
 export function checkMailStyle(subject: string, body: string): string[] {

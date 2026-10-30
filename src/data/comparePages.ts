@@ -262,13 +262,13 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             "therapy app cost",
             "counselling app cost",
             "free mental health app",
-            "free ai therapy app no subscription",
+            "mental health app no subscription",
             "mental health app without paying",
             "is there a free alternative to therapy apps",
         ],
         columns: { imotara: "Imotara free", other: "Imotara Plus" },
         rows: [
-            { criterion: "Cost", imotara: "Free, forever. No card.", other: "₹149 / month or ₹1,299 / year." },
+            { criterion: "Cost", imotara: "Free, forever. No card.", other: "One monthly or yearly plan. The price for where you live is shown before you pay." },
             { criterion: "Replies", imotara: "Twenty cloud replies a day, then unlimited on-device replies — the conversation is never blocked.", other: "Unlimited." },
             { criterion: "Languages", imotara: "All 22.", other: "All 22." },
             { criterion: "Mood tools", imotara: "Mood check-ins, breathing, history and trends.", other: "Everything in free, plus emotion trends and companion letters." },
@@ -280,7 +280,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
                 heading: "What mental health apps cost",
                 body: [
                     "There are broadly three kinds of price. Self-help and companion apps are usually free to start, with a paid plan charged monthly or yearly. Apps that connect you with a human therapist or counsellor charge for that person's time, per session or in bundles, which is why they cost far more. And some services are free because someone else pays — a government, a charity, or an advertiser.",
-                    "These are different things, not cheaper and dearer versions of the same thing. If what you need is therapy, a cheaper app is not a substitute for it, and the price worth comparing is that of the human service. " + NOT_THERAPY + " Its free tier is permanent; Imotara Plus is ₹149 a month or ₹1,299 a year in India.",
+                    "These are different things, not cheaper and dearer versions of the same thing. If what you need is therapy, a cheaper app is not a substitute for it, and the price worth comparing is that of the human service. " + NOT_THERAPY + " Its free tier is permanent. Imotara Plus is one monthly or yearly plan, and the price for where you live is shown before you pay.",
                 ],
             },
             {

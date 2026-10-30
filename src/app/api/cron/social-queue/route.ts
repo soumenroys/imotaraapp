@@ -9,6 +9,8 @@
 // that is openly absent — so the response says plainly how many posts are
 // waiting on a channel that does not exist.
 
+import { MAX_WRITER_CALLS_PER_DAY, draftsUsed, loadCeiling, mayWrite, saveCeiling } from "@/lib/social/writerCeiling";
+import { notifyOwner } from "@/lib/broadcast/notify";
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import {
@@ -190,8 +192,23 @@ export async function GET(req: NextRequest) {
   }
 
   const outcomes: Outcome[] = [];
+  // 🔑 The daily ceiling on writer calls (owner, 30 Oct 2026) ⇒ lib/social/writerCeiling.
+  let ceiling = await loadCeiling(now);
 
   for (const want of wanted) {
+    if (!mayWrite(ceiling)) {
+      if (!ceiling.alerted) {
+        ceiling = { ...ceiling, alerted: true };
+        await saveCeiling(ceiling);
+        await notifyOwner("Social writer stopped for today — daily AI limit reached", [
+          `The social writer asked the AI for ${ceiling.calls} drafts today (${ceiling.day}, IST); the limit is ${MAX_WRITER_CALLS_PER_DAY}.`,
+          "Normal use is about 15 a day, so something is failing and retrying. Nothing more is written until tomorrow.",
+          "Look at Social → the failed slots for the reason.",
+        ]);
+      }
+      outcomes.push({ schedule: "—", platform: want.platform, result: "skipped", detail: `daily writer limit reached (${ceiling.calls}/${MAX_WRITER_CALLS_PER_DAY})` });
+      break;
+    }
     const row = schedules.find((s) => s.id === want.scheduleId);
     if (!row) continue;
     const full = await scheduleById(want.scheduleId);
@@ -231,6 +248,8 @@ export async function GET(req: NextRequest) {
         // 🔑 This week's vetted moments, read once per run ⇒ trends.ts.
         trends: await trendsFor(),
       });
+      ceiling = { ...ceiling, calls: ceiling.calls + draftsUsed(prepared) };
+      await saveCeiling(ceiling);
       if (!prepared.ok) {
         /**
          * 🔴 THE OBJECTIONS, WRITTEN DOWN — added 20 Oct 2026.

@@ -100,7 +100,7 @@ export default function OutreachPage() {
           </div>
         )}
         {data && tab === "emails" && <EmailsTab d={data} reload={load} say={setMessage} />}
-        {tab === "daily" && <DailyList kind="mail" historyHint="From the sheet's mail_date / mail_time (day 7 and day 21 follow at the same time). Every email ever sent is also in Broadcast → history, under “Outreach ·”." />}
+        {tab === "daily" && <DailyList kind="mail" historyHint="From the sheet's “First email date” / “First email time” (day 7 and day 21 follow at the same time). Every email ever sent is also in Broadcast → history, under “Outreach ·”." />}
         {data && tab === "contacts" && <ContactsTab d={data} />}
         {data && tab === "settings" && <SettingsTab d={data} reload={load} say={setMessage} />}
       </div>
@@ -235,7 +235,7 @@ function ContactsTab({ d }: { d: Overview }) {
         <span className="text-zinc-400">{d.contacts.length} with an email in the sheet</span>
       </div>
       {d.contacts.length === 0 && (
-        <p className="text-zinc-400">Nobody has an email in the sheet yet. Add it in the <b>email</b> column, with a consent note, <b>yes</b> in contact_by_email and a mail_date + mail_time, then press Refresh. <a href={d.sheetUrl} target="_blank" rel="noreferrer" className="text-sky-300 underline">Open the sheet ↗</a></p>
+        <p className="text-zinc-400">Nobody has an email in the sheet yet. Add it in the <b>Email address</b> column, with a consent note, <b>yes</b> in “Send emails?” and a “First email date” + “First email time”, then press Refresh. <a href={d.sheetUrl} target="_blank" rel="noreferrer" className="text-sky-300 underline">Open the sheet ↗</a></p>
       )}
       <div className="overflow-x-auto">
         <table className="w-full text-left">

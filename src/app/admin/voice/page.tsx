@@ -172,7 +172,7 @@ export default function VoicePage() {
           </div>
         )}
         {tab === "contacts" && data?.contacts && <ContactsTab data={data} reload={load} say={setMessage} />}
-        {tab === "daily" && <DailyList kind="calls" historyHint="From the sheet's call_date / call_time, console schedules, callbacks and today's retries. For every call ever placed, with recordings, see Call records." />}
+        {tab === "daily" && <DailyList kind="calls" historyHint="From the sheet's “Call date” / “Call time”, console schedules, callbacks and today's retries. For every call ever placed, with recordings, see Call records." />}
         {tab === "scheduled" && data?.contacts && <ScheduledTab data={data} reload={load} say={setMessage} />}
         {tab === "calls" && <CallsTab calls={calls} days={days} setDays={setDays} />}
         {tab === "reports" && <ReportsTab calls={calls} days={days} setDays={setDays} />}
@@ -737,7 +737,7 @@ function SettingsTab({ data, reload, say }: { data: Preview; reload: () => Promi
       />
       <Toggle
         label="Call individuals"
-        hint="Off until TRAI DLT registration and a 140-series number are done. While off, an individual is called only if they asked for a call (asked_for_call = yes in the sheet). Organisations are not affected."
+        hint="Off until TRAI DLT registration and a 140-series number are done. While off, an individual is called only if they asked for a call (“They asked us to call?” = yes in the sheet). Organisations are not affected."
         on={!!s.allowIndividuals}
         busy={busy}
         onToggle={(next, warn) => void save({ allowIndividuals: next }, warn)}

@@ -163,18 +163,18 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     title: "Calling contacts — at the time you set, and reading every call back",
     steps: [
       { do: "Settings tab: switch Calling ON when you are ready.", then: "While it is OFF nothing rings. Individuals stay paused until you allow them." },
-      { do: "In the sheet: yes in contact_by_phone, and a call_date + call_time.", then: "It rings then by itself, in call_time_zone or the row's zone — 09:00–21:00 their time, or the call service holds it till 09:00. No date = no call." },
+      { do: "In the sheet: yes in “Call them?”, and a “Call date” + “Call time”.", then: "It rings then by itself, in “Call time zone” or the row's “Time zone” — 09:00–21:00 their time, or the call service holds it till 09:00. No date = no call." },
       { do: "Daily list tab: pick a day.", then: "Every call set for that day, today's retries, and what happened to each." },
       { do: "Contacts tab: deal with 'Needs a person' first.", then: "Safety calls, failed dials, meetings and missed times wait for you there." },
       { do: "Or press 📞 Call now, or pick a time and press Schedule.", then: "Any hour. What fits a free line rings; the rest is queued." },
       { do: "Call records and Reports tabs.", then: "Summary, recording and transcript for every call; outcomes, cost and trends." },
     ],
-    footnote: "⛔ Every call: contact_by_phone = yes, consent note, do-not-call list, language started, daily cap. Unanswered calls retry up to 3 times, only within the retry hours (Settings). Results go back into the sheet.",
+    footnote: "⛔ Every call: “Call them?” = yes, consent note, do-not-call list, language started, daily cap. Unanswered calls retry up to 3 times, only within the retry hours (Settings). Results go back into the sheet.",
   },
   outreach: {
     title: "Emailing contacts from the sheet — automatically",
     steps: [
-      { do: "In the sheet: the email, a consent note, yes in contact_by_email, and the first email's mail_date + mail_time.", then: "The introduction goes at that time (any hour, in mail_time_zone or the row's time zone); day 7 and day 21 follow at the same time. No date = no email." },
+      { do: "In the sheet: the email, a consent note, yes in “Send emails?”, and the “First email date” + “First email time”.", then: "The introduction goes at that time (any hour, in mail_time_zone or the row's time zone); day 7 and day 21 follow at the same time. No date = no email." },
       { do: "Emails tab: read each draft, edit if needed, press Approve.", then: "Drafts are written for you per audience. Nothing unapproved is sent." },
       { do: "Press “Send me a test” to see it in your own inbox first.", then: "It goes only to you." },
       { do: "Settings tab: switch Outreach email ON and set emails per day.", then: "Every 10 minutes it sends what is due at its set time: intro, day 7, day 21." },

@@ -10,7 +10,7 @@
 
 import { createSign } from "node:crypto";
 import {
-  ADMIN_COLUMNS, CONTACT_TABS, COLUMNS, columnMoves, layoutOf, letterFor, parseContacts, staleStatusRows, parseDnc, parseLanguages, parseSettings, parseTeam,
+  ADMIN_COLUMNS, CONTACT_TABS, COLUMNS, SYSTEM_STATE, columnMoves, label, layoutOf, letterFor, parseContacts, staleStatusRows, parseDnc, parseLanguages, parseSettings, parseTeam,
   type Column, type Contact, type ContactTab, type Directory, type Layout,
 } from "@/lib/voice/rules";
 import { COUNTRIES, countryLabel } from "@/lib/voice/countries";
@@ -124,6 +124,14 @@ const wholeTab = (tab: string) => quote(tab);
 const headerRow = (tab: string) => `${quote(tab)}!1:1`;
 
 /**
+ * 🔑 A HIDDEN "Lists" tab holds what the dropdowns and the time-zone formula
+ * look up: the countries with their zones, and the languages as "bn — Bengali"
+ * (a live formula over the Languages tab). Owner only.
+ */
+const LISTS_TAB = "Lists";
+const LISTS = quote(LISTS_TAB);
+
+/**
  * 🔑 Each tab's layout, read FRESH from its header row before every write.
  * ⛔ Never cached across calls: Sheet setup moves columns, and a layout from
  * before a move would write a call result into somebody else's column.
@@ -189,9 +197,10 @@ export async function appendDnc(phone: string, name: string, reason: string): Pr
 }
 
 /**
- * Every column the system knows gets its header: rewritten where it already is
- * (so "Call Date" reads call_date), added after the last header where it is
- * missing. Idempotent: header text only — no data cell is touched.
+ * Every column the system knows gets its header — the friendly one, e.g.
+ * "Call them? (yes/no)" (owner, 30 Oct 2026): rewritten where the column
+ * already is, added after the last header where it is missing. Idempotent:
+ * header text only — no data cell is touched.
  */
 export async function ensureSystemColumns(): Promise<void> {
   const ranges = CONTACT_TABS.map((t) => `ranges=${encodeURIComponent(headerRow(t))}`).join("&");
@@ -200,7 +209,7 @@ export async function ensureSystemColumns(): Promise<void> {
     const header = got.valueRanges?.[i]?.values?.[0] ?? [];
     const at = layoutOf(header);
     let next = header.length;
-    return COLUMNS.map((c) => ({ range: `${quote(t)}!${letterFor(at[c] >= 0 ? at[c] : next++)}1`, values: [[c]] }));
+    return COLUMNS.map((c) => ({ range: `${quote(t)}!${letterFor(at[c] >= 0 ? at[c] : next++)}1`, values: [[label(c)]] }));
   });
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
 }
@@ -265,24 +274,99 @@ export async function writeSettings(values: Partial<Record<SettingKey, string>>)
 }
 
 /**
- * Add one contact to a tab and return its row. Columns follow COLUMNS; the
- * sheet's own "Check" formula column is left empty (the system recomputes it).
+ * Add one contact to a tab and return its row: the FIRST EMPTY row, written by
+ * column name. ⚠️ Not Google's "append": every row carries a time-zone formula
+ * (fillZoneDefaults), so append would find the table "full" and add row 1001.
  */
 export async function appendContact(tab: ContactTab, cells: Partial<Record<Column, string>>): Promise<number> {
-  const at = (await layouts([tab]))[tab];
-  const row: string[] = new Array(Math.max(...COLUMNS.map((c) => at[c])) + 1).fill("");
-  for (const [col, value] of Object.entries(cells)) {
-    cellRef(tab, at, col as Column, 1); // ⚠️ throws on a column the tab lacks
-    row[at[col as Column]] = value ?? "";
+  const data = (await google(`/values/${encodeURIComponent(wholeTab(tab))}`)) as { values?: string[][] };
+  const rows = data.values ?? [];
+  const at = layoutOf(rows[0]);
+  for (const col of Object.keys(cells)) cellRef(tab, at, col as Column, 1); // ⚠️ throws on a column the tab lacks
+  const used = (r: string[]) => (["phone", "name", "contact_number", "email", ...SYSTEM_STATE] as Column[]).some((c) => at[c] >= 0 && String(r[at[c]] ?? "").trim());
+  let i = rows.findIndex((r, k) => k > 0 && !used(r));
+  if (i < 0) i = Math.max(rows.length, 1);
+  const row = i + 1;
+  const grid = await rowCount(tab);
+  if (row > grid) {
+    const gids = await tabGids();
+    await google(`:batchUpdate`, { method: "POST", body: JSON.stringify({ requests: [{ appendDimension: { sheetId: gids[tab], dimension: "ROWS", length: 100 } }] }) });
   }
-  const res = (await google(`/values/${encodeURIComponent(`${quote(tab)}!A:${letterFor(row.length - 1)}`)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
-    method: "POST",
-    body: JSON.stringify({ values: [row] }),
-  })) as { updates?: { updatedRange?: string } };
-  const m = /!A(\d+)/.exec(res.updates?.updatedRange ?? "");
-  if (!m) throw new Error("Google did not say which row it added.");
-  return Number(m[1]);
+  await writeRow({ tab, row }, cells);
+  return row;
 }
+
+/** How many rows a tab's grid has. */
+async function rowCount(tab: string): Promise<number> {
+  const meta = (await google(`?fields=sheets(properties(title,gridProperties(rowCount)))`)) as { sheets?: { properties: { title: string; gridProperties?: { rowCount?: number } } }[] };
+  return meta.sheets?.find((x) => x.properties.title === tab)?.properties.gridProperties?.rowCount ?? 1000;
+}
+
+/**
+ * 🔑 The hidden Lists tab: countries (code, dropdown label, zone) and the
+ * languages as "bn — Bengali", live from the Languages tab. Created hidden if
+ * missing; rewritten on every Sheet setup, so a country added in code arrives.
+ */
+export async function ensureLists(): Promise<void> {
+  const gids = await tabGids();
+  if (gids[LISTS_TAB] === undefined) {
+    await google(`:batchUpdate`, { method: "POST", body: JSON.stringify({ requests: [{ addSheet: { properties: { title: LISTS_TAB, hidden: true } } }] }) });
+    gidCache = null;
+  }
+  const values = [
+    ["Country code", "Country (dropdown)", "Time zone", "Call language (dropdown)"],
+    ...COUNTRIES.map((k, i) => [k.code, countryLabel(k), k.zone ?? "", i === 0 ? LANGUAGE_CHOICES : ""]),
+  ];
+  await google(`/values/${encodeURIComponent(`${LISTS}!A1:D${values.length}`)}?valueInputOption=USER_ENTERED`, { method: "PUT", body: JSON.stringify({ values }) });
+}
+
+/** "bn — Bengali" for every language on the Languages tab — a live formula, so a language the owner adds appears by itself. */
+const LANGUAGE_CHOICES = `=IFERROR(FILTER(TRIM(${quote("Languages")}!A2:A)&" — "&TRIM(${quote("Languages")}!B2:B), TRIM(${quote("Languages")}!A2:A)<>""), "")`;
+
+/**
+ * 🔑 Owner, 30 Oct 2026: "when i am selecting the country, the timezone is not
+ * getting selected". Every EMPTY time-zone cell gets a formula that looks the
+ * country's zone up in Lists — it fills the moment a country is chosen; picking
+ * another zone from the dropdown simply replaces it. A country with several
+ * zones gives "" (the admin chooses).
+ * ⚠️ ONLY empty cells are written: a zone an admin chose is never touched.
+ */
+export async function fillZoneDefaults(): Promise<number> {
+  const lay = await layouts(CONTACT_TABS);
+  let written = 0;
+  const data: { range: string; values: string[][] }[] = [];
+  for (const tab of CONTACT_TABS) {
+    const at = lay[tab];
+    if (at.time_zone < 0 || at.country < 0) continue;
+    const zoneCol = letterFor(at.time_zone);
+    const countryCol = letterFor(at.country);
+    const last = await rowCount(tab);
+    const got = (await google(`/values/${encodeURIComponent(`${quote(tab)}!${zoneCol}2:${zoneCol}${last}`)}?valueRenderOption=FORMULA`)) as { values?: string[][] };
+    const cur = got.values ?? [];
+    // Runs of empty cells ⇒ one range each.
+    let start = -1;
+    const flush = (end: number) => {
+      if (start < 0) return;
+      const vals = [];
+      for (let r = start; r < end; r++) vals.push([zoneFormula(countryCol, r + 2)]);
+      data.push({ range: `${quote(tab)}!${zoneCol}${start + 2}:${zoneCol}${end + 1}`, values: vals });
+      written += vals.length;
+      start = -1;
+    };
+    for (let r = 0; r < last - 1; r++) {
+      const empty = !String(cur[r]?.[0] ?? "").trim();
+      if (empty && start < 0) start = r;
+      if (!empty) flush(r);
+    }
+    flush(last - 1);
+  }
+  if (data.length) await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "USER_ENTERED", data }) });
+  return written;
+}
+
+/** The time-zone default for one row: the country's zone from Lists, or "". */
+export const zoneFormula = (countryCol: string, row: number) =>
+  `=IFERROR(VLOOKUP(UPPER(LEFT(TRIM(${countryCol}${row}),2)),${LISTS}!$A:$C,3,FALSE)&"","")`;
 
 /** Many cells across many rows in ONE request — for the status columns, rewritten every few minutes. */
 export async function writeMany(updates: { c: Pick<Contact, "tab" | "row">; cells: Partial<Record<Column, string>> }[]): Promise<number> {
@@ -332,39 +416,54 @@ const COMMON_ZONES = [...new Set([
 /** Every half hour, for the time dropdowns. ⚠️ Not strict: "14:45" or "2 pm" may still be typed. */
 const HALF_HOURS = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, "0")}:${i % 2 ? "30" : "00"}`);
 
-/** What each column means, shown as the header cell's note. */
-const NOTES: Partial<Record<Column, string>> = {
-  phone: "YOU FILL: the phone number. Choose the country and the country code is added for you (98300 12345 with India = +91 98300 12345). A number starting with + is used as typed.",
-  name: "YOU FILL: the person's name.",
-  organisation: "YOU FILL: organisation name (leave blank for an individual).",
-  organisation_type: "YOU FILL (optional): e.g. school, college, hospice. Empty = the tab says it (NGOs → NGO, Eldercare → old age home, Education → educational institution, Corporates → company).",
-  country: "YOU FILL: choose from the list (or type the 2-letter code, e.g. IN). It adds the country code to the phone and, where the country has one time zone, sets the time zone.",
-  time_zone: "YOU FILL (optional where the country has one zone): choose from the list. Empty = the country's zone. ⚠️ USA, Canada, Mexico, Brazil, Australia, Russia and Indonesia have several — choose one. Used when mail_time_zone / call_time_zone are empty.",
-  language: "YOU FILL: the language to call in (bn, hi, en …).",
-  source: "YOU FILL: where we met them.",
-  consent_note: "YOU FILL — REQUIRED: how they agreed to be contacted. No consent note = no call and no email.",
-  team_member: "YOU FILL: the ambassador who owns this contact.",
-  context: "YOU FILL (optional): what the voice assistant may mention on the call, e.g. 'runs a student helpline'. ⛔ Not consent — that goes in consent_note, which is never said or sent.",
-  call_reason: "YOU FILL (optional): why we are calling.",
-  ambassador_notes: "YOU FILL (optional): your own notes.",
-  voice_gender: "YOU FILL (optional): male, or leave empty for a female voice.",
-  email: "YOU FILL (optional): their email. Emailed only when contact_by_email is yes.",
-  contact_by_email: "YOU FILL: yes to email this person (intro at mail_date + mail_time, then day 7 and day 21 at the same time). Empty or no = never emailed.",
-  contact_by_phone: "YOU FILL: yes to call this person at call_date + call_time. Empty or no = never called.",
-  mail_date: "YOU FILL: the day of the FIRST email — double-click for a calendar, or type 2026-11-03. Follow-ups go 7 and 21 days later.",
-  mail_time: "YOU FILL: the time of the first email — choose from the list, or type any time, e.g. 14:45. 24-hour. Any hour.",
-  mail_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
-  call_date: "YOU FILL: the day to call — double-click for a calendar, or type 2026-11-03. A new, later date calls again.",
-  call_time: "YOU FILL: the time to call — choose from the list, or type any time, e.g. 11:15. 24-hour. ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. Unanswered calls are retried automatically (up to 3 tries, within the retry hours).",
-  call_time_zone: "YOU FILL (optional): e.g. Asia/Kolkata or IST. Empty = the time_zone column.",
-  asked_for_call: "YOU FILL: yes ONLY if the person themselves asked us to call (website, 'call me' to the team). Write when and how in consent_note. Until TRAI DLT is done, individuals are called only with yes here.",
-  do_not_contact: "YOU FILL: type yes to stop ALL calls and emails to this person.",
-  call_progress: "SYSTEM: where calling stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem · 🔴 safety.",
-  mail_progress: "SYSTEM: where email stands — ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem.",
-  what_to_do: "SYSTEM: what to do about a problem on this row. Empty or 'Nothing' means nothing is needed.",
-  contact_number: "RETIRED: no longer used — the number goes in phone. Read only when phone is empty.",
-  disclose_upfront: "RETIRED: the assistant always says it is a virtual assistant.",
-  Check: "RETIRED: the system checks every row itself — see call_progress and what_to_do.",
+/**
+ * 🔑 THE NOTE ON EVERY HEADER (owner, 30 Oct 2026: "add notes in each column
+ * header so that admin can understand why the column is required and whether
+ * admin need to fillup that column or not"). Each starts with who fills it.
+ */
+export const NOTES: Record<Column, string> = {
+  phone: "REQUIRED for calls. The number to call. Type it as you have it — choose the Country and its code is added for you (98300 12345 with India = +91 98300 12345). A number starting with + is used as typed. Only digits, +, spaces, ( ) and - are accepted.",
+  name: "REQUIRED. The person's name — the assistant greets them by it, and every email opens with it.",
+  organisation: "REQUIRED for organisations, empty for a person. The emails and the call mention it.",
+  country: "REQUIRED. Choose from the list. It adds the country code to the phone number and fills the Time zone for you.",
+  time_zone: "REQUIRED — filled for you when you choose the Country. ⚠️ USA, Canada, Mexico, Brazil, Australia, Russia and Indonesia have several zones: choose one from the list. Calls and emails go at the times you set, in this zone.",
+  language: "REQUIRED for calls. Choose from the list — the assistant speaks this language. A language marked 'Not yet' on the Languages tab is not called.",
+  consent_note: "REQUIRED. How and when they agreed to be contacted, e.g. 'Asked for a call at the Kolkata fair, 12 Oct'. No consent = no call and no email. Never said on the call or sent.",
+  source: "OPTIONAL. Where we found them, e.g. a fair, a referral, the website.",
+  email: "REQUIRED for emails. Their email address — checked as you type. Emailed only when 'Send emails?' is yes.",
+  contact_by_email: "REQUIRED for emails. yes = send the introduction at the First email date + time, then follow-ups 7 and 21 days later at the same time. Empty or no = never emailed.",
+  contact_by_phone: "REQUIRED for calls. yes = call at the Call date + time. Empty or no = never called.",
+  mail_date: "REQUIRED for emails. The day of the FIRST email — double-click for a calendar. Follow-ups go 7 and 21 days later.",
+  mail_time: "REQUIRED for emails. The time of the first email — choose from the list, or type any time (24-hour, e.g. 14:45). Any hour.",
+  mail_time_zone: "OPTIONAL. Only if the emails should follow another zone than the row's Time zone.",
+  call_date: "REQUIRED for calls. The day to call — double-click for a calendar. A new, later date calls again.",
+  call_time: "REQUIRED for calls. The time to call — choose from the list, or type any time (24-hour). ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. No answer = retried automatically, up to 3 tries.",
+  call_time_zone: "OPTIONAL. Only if the call should follow another zone than the row's Time zone.",
+  asked_for_call: "REQUIRED for the Individuals tab. yes ONLY if the person themselves asked us to call — and write when and how in 'How they agreed to be contacted'. Until TRAI DLT registration is done, individuals are called only with yes here.",
+  organisation_type: "OPTIONAL. Empty = the tab says it (NGOs → NGO, Eldercare → old age home, Education → educational institution, Corporates → company). Fill only to be more exact, e.g. college, hospice.",
+  team_member: "OPTIONAL. The team member who owns this contact — the assistant may offer a meeting with them. Use a name from the Team tab.",
+  voice_gender: "OPTIONAL. The assistant's voice: Female (also when empty) or Male.",
+  context: "OPTIONAL. What the assistant may mention on the call, e.g. 'runs a student helpline'. ⛔ Not consent — that goes in 'How they agreed to be contacted'.",
+  call_reason: "OPTIONAL. Why we are calling, if not the usual introduction.",
+  ambassador_notes: "OPTIONAL. Your own notes — never used by the system.",
+  do_not_contact: "Fill ONLY to stop: choose yes and nobody calls or emails this person again.",
+  call_progress: "SYSTEM — do not fill. Where calling stands: ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem · 🔴 safety (call them yourself today).",
+  mail_progress: "SYSTEM — do not fill. Where email stands: ✅ done · ⏳ in queue · 🟡 waiting · ⛔ problem.",
+  what_to_do: "SYSTEM — do not fill. What YOU should do about this row, in plain words. 'Nothing needed now' = nothing.",
+  status: "SYSTEM — do not fill. The result of the last call (No answer, Interested, Callback requested …).",
+  call_attempts: "SYSTEM — do not fill. How many times we have called. Unanswered calls are retried up to 3 times.",
+  last_call_date: "SYSTEM — do not fill. When the last call was placed.",
+  outcome: "SYSTEM — do not fill. The call's outcome as the call service reported it.",
+  call_summary: "SYSTEM — do not fill. A short summary of what was said on the call.",
+  next_action: "SYSTEM — do not fill. The next step the call agreed, e.g. send details, call back Tuesday.",
+  follow_up_datetime: "SYSTEM — do not fill. When the follow-up (callback or meeting) is due.",
+  call_id: "SYSTEM — do not fill. The call service's id, to find the recording.",
+  mail_status: "SYSTEM — do not fill. The result of the last email (Sent, Bounced, Unsubscribed …).",
+  mail_step: "SYSTEM — do not fill. Which email of the sequence went last (introduction, day 7, day 21).",
+  mail_last_sent: "SYSTEM — do not fill. When the last email went.",
+  contact_number: "NOT USED any more — the number goes in 'Phone number'. Kept so old rows keep their data.",
+  disclose_upfront: "NOT USED any more — the assistant always says it is a virtual assistant.",
+  Check: "NOT USED any more — the system checks every row itself; see 'Call progress' and 'What to do next'.",
 };
 
 /** Extra widths (pixels) for the columns people read most. */
@@ -372,6 +471,46 @@ const WIDTHS: Partial<Record<Column, number>> = {
   phone: 130, name: 170, organisation: 190, consent_note: 260, email: 220, context: 200,
   call_summary: 260, next_action: 240, call_progress: 300, mail_progress: 300, what_to_do: 380, do_not_contact: 120,
   contact_by_email: 120, contact_by_phone: 120, asked_for_call: 120, mail_date: 110, mail_time: 90, mail_time_zone: 140, call_date: 110, call_time: 90, call_time_zone: 140,
+};
+
+/** The switches whose value is yes or no. */
+const YES_NO_SETTINGS = ["calling_enabled", "auto_dispatch", "allow_individuals"];
+
+type OtherColumn = { header: string; note: string; width: number; fill: boolean; list?: string[]; kind?: "date" | "phone" };
+
+/**
+ * 🔑 The other tabs, headed and explained like the contact tabs (owner, 30 Oct
+ * 2026). ⚠️ POSITIONAL: the code reads these tabs by column position
+ * (parseLanguages, parseTeam, parseDnc, parseSettings) — a header here only
+ * names the column, never moves it.
+ */
+const OTHER_TABS: Record<string, { columns: OtherColumn[] }> = {
+  Settings: { columns: [
+    { header: "Setting", note: "SYSTEM — do not change. The switch's name, as the system reads it.", width: 170, fill: false },
+    { header: "Value", note: "OWNER fills. The switch's value — yes/no for the on/off switches, a number or a list for the others. Read every few minutes.", width: 140, fill: true },
+    { header: "What it does", note: "What the switch does, in plain words.", width: 520, fill: false },
+  ] },
+  Languages: { columns: [
+    { header: "Code", note: "OWNER fills. The short code the system uses, e.g. bn. Shown in the contact tabs' language list as 'bn — Bengali'.", width: 70, fill: true },
+    { header: "Language", note: "OWNER fills. The language's name, shown in the contact tabs' language list.", width: 130, fill: true },
+    { header: "Calls allowed?", note: "OWNER fills. Start = people may be called in this language. Not yet = nobody is called in it.", width: 120, fill: true, list: ["Start", "Not yet"] },
+    { header: "Phase", note: "OWNER fills (optional). The rollout phase this language belongs to.", width: 190, fill: true },
+    { header: "Native speaker check", note: "OWNER fills (optional). Whether a native speaker has checked the assistant in this language.", width: 150, fill: true },
+    { header: "Reviewer", note: "OWNER fills (optional). Who checked it.", width: 130, fill: true },
+    { header: "Review date", note: "OWNER fills (optional). When it was checked — double-click for a calendar.", width: 110, fill: true, kind: "date" },
+    { header: "Notes", note: "OWNER fills (optional). Anything else about this language.", width: 260, fill: true },
+  ] },
+  Team: { columns: [
+    { header: "Name", note: "TEAM fills. The team member's name, as written in the contact tabs' 'Team member in charge'.", width: 160, fill: true },
+    { header: "Gender", note: "TEAM fills. Female or Male — the assistant refers to them correctly when it offers a meeting.", width: 100, fill: true, list: ["Female", "Male"] },
+    { header: "Role", note: "TEAM fills (optional). Their role, e.g. Ambassador.", width: 200, fill: true },
+  ] },
+  "Do not call": { columns: [
+    { header: "Phone number", note: "TEAM or SYSTEM fills. Never called again. The system adds a number here when someone says 'do not call'. With the country code, e.g. +91 98300 12345.", width: 160, fill: true, kind: "phone" },
+    { header: "Name", note: "Who it is.", width: 180, fill: true },
+    { header: "Reason", note: "Why they are on this list.", width: 260, fill: true },
+    { header: "Date added", note: "When they were added — double-click for a calendar.", width: 110, fill: true, kind: "date" },
+  ] },
 };
 
 type SheetMeta = {
@@ -511,25 +650,63 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
     }
     // 🔑 Owner, 29 Oct 2026: country and time zone chosen from a list.
     requests.push({ setDataValidation: { range: col("country"), rule: { condition: { type: "ONE_OF_LIST", values: COUNTRIES.map((k) => ({ userEnteredValue: countryLabel(k) })) }, strict: false, showCustomUi: true, inputMessage: "Choose the country — its code is added to the phone. Or type the 2-letter code." } } });
-    requests.push({ setDataValidation: { range: col("time_zone"), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Empty = the country's zone (one-zone countries). USA, Canada, Australia … choose one." } } });
+    requests.push({ setDataValidation: { range: col("time_zone"), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Filled for you from the Country. USA, Canada, Australia … choose one." } } });
     for (const c of ["mail_time_zone", "call_time_zone"] as const) {
-      requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Choose a zone, or type another, e.g. Europe/Paris. Empty = the time_zone column." } } });
+      requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Only if different from the row's Time zone. Choose a zone, or type another, e.g. Europe/Paris." } } });
     }
-    requests.push({
-      setDataValidation: {
-        range: { sheetId: id, startRowIndex: 1, endRowIndex: 1000, startColumnIndex: idx("email"), endColumnIndex: idx("email") + 1 },
-        rule: { condition: { type: "TEXT_IS_EMAIL" }, strict: false, inputMessage: "Their email address, e.g. name@organisation.org" },
-      },
-    });
+    // 🔑 Owner, 30 Oct 2026: a real email address only — anything else is refused as typed.
+    requests.push({ setDataValidation: { range: col("email"), rule: { condition: { type: "TEXT_IS_EMAIL" }, strict: true, inputMessage: "Their email address, e.g. name@organisation.org" } } });
+    // 🔑 Owner, 30 Oct 2026: a phone takes digits, +, spaces, ( ) and - only. Kept as TEXT, so a leading 0 survives.
+    const ph = `${letterFor(idx("phone"))}2`;
+    requests.push({ setDataValidation: { range: col("phone"), rule: { condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: `=REGEXMATCH(TO_TEXT(${ph}),"^[0-9+() -]+$")` }] }, strict: true, inputMessage: "Digits, +, spaces, ( ) and - only, e.g. 98300 12345 or +44 20 7946 0000" } } });
+    requests.push({ repeatCell: { range: col("phone"), cell: { userEnteredFormat: { numberFormat: { type: "TEXT" } } }, fields: "userEnteredFormat.numberFormat" } });
+    // 🔑 Owner, 30 Oct 2026: the language by its NAME and code ("bn — Bengali"), live from the Languages tab via Lists.
+    requests.push({ setDataValidation: { range: col("language"), rule: { condition: { type: "ONE_OF_RANGE", values: [{ userEnteredValue: `=${LISTS}!$D$2:$D$200` }] }, strict: false, showCustomUi: true, inputMessage: "Choose the language the assistant speaks on the call." } } });
+    requests.push({ setDataValidation: { range: col("voice_gender"), rule: { condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "Female" }, { userEnteredValue: "Male" }] }, strict: false, showCustomUi: true, inputMessage: "Female (also when empty) or Male." } } });
     done.push(tab);
   }
 
-  // The other tabs: the team adds to Team and Do not call; Languages, Settings and Start here are the owner's.
-  for (const [tab, open] of [["Team", [0, 2]], ["Do not call", [0, 4]], ["Languages", null], ["Settings", null], ["Start here", null]] as const) {
+  // The other tabs: the team adds to Team and Do not call; Languages, Settings, Start here and Lists are the owner's.
+  // 🔑 Owner, 30 Oct 2026: "all google pages of that file should follow the same rules" ⇒ OTHER_TABS.
+  const settingKeys = byTitle.has("Settings") ? ((await google(`/values/${encodeURIComponent(`${quote("Settings")}!A1:A50`)}`)) as { values?: string[][] }).values ?? [] : [];
+  for (const [tab, open] of [["Team", [0, 3]], ["Do not call", [0, 4]], ["Languages", null], ["Settings", null], ["Start here", null], [LISTS_TAB, null]] as const) {
     const s = byTitle.get(tab);
     if (!s) continue;
+    const id = s.properties.sheetId;
     dropOurs(s);
-    protect(s.properties.sheetId, open ? `${tab}: header locked` : `${tab}: owner only`, open ? [{ startRowIndex: 1, startColumnIndex: open[0], endColumnIndex: open[1] }] : []);
+    protect(id, open ? `${tab}: header locked` : `${tab}: owner only`, open ? [{ startRowIndex: 1, startColumnIndex: open[0], endColumnIndex: open[1] }] : []);
+    const spec = OTHER_TABS[tab];
+    if (spec) {
+      requests.push({ updateSheetProperties: { properties: { sheetId: id, gridProperties: { frozenRowCount: 1 } }, fields: "gridProperties.frozenRowCount" } });
+      requests.push({ updateDimensionProperties: { range: { sheetId: id, dimension: "ROWS", startIndex: 0, endIndex: 1 }, properties: { pixelSize: 42 }, fields: "pixelSize" } });
+      spec.columns.forEach((c, i) => {
+        const range = (from: number) => ({ sheetId: id, startRowIndex: from, endRowIndex: from === 0 ? 1 : 1000, startColumnIndex: i, endColumnIndex: i + 1 });
+        requests.push({
+          repeatCell: {
+            range: range(0),
+            cell: { userEnteredValue: { stringValue: c.header }, userEnteredFormat: { backgroundColor: c.fill ? TEAL : SLATE, textFormat: { bold: true, foregroundColor: WHITE, fontSize: 10 }, wrapStrategy: "WRAP", verticalAlignment: "MIDDLE" }, note: c.note },
+            fields: "userEnteredValue,userEnteredFormat(backgroundColor,textFormat,wrapStrategy,verticalAlignment),note",
+          },
+        });
+        requests.push({ updateDimensionProperties: { range: { sheetId: id, dimension: "COLUMNS", startIndex: i, endIndex: i + 1 }, properties: { pixelSize: c.width }, fields: "pixelSize" } });
+        if (c.list) requests.push({ setDataValidation: { range: range(1), rule: { condition: { type: "ONE_OF_LIST", values: c.list.map((v) => ({ userEnteredValue: v })) }, strict: false, showCustomUi: true } } });
+        if (c.kind === "date") {
+          requests.push({ setDataValidation: { range: range(1), rule: { condition: { type: "DATE_IS_VALID" }, strict: false, inputMessage: "A date — double-click for a calendar." } } });
+          requests.push({ repeatCell: { range: range(1), cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } } }, fields: "userEnteredFormat.numberFormat" } });
+        }
+        if (c.kind === "phone") {
+          requests.push({ setDataValidation: { range: range(1), rule: { condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: `=REGEXMATCH(TO_TEXT(${letterFor(i)}2),"^[0-9+() -]+$")` }] }, strict: true, inputMessage: "Digits, +, spaces, ( ) and - only." } } });
+          requests.push({ repeatCell: { range: range(1), cell: { userEnteredFormat: { numberFormat: { type: "TEXT" } } }, fields: "userEnteredFormat.numberFormat" } });
+        }
+      });
+    }
+    // The on/off switches: a yes/no dropdown on their own value cells.
+    if (tab === "Settings") {
+      settingKeys.forEach((r, i) => {
+        if (!YES_NO_SETTINGS.includes((r[0] ?? "").trim().toLowerCase())) return;
+        requests.push({ setDataValidation: { range: { sheetId: id, startRowIndex: i, endRowIndex: i + 1, startColumnIndex: 1, endColumnIndex: 2 }, rule: { condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "yes" }, { userEnteredValue: "no" }] }, strict: true, showCustomUi: true } } });
+      });
+    }
     done.push(tab);
   }
 
@@ -549,17 +726,17 @@ export async function updateGuide(): Promise<void> {
   const t = quote("Start here");
   const data = [
     { range: `${t}!B2`, values: [["Contacts for Imotara's calls and outreach email. You fill the white (teal-header) columns; the system fills the grey ones."]] },
-    { range: `${t}!B5`, values: [["White (teal header), on the LEFT: you and your team fill these — phone, name, organisation, country, time zone, language, consent note, source, email, the schedule (contact_by_email, contact_by_phone, mail_date/time/zone, call_date/time/zone), asked_for_call, and the optional ones after. These are the only columns you can edit."]] },
-    { range: `${t}!B6`, values: [["Grey (slate header), on the RIGHT: the system fills these after each call and email — call_progress, mail_progress, what_to_do, then status, attempts, outcome, summary, mail status. Locked. The last three (contact_number, disclose_upfront, Check) are retired."]] },
+    { range: `${t}!B5`, values: [["White (teal header), on the LEFT: you and your team fill these — from Phone number to Stop all contact?. Every header has a note: hover over it to see whether it is REQUIRED or OPTIONAL and why. These are the only columns you can edit."]] },
+    { range: `${t}!B6`, values: [["Grey (slate header), on the RIGHT: the system fills these after each call and email — Call progress, Email progress, What to do next, then the call and email results. Locked. The last three are no longer used."]] },
     { range: `${t}!B23:B30`, values: [
-      ["READING A ROW (call_progress, mail_progress, what_to_do — updated every 10 minutes)"],
-      ["call_progress and mail_progress: ✅ done · ⏳ in queue · 🟡 waiting for its day · ⛔ a problem · 🔴 SAFETY — call them yourself today."],
-      ["what_to_do: the fix for a problem on that row, in plain words. 'Nothing' means nothing is needed."],
-      ["COUNTRY: choose it from the list. The phone gets the country code by itself, and where the country has one time zone, time_zone may stay empty. organisation_type may stay empty too — the tab says it."],
-      ["EMAIL: email, yes in contact_by_email, and the first email's date + time in mail_date / mail_time (zone in mail_time_zone, or time_zone). Day 7 and day 21 follow at the same time. Any hour, any day."],
-      ["CALL: yes in contact_by_phone, and the date + time in call_date / call_time (zone in call_time_zone, or time_zone). The call service rings 09:00–21:00 their time and holds other times till 09:00. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again. INDIVIDUALS: called only with yes in asked_for_call until TRAI DLT is done."],
-      ["No date = nothing happens. No consent note = no call and no email. TO STOP SOMEONE: yes in do_not_contact. Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
-      ["Dates: double-click the cell for a calendar. Times: choose from the list, or type any time (24-hour)."],
+      ["READING A ROW (Call progress, Email progress, What to do next — updated every 10 minutes)"],
+      ["Call progress and Email progress: ✅ done · ⏳ in queue · 🟡 waiting for its day · ⛔ a problem · 🔴 SAFETY — call them yourself today."],
+      ["What to do next: the fix for a problem on that row, in plain words. 'Nothing needed now' means nothing is needed."],
+      ["COUNTRY: choose it from the list. The phone number gets the country code by itself, and the Time zone fills in (USA, Canada, Australia … have several zones: choose one). Organisation type may stay empty — the tab says it. LANGUAGE: choose it from the list."],
+      ["EMAIL: Email address, yes in Send emails?, and the First email date + First email time. Day 7 and day 21 follow at the same time, in the row's Time zone (or Email time zone). Any hour, any day."],
+      ["CALL: yes in Call them?, and the Call date + Call time, in the row's Time zone (or Call time zone). The call service rings 09:00–21:00 their time and holds other times till 09:00. No answer ⇒ retried automatically, up to 3 tries, within the retry hours. A new, later date calls again. INDIVIDUALS: called only with yes in They asked us to call? until TRAI DLT is done."],
+      ["No date = nothing happens. No consent (How they agreed to be contacted) = no call and no email. TO STOP SOMEONE: yes in Stop all contact?. Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
+      ["Dates: double-click the cell for a calendar. Times: choose from the list, or type any time (24-hour). Phone numbers take digits, +, spaces, ( ) and - only; email addresses are checked as you type."],
     ] },
   ];
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });

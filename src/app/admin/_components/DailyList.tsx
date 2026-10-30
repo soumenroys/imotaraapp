@@ -52,8 +52,8 @@ export function DailyList({ kind, historyHint }: { kind: "mail" | "calls"; histo
       {data && !data.error && rows.length === 0 && (
         <p className="text-zinc-400">
           Nothing on this day. {kind === "mail"
-            ? "Emails appear here once a row has contact_by_email = yes and a mail_date + mail_time."
-            : "Calls appear here once a row has contact_by_phone = yes and a call_date + call_time."}
+            ? "Emails appear here once a row has “Send emails?” = yes and a “First email date” + “First email time”."
+            : "Calls appear here once a row has “Call them?” = yes and a “Call date” + “Call time”."}
         </p>
       )}
       {rows.length > 0 && (

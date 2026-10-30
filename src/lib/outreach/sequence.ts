@@ -99,7 +99,7 @@ export function mailCheck(c: Contact, suppressed: ReadonlySet<string>, dnc?: Rea
   }
   // ⛔ The owner's rule: no consent note, no email — exactly as for calls.
   if (!c.v.consent_note) return "Add consent note";
-  if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
+  if (stoppedByAdmin(c)) return "Stopped by admin (“Stop all contact?” is yes)";
   if (dnc?.has(phoneOf(c))) return "On do-not-call list - never contact";
   if (suppressed.has(email)) return "Unsubscribed or bounced - never email";
   if (STOP_CALL_STATUSES.includes(c.v.status)) return `Call outcome: ${c.v.status}`;

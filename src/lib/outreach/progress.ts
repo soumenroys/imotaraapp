@@ -26,23 +26,23 @@ const day = (iso: string) => {
 
 /** How to fix each "not callable" reason, in the admin's words. */
 const CALL_FIX: [RegExp, string][] = [
-  [/extra 0 after/i, "Remove the 0 straight after the country code in the phone — UK 020 8863 4637 is 44 20 8863 4637."],
+  [/extra 0 after/i, "Remove the 0 straight after the country code in “Phone number” — UK 020 8863 4637 is 44 20 8863 4637."],
   [/no country code/i, "Choose the country (the code is then added for you), or start the phone with + and the country code — UK 01494 680873 is +44 1494 680873."],
   [/too many digits/i, "Check the phone number — it has more digits than any real number."],
   [/country code/i, "Type the phone and choose the country — its code is added for you."],
   [/Missing name/i, "Type the person's name."],
   [/Sample row/i, "Delete this sample row."],
-  [/consent note/i, "Write how they agreed to be contacted in consent_note."],
-  [/Individuals paused/i, "Individuals are called only if they asked us to call: choose yes in asked_for_call and write in consent_note when and how they asked. Everyone else waits for TRAI DLT registration."],
+  [/consent note/i, "Write how and when they agreed to be contacted in “How they agreed to be contacted”."],
+  [/Individuals paused/i, "Individuals are called only if they asked us to call: choose yes in “They asked us to call?” and write when and how they asked in “How they agreed to be contacted”. Everyone else waits for TRAI DLT registration."],
   [/Language not started/i, "This language is not approved for calls yet — the owner sets it to Start on the Languages tab."],
-  [/No agent/i, "No calling voice exists for this language and voice — choose another voice_gender."],
-  [/time zone/i, "Choose the time zone in time_zone (or call_time_zone for this call only). Countries with several zones — USA, Canada, Australia … — need one chosen."],
+  [/No agent/i, "No calling voice exists for this language and voice — choose the other voice in “Assistant's voice”, or another language."],
+  [/time zone/i, "Choose the zone in “Time zone” (or “Call time zone” for this call only). Countries with several zones — USA, Canada, Australia … — need one chosen."],
 ];
 
 const MAIL_FIX: [RegExp, string][] = [
   [/Email looks wrong|correct the email/i, "Correct the email address — it is retried by itself once fixed."],
-  [/consent note/i, "Write how they agreed to be contacted in consent_note."],
-  [/time zone/i, "Choose the time zone in time_zone (or mail_time_zone for email only). Countries with several zones — USA, Canada, Australia … — need one chosen."],
+  [/consent note/i, "Write how and when they agreed to be contacted in “How they agreed to be contacted”."],
+  [/time zone/i, "Choose the zone in “Time zone” (or “Email time zone” for email only). Countries with several zones — USA, Canada, Australia … — need one chosen."],
   [/Missing name/i, "Type the person's name."],
 ];
 
@@ -58,12 +58,12 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
   if (stoppedByAdmin(c)) return { text: "⛔ Stopped by admin", fix: "" };
   const tries = Number(c.v.call_attempts) || 0;
   if (s === STATUS.pending && !yes(c.v.contact_by_phone)) {
-    return { text: "— Not chosen for a call (contact_by_phone is not yes)", fix: c.v.call_date ? "Choose yes in contact_by_phone to call at the date you set." : "" };
+    return { text: "— Not chosen for a call (“Call them?” is not yes)", fix: c.v.call_date ? "Choose yes in “Call them?” to call at the date you set." : "" };
   }
   switch (s) {
     case STATUS.safety: return { text: "🔴 SAFETY — call them yourself today", fix: "A person must call them back today. They are never called automatically again." };
     case STATUS.review: return { text: "⛔ Needs review — no result came back", fix: "Listen to the call in Voice calls → Call records, then decide what to do next." };
-    case STATUS.dialFailed: return { text: "⛔ Error — the call could not be placed", fix: `${c.v.next_action || "Dial failed."} Check the phone number (phone), then press Retry in Voice calls → Needs a person.` };
+    case STATUS.dialFailed: return { text: "⛔ Error — the call could not be placed", fix: `${c.v.next_action || "Dial failed."} Check the “Phone number”, then press Retry in Voice calls → Needs a person.` };
     case STATUS.calling:
       return c.v.next_action.startsWith("Held by the call service")
         ? { text: "⏳ Held by the call service — rings in its allowed hours (their time)", fix: "" }
@@ -83,7 +83,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
     case STATUS.meeting: return { text: "✅ Done — meeting booked", fix: "Ambassador: hold the meeting." };
     case STATUS.notInterested: return { text: "✅ Done — not interested (never called again)", fix: "" };
     case STATUS.dnc: return { text: "✅ Done — asked not to be called (never again)", fix: "" };
-    case STATUS.wrongNumber: return { text: "⛔ Wrong number", fix: "Correct the phone, then press Retry in Voice calls → Needs a person. (Or type yes in do_not_contact.)" };
+    case STATUS.wrongNumber: return { text: "⛔ Wrong number", fix: "Correct the phone, then press Retry in Voice calls → Needs a person. (Or choose yes in “Stop all contact?”.)" };
   }
   const check = checkContact(c, d);
   if (check !== "OK") return { text: `⛔ Not callable — ${check}`, fix: fixFor(check, CALL_FIX) };
@@ -103,7 +103,7 @@ export function callProgress(c: Contact, d: Pick<Directory, "languages" | "dnc" 
 export function mailProgress(c: Contact, suppressed: ReadonlySet<string>, state: OutreachState, now: Date, dnc?: ReadonlySet<string>): { text: string; fix: string } {
   if (!emailOf(c)) return { text: "— No email", fix: "" };
   if (!c.v.mail_status && !yes(c.v.contact_by_email)) {
-    return { text: "— Not chosen for email (contact_by_email is not yes)", fix: c.v.mail_date ? "Choose yes in contact_by_email to send at the date you set." : "" };
+    return { text: "— Not chosen for email (“Send emails?” is not yes)", fix: c.v.mail_date ? "Choose yes in “Send emails?” to send at the date you set." : "" };
   }
   const status = c.v.mail_status;
   const sent = Number(c.v.mail_step) || 0;

@@ -30,7 +30,7 @@ export function MailFlow({ on, auto, cap }: { on: boolean; auto: boolean; cap: n
       <Box tone="gate" title="Outreach email ON, and within today's limit?">
         <b className={on ? "text-emerald-300" : "text-red-300"}>Right now it is {on ? "ON" : "OFF"}.</b> At most {cap} a day
         here, and never more than the domain&rsquo;s warm-up allows — so imotara.com stays out of spam folders. Only rows with
-        yes in contact_by_email and a mail_date + mail_time — at that time, any hour, in mail_time_zone.
+        yes in “Send emails?” and a “First email date” + “First email time” — at that time, any hour, in the row's “Time zone”.
       </Box>
 
       <Arrow label="what each person gets" />

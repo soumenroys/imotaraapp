@@ -9,7 +9,7 @@
  * a row with no date waits.
  */
 import { describe, it, expect } from "vitest";
-import { COLUMNS, STATUS, checkContact, selectDue, sheetCallDue, MISSED_SHEET_CALL, OUTSIDE_RETRY_HOURS, type Column, type Contact, type Directory } from "@/lib/voice/rules";
+import { COLUMNS, STATUS, label, checkContact, selectDue, sheetCallDue, MISSED_SHEET_CALL, OUTSIDE_RETRY_HOURS, type Column, type Contact, type Directory } from "@/lib/voice/rules";
 import { callSlot, localInstant, mailSlot, parseSheetDate, parseSheetTime, resolveZone, yes } from "@/lib/voice/slots";
 import { progressFor } from "@/lib/outreach/progress";
 import type { OutreachState } from "@/lib/outreach/store";
@@ -152,6 +152,6 @@ describe("what the sheet tells the admin", () => {
   it("a date set but 'no' chosen says how to switch it on", () => {
     const p = progressFor(contact({ contact_by_phone: "no" }), d, new Set(), state, before);
     expect(p.call_progress).toMatch(/Not chosen for a call/);
-    expect(p.what_to_do).toMatch(/Choose yes in contact_by_phone/);
+    expect(p.what_to_do).toContain(`Choose yes in “${label("contact_by_phone").replace(" (yes/no)", "")}”`);
   });
 });

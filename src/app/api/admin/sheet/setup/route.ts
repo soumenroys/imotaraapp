@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { ensureSystemColumns, protectAndFormat, sheetsConfigured, updateGuide, verifySystemCanWrite } from "@/lib/voice/sheets";
+import { ensureSystemColumns, protectAndFormat, reorderColumns, sheetsConfigured, updateGuide, verifySystemCanWrite } from "@/lib/voice/sheets";
 import { syncProgress } from "@/lib/outreach/syncSheet";
 
 export const runtime = "nodejs";
@@ -19,13 +19,15 @@ export async function POST(req: NextRequest) {
   if (!sheetsConfigured()) return NextResponse.json({ error: "The contact sheet is not connected." }, { status: 409 });
   try {
     await ensureSystemColumns();
+    // 🔑 Admin's columns left, system's right (owner, 29 Oct 2026) — whole columns move, data and all.
+    const moved = await reorderColumns();
     await updateGuide();
     const r = await protectAndFormat();
     // 🔴 The lock must not have locked the system out — prove a write still lands.
     await verifySystemCanWrite();
     const status = await syncProgress(getSupabaseAdmin());
-    console.log("[admin/sheet/setup]", { by: auth.admin.email, ...r, status });
-    return NextResponse.json({ ok: true, ...r, status });
+    console.log("[admin/sheet/setup]", { by: auth.admin.email, moved, ...r, status });
+    return NextResponse.json({ ok: true, moved, ...r, status });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 502 });
   }

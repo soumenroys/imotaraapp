@@ -24,9 +24,11 @@ describe("🔒 only the admin's columns are unlocked", () => {
     }
     for (const c of ["phone", "name", "consent_note", "email", "do_not_contact"] as Column[]) expect(ADMIN_COLUMNS).toContain(c);
   });
-  it("the new columns sit at AD–AG", () => {
-    expect(columnLetter("do_not_contact")).toBe("AD");
-    expect(columnLetter("what_to_do")).toBe("AG");
+  it("🔑 the admin's columns come first, every system column after (owner, 29 Oct 2026)", () => {
+    const lastAdmin = Math.max(...ADMIN_COLUMNS.map((c) => COLUMNS.indexOf(c)));
+    expect(lastAdmin).toBe(ADMIN_COLUMNS.length - 1);
+    for (const c of COLUMNS.filter((c) => !ADMIN_COLUMNS.includes(c))) expect(COLUMNS.indexOf(c)).toBeGreaterThan(lastAdmin);
+    expect(columnLetter("phone")).toBe("A");
   });
 });
 
@@ -48,7 +50,9 @@ describe("each row says where it stands and what to do", () => {
   it("⛔ a problem names its fix", () => {
     const p = progressFor(contact({ consent_note: "" }), dir, none, state, TUE_11_IST);
     expect(p.call_progress).toMatch(/^⛔/);
-    expect(p.what_to_do).toMatch(/column J/);
+    // ⚠️ By NAME: Sheet setup moves the columns, so a letter in the fix would point at the wrong one.
+    expect(p.what_to_do).toMatch(/consent_note/);
+    expect(p.what_to_do).not.toMatch(/column [A-Z]/);
   });
   it("🔴 safety is unmistakable", () => {
     expect(progressFor(contact({ status: STATUS.safety }), dir, none, state, TUE_11_IST).call_progress).toMatch(/^🔴 SAFETY/);

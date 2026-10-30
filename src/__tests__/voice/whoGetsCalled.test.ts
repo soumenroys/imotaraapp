@@ -9,7 +9,7 @@
 import { describe, it, expect } from "vitest";
 import {
   COLUMNS, STATUS, checkContact, phoneProblem, selectDue, userData, writebackFor, helplineFor, normalisePhone,
-  parseSettings, inRetryHours, elevenLocal, columnLetter, sameContact, missedSchedule, MISSED_SCHEDULE,
+  parseSettings, inRetryHours, elevenLocal, sameContact, phoneOf, missedSchedule, MISSED_SCHEDULE,
   type Contact, type Directory, type Column,
 } from "@/lib/voice/rules";
 
@@ -186,9 +186,9 @@ describe("the sheet itself", () => {
   it("phone numbers normalise to +digits", () => {
     expect(normalisePhone("+91 98300-12345")).toBe("+919830012345");
   });
-  it("the system column is Y", () => {
-    expect(columnLetter("call_id")).toBe("Y");
-    expect(columnLetter("status")).toBe("P");
+  it("Sheet setup puts call_id and status on the system's side", () => {
+    expect(COLUMNS.indexOf("call_id")).toBeGreaterThan(COLUMNS.indexOf("do_not_contact"));
+    expect(COLUMNS.indexOf("status")).toBeGreaterThan(COLUMNS.indexOf("do_not_contact"));
   });
 });
 
@@ -232,6 +232,8 @@ describe("🔴 a malformed phone is caught, not dialled (live sheet, 24 Oct)", (
     expect(phoneProblem("+12345")).toMatch(/country code and number/);
     expect(phoneProblem("+1234567890123456")).toMatch(/too many/);
   });
-  it("checkContact refuses it before anything else", () =>
-    expect(checkContact(contact({ phone: "01494680873", consent_note: "" }), dir([]))).toMatch(/no country code/));
+  it("checkContact refuses it before anything else — when no country says which code to add", () =>
+    expect(checkContact(contact({ phone: "01494680873", country: "", consent_note: "" }), dir([]))).toMatch(/no country code/));
+  it("🔑 with the country chosen, the same number is completed, not refused (Sheet v2, 29 Oct)", () =>
+    expect(phoneOf(contact({ phone: "01494 680873", country: "GB — United Kingdom (+44)" }))).toBe("+441494680873"));
 });

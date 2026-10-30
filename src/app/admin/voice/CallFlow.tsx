@@ -26,8 +26,8 @@ export function CallFlow({ callingOn, autoOn }: { callingOn: boolean; autoOn: bo
             <b className={callingOn ? "text-emerald-300" : "text-red-300"}>Right now it is {callingOn ? "ON" : "OFF"}.</b>
           </Box>
           <Arrow side />
-          <Box tone="step" title="2 · The sheet: yes in contact_by_phone, and a call_date + call_time">
-            Plus a consent note, not on do-not-call, their language started. In call_time_zone (or the row&rsquo;s time zone);
+          <Box tone="step" title="2 · The sheet: yes in “Call them?”, and a “Call date” + “Call time”">
+            Plus a consent note, not on do-not-call, their language started. In “Call time zone” (or the row&rsquo;s “Time zone”);
             the call service rings only 09:00–21:00 their time and holds anything else till 09:00. No date = no call.
           </Box>
         </div>

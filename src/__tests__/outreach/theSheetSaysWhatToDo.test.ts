@@ -3,7 +3,7 @@
  * done, in queue, errored, and how to fix it; lock everything but the admin's columns.
  */
 import { describe, it, expect } from "vitest";
-import { ADMIN_COLUMNS, COLUMNS, STATUS, checkContact, columnLetter, stoppedByAdmin, type Column, type Contact } from "@/lib/voice/rules";
+import { ADMIN_COLUMNS, COLUMNS, STATUS, checkContact, columnLetter, label, stoppedByAdmin, type Column, type Contact } from "@/lib/voice/rules";
 import { MAIL, mailCheck, dueStep } from "@/lib/outreach/sequence";
 import { progressFor } from "@/lib/outreach/progress";
 import type { OutreachState } from "@/lib/outreach/store";
@@ -50,8 +50,9 @@ describe("each row says where it stands and what to do", () => {
   it("⛔ a problem names its fix", () => {
     const p = progressFor(contact({ consent_note: "" }), dir, none, state, TUE_11_IST);
     expect(p.call_progress).toMatch(/^⛔/);
-    // ⚠️ By NAME: Sheet setup moves the columns, so a letter in the fix would point at the wrong one.
-    expect(p.what_to_do).toMatch(/consent_note/);
+    // ⚠️ By the HEADER the admin sees (30 Oct 2026) — never a letter (columns move) nor a field name.
+    expect(p.what_to_do).toContain(`“${label("consent_note")}”`);
+    expect(p.what_to_do).not.toMatch(/consent_note/);
     expect(p.what_to_do).not.toMatch(/column [A-Z]/);
   });
   it("🔴 safety is unmistakable", () => {

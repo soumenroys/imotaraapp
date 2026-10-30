@@ -114,3 +114,10 @@ export function normalisePhoneFor(raw: string, countryRaw: string | undefined): 
   if (digits.startsWith(c.dial) && digits.length > 10) return `+${digits}`;
   return `+${c.dial}${digits}`;
 }
+
+/** "bn — Bengali" (the language dropdown) or "bn" → "bn"; anything else as typed, lower-cased. */
+export function languageCode(raw: string | undefined): string {
+  const s = (raw ?? "").trim();
+  const m = s.match(/^([A-Za-z]{2,3})(?=\s*(?:—|-|–|$))/);
+  return (m ? m[1] : s).toLowerCase();
+}

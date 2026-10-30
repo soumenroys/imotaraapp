@@ -190,3 +190,122 @@ describe("⛔ no fix text names a column by LETTER — the letters move", () => 
     expect(guide).not.toMatch(/\((?:[A-Z]{1,2})(?:–[A-Z]{1,2})?\)|column [A-Z]{1,2}\b(?! —)/);
   });
 });
+
+// ── Sheet v3 (owner, 30 Oct 2026): friendly headers, notes, language names, live time zone ──
+
+import { generateKeyPairSync } from "node:crypto";
+import { vi, beforeAll, afterAll } from "vitest";
+import { HEADERS, label } from "@/lib/voice/rules";
+import { languageCode } from "@/lib/voice/countries";
+import { NOTES, appendContact, fillZoneDefaults, zoneFormula } from "@/lib/voice/sheets";
+
+describe("🔑 friendly headers — and the code still finds every column", () => {
+  const friendly = COLUMNS.map((c) => label(c));
+  it("a sheet headed in plain words reads the same as one headed with field names", () => {
+    const [a] = parseContacts("NGOs", sheet(COLUMNS, [ROW]));
+    const rows = sheet(COLUMNS, [ROW]);
+    rows[0] = friendly;
+    const [b] = parseContacts("NGOs", rows);
+    expect(b.v).toEqual(a.v);
+  });
+  it("the old field-name order still moves into place under friendly names", () => {
+    const before = sheet(LEGACY_COLUMNS, [ROW]);
+    const after = applyMoves(before, columnMoves(before[0]));
+    expect(after[0]).toEqual([...COLUMNS]);
+    const mixed = [...friendly].reverse();
+    expect(applyMoves([mixed], columnMoves(mixed))[0]).toEqual(friendly);
+  });
+  it("no two columns share a header, and no header is another column's field name", () => {
+    const key = (h: string) => h.trim().toLowerCase().replace(/[\s-]+/g, "_");
+    const owner = new Map<string, string>();
+    for (const c of COLUMNS) for (const k of new Set([c, ...HEADERS[c]].map(key))) {
+      expect(owner.get(k) ?? c).toBe(c);
+      owner.set(k, c);
+    }
+  });
+  it("⛔ no header looks like a database field", () => {
+    for (const c of COLUMNS) expect(label(c)).not.toMatch(/_/);
+  });
+  it("every column's note says who fills it", () => {
+    for (const c of COLUMNS) expect(NOTES[c]).toMatch(/^(REQUIRED|OPTIONAL|SYSTEM — do not fill|Fill ONLY|NOT USED)/);
+  });
+  it("optional columns say so in the header too", () => {
+    for (const c of COLUMNS) if (NOTES[c].startsWith("OPTIONAL")) expect(label(c)).toMatch(/\(optional\)/);
+  });
+});
+
+describe("🔑 the language is chosen by name, read as its code", () => {
+  it.each([["bn — Bengali", "bn"], ["hi — Hindi", "hi"], ["en", "en"], ["EN", "en"], ["Bengali", "bengali"], ["", ""]])("%s → %s", (raw, want) =>
+    expect(languageCode(raw)).toBe(want));
+  it("a row with the dropdown's language is callable in that language", () => {
+    const [c] = parseContacts("NGOs", sheet(COLUMNS, [{ ...ROW, language: "bn — Bengali" }]));
+    expect(c.v.language).toBe("bn");
+  });
+});
+
+describe("🔑 the time zone fills itself from the country — a formula, per row", () => {
+  it("looks the row's own country up in Lists, and is empty when it cannot", () => {
+    const f = zoneFormula("D", 7);
+    expect(f).toContain("LEFT(TRIM(D7),2)");
+    expect(f).toContain("'Lists'!$A:$C,3");
+    expect(f).toMatch(/^=IFERROR\(.*,""\)$/);
+  });
+});
+
+// ── Against a stand-in Google: what is actually WRITTEN ──
+describe("🔴 writes that touch live rows", () => {
+  type Body = { valueInputOption?: string; data: { range: string; values: string[][] }[] };
+  const calls: { url: string; body: Body }[] = [];
+  let grid: Record<string, string[][]> = {};
+  let formulas: string[][] = [];
+  beforeAll(() => {
+    const { privateKey } = generateKeyPairSync("rsa", { modulusLength: 1024 });
+    process.env.GOOGLE_SA_JSON = JSON.stringify({ client_email: "sa@test", private_key: privateKey.export({ type: "pkcs8", format: "pem" }) });
+    vi.stubGlobal("fetch", async (url: string, init?: RequestInit) => {
+      const body = init?.body && typeof init.body === "string" ? JSON.parse(init.body) : undefined;
+      calls.push({ url: decodeURIComponent(url), body });
+      const ok = (o: unknown) => new Response(JSON.stringify(o), { status: 200 });
+      if (url.includes("oauth2")) return ok({ access_token: "t", expires_in: 3600 });
+      if (url.includes("fields=sheets(properties(title,gridProperties")) return ok({ sheets: CONTACT_TABS_LIST.map((title) => ({ properties: { title, gridProperties: { rowCount: 12 } } })) });
+      if (url.includes("fields=sheets(properties(sheetId,title))")) return ok({ sheets: CONTACT_TABS_LIST.map((title, i) => ({ properties: { title, sheetId: i } })) });
+      if (url.includes("values:batchGet")) {
+        const ranges = new URL(url).searchParams.getAll("ranges");
+        return ok({ valueRanges: ranges.map((r) => ({ values: [grid[r.split("!")[0].replace(/'/g, "")]?.[0] ?? []] })) });
+      }
+      if (url.includes("valueRenderOption=FORMULA")) return ok({ values: formulas });
+      if (/values\/[^:]+$/.test(decodeURIComponent(url).split("?")[0]) && !init?.method) {
+        const tab = decodeURIComponent(url).split("/values/")[1].replace(/'/g, "").split("!")[0];
+        return ok({ values: grid[tab] ?? [] });
+      }
+      return ok({});
+    });
+  });
+  afterAll(() => { vi.unstubAllGlobals(); delete process.env.GOOGLE_SA_JSON; });
+  const CONTACT_TABS_LIST = ["Individuals", "NGOs", "Education", "Eldercare", "Corporates"];
+
+  it("only EMPTY time-zone cells get the formula — a zone the admin chose is never overwritten", async () => {
+    grid = Object.fromEntries(CONTACT_TABS_LIST.map((t) => [t, [COLUMNS.map((c) => label(c))]]));
+    // rows 2..12: row 3 has a chosen zone, row 5 already has the formula
+    formulas = [[""], ["Asia/Dubai"], [""], [zoneFormula("D", 5)]];
+    calls.length = 0;
+    await fillZoneDefaults();
+    const write = calls.find((c) => c.url.includes("values:batchUpdate"))!;
+    expect(write.body.valueInputOption).toBe("USER_ENTERED");
+    const eldercare = write.body.data.filter((d: Body["data"][number]) => d.range.startsWith("'Eldercare'"));
+    // E = time_zone, D = country in the canonical order
+    expect(eldercare.map((d: Body["data"][number]) => d.range)).toEqual(["'Eldercare'!E2:E2", "'Eldercare'!E4:E4", "'Eldercare'!E6:E12"]);
+    expect(eldercare[2].values[0][0]).toBe(zoneFormula("D", 6));
+  });
+
+  it("a contact added from the console lands in the FIRST EMPTY row, not after 1000 formula rows", async () => {
+    const header = COLUMNS.map((c) => label(c));
+    const row = (name: string) => COLUMNS.map((c) => (c === "name" ? name : c === "time_zone" ? "" : ""));
+    grid = { NGOs: [header, row("Asha"), row(""), row("Bina")] };
+    calls.length = 0;
+    const at = await appendContact("NGOs", { name: "Chitra", phone: "98300 12345", time_zone: "Asia/Kolkata" });
+    expect(at).toBe(3);
+    const write = calls.find((c) => c.url.includes("values:batchUpdate"))!;
+    expect(write.body.valueInputOption).toBe("RAW");
+    expect(write.body.data.map((d: Body["data"][number]) => d.range).sort()).toEqual(["'NGOs'!A3", "'NGOs'!B3", "'NGOs'!E3"]);
+  });
+});

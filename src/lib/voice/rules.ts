@@ -15,7 +15,7 @@
 
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
 import { agentFor } from "@/lib/voice/agents";
-import { countryCode, countryZone, normalisePhoneFor } from "@/lib/voice/countries";
+import { countryCode, countryZone, languageCode, normalisePhoneFor } from "@/lib/voice/countries";
 import { callSlot, callZone, yes, zoneOffsetMinutes } from "@/lib/voice/slots";
 
 export const CONTACT_TABS = ["Individuals", "NGOs", "Education", "Eldercare", "Corporates"] as const;
@@ -103,6 +103,70 @@ export type Layout = Record<Column, number>;
 const headerKey = (h: string) => String(h ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
 
 /**
+ * 🔑 WHAT THE SHEET'S HEADER SAYS (owner, 30 Oct 2026: "column headers should
+ * be written properly … instead of some database field name type heading").
+ * The first name is the header Sheet setup writes; the code also still knows
+ * the field name itself.
+ * ⛔ NEVER DELETE A NAME HERE — only add a new one in FRONT. A header the code
+ * no longer recognises is a column it cannot find, and Sheet setup would add a
+ * second, empty one beside it ⇒ sheetV2.test.ts.
+ */
+export const HEADERS: Record<Column, readonly string[]> = {
+  phone: ["Phone number"],
+  name: ["Contact name"],
+  organisation: ["Organisation name"],
+  country: ["Country"],
+  time_zone: ["Time zone"],
+  language: ["Call language"],
+  consent_note: ["How they agreed to be contacted"],
+  source: ["Where we found them (optional)"],
+  email: ["Email address"],
+  contact_by_email: ["Send emails? (yes/no)"],
+  contact_by_phone: ["Call them? (yes/no)"],
+  mail_date: ["First email date"],
+  mail_time: ["First email time"],
+  mail_time_zone: ["Email time zone (optional)"],
+  call_date: ["Call date"],
+  call_time: ["Call time"],
+  call_time_zone: ["Call time zone (optional)"],
+  asked_for_call: ["They asked us to call? (yes/no)"],
+  organisation_type: ["Organisation type (optional)"],
+  team_member: ["Team member in charge (optional)"],
+  voice_gender: ["Assistant's voice (optional)"],
+  context: ["What the assistant may mention (optional)"],
+  call_reason: ["Reason for the call (optional)"],
+  ambassador_notes: ["Team notes (optional)"],
+  do_not_contact: ["Stop all contact? (yes)"],
+  call_progress: ["Call progress"],
+  mail_progress: ["Email progress"],
+  what_to_do: ["What to do next"],
+  status: ["Call result"],
+  call_attempts: ["Call attempts"],
+  last_call_date: ["Last call at"],
+  outcome: ["Call outcome code"],
+  call_summary: ["Call summary"],
+  next_action: ["Next step from the call"],
+  follow_up_datetime: ["Follow-up at"],
+  call_id: ["Call ID"],
+  mail_status: ["Email result"],
+  mail_step: ["Email step"],
+  mail_last_sent: ["Last email sent at"],
+  contact_number: ["Old contact number (not used)"],
+  disclose_upfront: ["Disclose upfront (not used)"],
+  Check: ["Old check (not used)"],
+};
+
+/** The header an admin sees for a column, e.g. "Call them? (yes/no)". */
+export const label = (c: Column) => HEADERS[c][0];
+
+/** Every header text that names this column: its labels, old and new, and its field name. */
+const namesOf = (c: Column) => [headerKey(c), ...HEADERS[c].map(headerKey)];
+const indexIn = (keys: string[], c: Column) => {
+  const names = namesOf(c);
+  return keys.findIndex((k) => names.includes(k));
+};
+
+/**
  * 🔑 A tab's layout, from its header row. A column is found by its NAME, so
  * moving, inserting or reordering columns in the sheet never makes the system
  * read or write the wrong cell.
@@ -111,7 +175,7 @@ const headerKey = (h: string) => String(h ?? "").trim().toLowerCase().replace(/[
  */
 export function layoutOf(header: readonly string[] | undefined): Layout {
   const keys = (header ?? []).map(headerKey);
-  const found = Object.fromEntries(COLUMNS.map((c) => [c, keys.indexOf(headerKey(c))])) as Layout;
+  const found = Object.fromEntries(COLUMNS.map((c) => [c, indexIn(keys, c)])) as Layout;
   if (COLUMNS.some((c) => found[c] >= 0)) return found;
   return Object.fromEntries(COLUMNS.map((c) => [c, LEGACY_COLUMNS.indexOf(c)])) as Layout;
 }
@@ -127,7 +191,7 @@ export function columnMoves(header: readonly string[]): { from: number; to: numb
   const moves: { from: number; to: number }[] = [];
   let to = 0;
   for (const c of COLUMNS) {
-    const from = cur.indexOf(headerKey(c));
+    const from = indexIn(cur, c);
     if (from < 0) continue;
     if (from !== to) {
       moves.push({ from, to });
@@ -297,6 +361,8 @@ export function parseContacts(tab: ContactTab, rows: string[][]): Contact[] {
     // 🔑 An empty time_zone takes the country's — only where the country has ONE zone ⇒ countries.ts.
     if (!v.time_zone) v.time_zone = countryZone(typedCountry) ?? "";
     if (!v.organisation_type) v.organisation_type = TAB_ORGANISATION_TYPE[tab];
+    // 🔑 The dropdown shows "bn — Bengali"; the call wants "bn".
+    v.language = languageCode(v.language);
     out.push({ tab, row: i + 2, v });
   });
   return out;
@@ -391,7 +457,7 @@ export function checkContact(
   if (!yes(c.v.contact_by_phone)) return "Contact by phone is not yes";
   if (d.dnc.has(phone)) return "On do-not-call list - never call";
   if (NO_MORE_CALLS.includes(c.v.status)) return `Call ended: ${c.v.status}`;
-  if (stoppedByAdmin(c)) return "Stopped by admin (do_not_contact)";
+  if (stoppedByAdmin(c)) return "Stopped by admin (“Stop all contact?” is yes)";
   // ⛔ Permanent, owner's instruction ⇒ spec §5.1.
   if (/open ?lm/i.test(c.v.organisation) || /openlm\.com/i.test(c.v.consent_note + c.v.context)) {
     return "EXCLUDED: OpenLM - never call";

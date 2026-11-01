@@ -205,13 +205,38 @@ export async function appendDnc(phone: string, name: string, reason: string): Pr
 export async function ensureSystemColumns(): Promise<void> {
   const ranges = CONTACT_TABS.map((t) => `ranges=${encodeURIComponent(headerRow(t))}`).join("&");
   const got = (await google(`/values:batchGet?${ranges}`)) as { valueRanges?: { values?: string[][] }[] };
-  const data = CONTACT_TABS.flatMap((t, i) => {
-    const header = got.valueRanges?.[i]?.values?.[0] ?? [];
-    const at = layoutOf(header);
-    let next = header.length;
-    return COLUMNS.map((c) => ({ range: `${quote(t)}!${letterFor(at[c] >= 0 ? at[c] : next++)}1`, values: [[label(c)]] }));
+  const plans = CONTACT_TABS.map((t, i) => ({ tab: t, ...headerCells(got.valueRanges?.[i]?.values?.[0] ?? []) }));
+
+  // 🔴 A tab only has as many columns as its grid. A new column's header written
+  // past the last one is refused ("exceeds grid limits") — and with it the whole
+  // batch (1 Nov 2026, the meeting columns). ⇒ Widen the grid first.
+  const meta = (await google(`?fields=sheets(properties(sheetId,title,gridProperties(columnCount)))`)) as {
+    sheets?: { properties: { sheetId: number; title: string; gridProperties?: { columnCount?: number } } }[];
+  };
+  const widen = plans.flatMap((p) => {
+    const sh = meta.sheets?.find((x) => x.properties.title === p.tab)?.properties;
+    const short = sh ? p.width - (sh.gridProperties?.columnCount ?? 0) : 0;
+    return sh && short > 0 ? [{ appendDimension: { sheetId: sh.sheetId, dimension: "COLUMNS", length: short } }] : [];
   });
+  if (widen.length) await google(`:batchUpdate`, { method: "POST", body: JSON.stringify({ requests: widen }) });
+
+  const data = plans.flatMap((p) => p.cells.map((c) => ({ range: `${quote(p.tab)}!${c.letter}1`, values: [[c.text]] })));
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
+}
+
+/**
+ * Where each column's header goes in a tab with this header row: where the
+ * column already is, else after the last header. `width` = the columns the tab
+ * must have for all of them to fit.
+ */
+export function headerCells(header: readonly string[]): { cells: { letter: string; text: string }[]; width: number } {
+  const at = layoutOf(header);
+  let next = header.length;
+  const cells = COLUMNS.map((c) => {
+    const i = at[c] >= 0 ? at[c] : next++;
+    return { i, letter: letterFor(i), text: label(c) };
+  });
+  return { cells: cells.map(({ letter, text }) => ({ letter, text })), width: Math.max(header.length, ...cells.map((c) => c.i + 1)) };
 }
 
 /**

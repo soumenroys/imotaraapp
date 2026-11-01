@@ -58,7 +58,7 @@ const EXCLUDED: Record<string, string> = {
     // robots: { index: false } as well — belt and braces, because an admin
     // screen appearing in search would expose the shape of the queue.
     "/admin/social": "staff only", "/admin/social/compose": "staff only",
-    "/admin/social/channels": "staff only", "/admin/social/schedules": "staff only",
+    "/admin/social/channels": "staff only", "/admin/social/comments": "staff only", "/admin/social/schedules": "staff only",
     "/admin/social/languages": "staff only", "/admin/social/stats": "staff only",
     "/admin/social/scripts": "staff only", "/admin/social/illustration": "staff only",
     "/auth/accept": "auth flow", "/auth/callback": "auth flow",

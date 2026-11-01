@@ -41,6 +41,8 @@ export const CRON_DESCRIPTIONS: Record<string, string> = {
     "Publishes approved social posts whose hour has come. ⛔ Approved only — it never publishes a draft.",
   "/api/cron/social-stats":
     "Captures each channel's followers and each recent post's figures, once a day after the posting hour.",
+  "/api/cron/social-comments":
+    "Every 15 minutes, reads new comments under our Facebook and Instagram posts: hides repost-scam spam, answers crisis words with the crisis line and emails social@, and drafts a reply to genuine comments for approval. Does nothing while posting is stopped.",
   "/api/cron/social-health":
     "Checks every social channel's token, and the queue: alerts if a token is dying or a slot passed unpublished.",
   "/api/cron/voice-dispatch":

@@ -100,6 +100,8 @@ const TABS = [
   { href: "/admin/social/trends", label: "Trends" },
   { href: "/admin/social/compose", label: "Write a post" },
   { href: "/admin/social/channels", label: "Channels" },
+  // 🔑 Added 1 Nov with the page (#51): replies drafted for comments wait here.
+  { href: "/admin/social/comments", label: "Comments" },
   { href: "/admin/social/languages", label: "Languages" },
   // 🔑 Added 18 Oct. The daily capture was recording figures nothing displayed
   // — a database nobody reads is not analytics.

@@ -35,12 +35,13 @@ export const COLUMNS = [
   "phone", "name", "organisation", "country", "time_zone", "language", "consent_note", "source",
   "email", "contact_by_email", "contact_by_phone",
   "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
+  "meeting_date", "meeting_time", "meeting_time_zone",
   "asked_for_call", "organisation_type", "team_member", "voice_gender", "context", "call_reason",
   "ambassador_notes", "do_not_contact",
   // ── The system's ──
   "call_progress", "mail_progress", "what_to_do",
   "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action", "follow_up_datetime", "call_id",
-  "mail_status", "mail_step", "mail_last_sent",
+  "mail_status", "mail_step", "mail_last_sent", "meeting_booked",
   // ── Retired (owner, 29 Oct 2026): phone is the only number; the check and the disclosure are the system's ──
   "contact_number", "disclose_upfront", "Check",
 ] as const;
@@ -58,6 +59,7 @@ export const LEGACY_COLUMNS: readonly string[] = [
   "do_not_contact", "call_progress", "mail_progress", "what_to_do",
   "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
   "asked_for_call",
+  "meeting_date", "meeting_time", "meeting_time_zone", "meeting_booked",
 ];
 
 /**
@@ -70,7 +72,7 @@ export const ADMIN_COLUMNS: readonly Column[] = [
   "phone", "name", "organisation", "organisation_type", "country", "time_zone", "language", "source",
   "consent_note", "team_member", "context", "call_reason", "ambassador_notes", "voice_gender", "email", "do_not_contact",
   "contact_by_email", "contact_by_phone", "mail_date", "mail_time", "mail_time_zone", "call_date", "call_time", "call_time_zone",
-  "asked_for_call",
+  "asked_for_call", "meeting_date", "meeting_time", "meeting_time_zone",
 ];
 
 /** "yes", "y", "true", "stop", "x" or a ticked box ⇒ never contact this person, by phone or email. */
@@ -129,6 +131,9 @@ export const HEADERS: Record<Column, readonly string[]> = {
   call_date: ["Call date"],
   call_time: ["Call time"],
   call_time_zone: ["Call time zone (optional)"],
+  meeting_date: ["Meeting date"],
+  meeting_time: ["Meeting time"],
+  meeting_time_zone: ["Meeting time zone (optional)"],
   asked_for_call: ["They asked us to call? (yes/no)"],
   organisation_type: ["Organisation type (optional)"],
   team_member: ["Team member in charge (optional)"],
@@ -151,6 +156,7 @@ export const HEADERS: Record<Column, readonly string[]> = {
   mail_status: ["Email result"],
   mail_step: ["Email step"],
   mail_last_sent: ["Last email sent at"],
+  meeting_booked: ["Meeting in calendar"],
   contact_number: ["Old contact number (not used)"],
   disclose_upfront: ["Disclose upfront (not used)"],
   Check: ["Old check (not used)"],
@@ -323,7 +329,7 @@ export function normalisePhone(raw: string): string {
 /** The cells the SYSTEM writes on a contact row — everything that is neither an admin column nor a formula. */
 export const SYSTEM_STATE: readonly Column[] = [
   "status", "call_attempts", "last_call_date", "outcome", "call_summary", "next_action", "follow_up_datetime", "call_id",
-  "mail_status", "mail_step", "mail_last_sent", "call_progress", "mail_progress", "what_to_do",
+  "mail_status", "mail_step", "mail_last_sent", "call_progress", "mail_progress", "what_to_do", "meeting_booked",
 ];
 
 /**

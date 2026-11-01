@@ -439,6 +439,9 @@ export const NOTES: Record<Column, string> = {
   call_date: "REQUIRED for calls. The day to call — double-click for a calendar. A new, later date calls again.",
   call_time: "REQUIRED for calls. The time to call — choose from the list, or type any time (24-hour). ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. No answer = retried automatically, up to 3 tries.",
   call_time_zone: "OPTIONAL. Only if the call should follow another zone than the row's Time zone.",
+  meeting_date: "REQUIRED for meetings — fill only when they AGREE TO MEET an Imotara team member. The day, in THEIR local time — double-click for a calendar. With Meeting time, it goes into the Imotara calendar within 10 minutes: Tapan, Suchismita and their Email address are invited.",
+  meeting_time: "REQUIRED for meetings, with Meeting date. The time THEY agreed, in their local time (the row's Time zone) — choose from the list or type it (24-hour). Change it later and the invitation is updated.",
+  meeting_time_zone: "OPTIONAL. Only if the meeting time is in another zone than the row's Time zone.",
   asked_for_call: "REQUIRED for the Individuals tab. yes ONLY if the person themselves asked us to call — and write when and how in 'How they agreed to be contacted'. Until TRAI DLT registration is done, individuals are called only with yes here.",
   organisation_type: "OPTIONAL. Empty = the tab says it (NGOs → NGO, Eldercare → old age home, Education → educational institution, Corporates → company). Fill only to be more exact, e.g. college, hospice.",
   team_member: "OPTIONAL. The team member who owns this contact — the assistant may offer a meeting with them. Use a name from the Team tab.",
@@ -461,6 +464,7 @@ export const NOTES: Record<Column, string> = {
   mail_status: "SYSTEM — do not fill. The result of the last email (Sent, Bounced, Unsubscribed …).",
   mail_step: "SYSTEM — do not fill. Which email of the sequence went last (introduction, day 7, day 21).",
   mail_last_sent: "SYSTEM — do not fill. When the last email went.",
+  meeting_booked: "SYSTEM — do not fill. ✅ the meeting is in the Imotara calendar and the invitations went out · ⛔ what stops it, in plain words.",
   contact_number: "NOT USED any more — the number goes in 'Phone number'. Kept so old rows keep their data.",
   disclose_upfront: "NOT USED any more — the assistant always says it is a virtual assistant.",
   Check: "NOT USED any more — the system checks every row itself; see 'Call progress' and 'What to do next'.",
@@ -471,6 +475,7 @@ const WIDTHS: Partial<Record<Column, number>> = {
   phone: 130, name: 170, organisation: 190, consent_note: 260, email: 220, context: 200,
   call_summary: 260, next_action: 240, call_progress: 300, mail_progress: 300, what_to_do: 380, do_not_contact: 120,
   contact_by_email: 120, contact_by_phone: 120, asked_for_call: 120, mail_date: 110, mail_time: 90, mail_time_zone: 140, call_date: 110, call_time: 90, call_time_zone: 140,
+  meeting_date: 110, meeting_time: 90, meeting_time_zone: 140, meeting_booked: 300,
 };
 
 /** The switches whose value is yes or no. */
@@ -638,20 +643,20 @@ export async function protectAndFormat(): Promise<{ tabs: string[]; requests: nu
     for (const c of ["contact_by_email", "contact_by_phone", "asked_for_call"] as const) {
       requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: [{ userEnteredValue: "yes" }, { userEnteredValue: "no" }] }, strict: false, showCustomUi: true, inputMessage: "yes or no" } } });
     }
-    for (const c of ["mail_date", "call_date"] as const) {
+    for (const c of ["mail_date", "call_date", "meeting_date"] as const) {
       requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "DATE_IS_VALID" }, strict: false, inputMessage: "A date, e.g. 2026-11-03" } } });
       requests.push({ repeatCell: { range: col(c), cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "yyyy-mm-dd" } } }, fields: "userEnteredFormat.numberFormat" } });
     }
-    for (const c of ["mail_time", "call_time"] as const) {
+    for (const c of ["mail_time", "call_time", "meeting_time"] as const) {
       requests.push({ repeatCell: { range: col(c), cell: { userEnteredFormat: { numberFormat: { type: "TIME", pattern: "hh:mm" } } }, fields: "userEnteredFormat.numberFormat" } });
     }
-    for (const c of ["mail_time", "call_time"] as const) {
+    for (const c of ["mail_time", "call_time", "meeting_time"] as const) {
       requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: HALF_HOURS.map((h) => ({ userEnteredValue: h })) }, strict: false, showCustomUi: true, inputMessage: "Choose a time, or type any other, e.g. 14:45 (24-hour)." } } });
     }
     // 🔑 Owner, 29 Oct 2026: country and time zone chosen from a list.
     requests.push({ setDataValidation: { range: col("country"), rule: { condition: { type: "ONE_OF_LIST", values: COUNTRIES.map((k) => ({ userEnteredValue: countryLabel(k) })) }, strict: false, showCustomUi: true, inputMessage: "Choose the country — its code is added to the phone. Or type the 2-letter code." } } });
     requests.push({ setDataValidation: { range: col("time_zone"), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Filled for you from the Country. USA, Canada, Australia … choose one." } } });
-    for (const c of ["mail_time_zone", "call_time_zone"] as const) {
+    for (const c of ["mail_time_zone", "call_time_zone", "meeting_time_zone"] as const) {
       requests.push({ setDataValidation: { range: col(c), rule: { condition: { type: "ONE_OF_LIST", values: COMMON_ZONES.map((z) => ({ userEnteredValue: z })) }, strict: false, showCustomUi: true, inputMessage: "Only if different from the row's Time zone. Choose a zone, or type another, e.g. Europe/Paris." } } });
     }
     // 🔑 Owner, 30 Oct 2026: a real email address only — anything else is refused as typed.
@@ -738,6 +743,7 @@ export async function updateGuide(): Promise<void> {
       ["No date = nothing happens. No consent (How they agreed to be contacted) = no call and no email. TO STOP SOMEONE: yes in Stop all contact?. Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
       ["Dates: double-click the cell for a calendar. Times: choose from the list, or type any time (24-hour). Phone numbers take digits, +, spaces, ( ) and - only; email addresses are checked as you type."],
     ] },
+    { range: `${t}!B31`, values: [["MEETING: when someone agrees to meet the team, fill Meeting date + Meeting time as THEY said it, in their local time (the row's Time zone, or Meeting time zone), and their Email address. Within 10 minutes it is in the Imotara calendar, with Tapan, Suchismita and them invited — 'Meeting in calendar' shows ✅. Change the date or time and the invitation is updated."]] },
   ];
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
   // The Settings tab explains each switch in column C — say what they mean now (owner, 28 Oct 2026).

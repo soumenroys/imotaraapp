@@ -139,6 +139,14 @@ export function callSlot(c: Contact): Slot {
   return slot(c.v.call_date, c.v.call_time, c.v.call_time_zone, c.v.time_zone, "Call");
 }
 
+/**
+ * When the team agreed to meet this person, from meeting_date + meeting_time +
+ * meeting_time_zone — the PERSON'S local time (owner, 31 Oct 2026).
+ */
+export function meetingSlot(c: Contact): Slot {
+  return slot(c.v.meeting_date, c.v.meeting_time, c.v.meeting_time_zone, c.v.time_zone, "Meeting");
+}
+
 /** When the email `afterDays` into the sequence is due: the admin's first-email time, that many days later, same local time. */
 export function mailSlot(c: Contact, afterDays = 0): Slot {
   return slot(c.v.mail_date, c.v.mail_time, c.v.mail_time_zone, c.v.time_zone, "Mail", afterDays);

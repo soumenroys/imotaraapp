@@ -4,6 +4,7 @@
 // from the Call Directory sheet ⇒ lib/outreach/run.ts.
 // ⛔ Sends nothing while outreach email is switched off — but still refreshes
 // the sheet's status columns (call_progress, mail_progress, what_to_do).
+// 🔑 And books agreed meetings into the Imotara calendar ⇒ lib/meetings/run.ts.
 
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
@@ -12,6 +13,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { runOutreach } from "@/lib/outreach/run";
 import { syncProgress } from "@/lib/outreach/syncSheet";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { bookMeetings } from "@/lib/meetings/run";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -27,7 +29,10 @@ export async function GET(req: NextRequest) {
     const r = await runOutreach(supabase);
     // 🔑 Always, even with email off: the sheet's status columns are for calls too.
     const status = await syncProgress(supabase).catch((e) => ({ error: (e as Error).message }));
-    return NextResponse.json({ ...r, sent: r.sent.length, status });
+    // ⚠️ Its own catch: a calendar fault must not stop the mail, nor the mail a meeting.
+    const meetings = await bookMeetings(supabase).catch((e) => ({ error: (e as Error).message }));
+    if ("failed" in meetings && meetings.failed.length) console.error("[cron/outreach-mail] meetings", meetings.failed);
+    return NextResponse.json({ ...r, sent: r.sent.length, status, meetings });
   } catch (e) {
     console.error("[cron/outreach-mail]", (e as Error).message);
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 500 });

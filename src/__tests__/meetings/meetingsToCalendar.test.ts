@@ -207,3 +207,15 @@ describe("talking to the calendar", () => {
     await expect(putEvent("t", event, false, f)).rejects.toThrow(/refused the meeting \(403/);
   });
 });
+
+describe("🔴 Sheet setup makes room for the new columns", () => {
+  it("a tab whose header ends at the old last column needs 4 more columns for the meeting ones", async () => {
+    const { headerCells } = await import("@/lib/voice/sheets");
+    const { LEGACY_COLUMNS, label } = await import("@/lib/voice/rules");
+    const before = LEGACY_COLUMNS.filter((c) => !c.startsWith("meeting_")).map((c) => label(c as Column));
+    const { cells, width } = headerCells(before);
+    expect(before).toHaveLength(42);
+    expect(width).toBe(46);
+    expect(cells.find((c) => c.text === "Meeting in calendar")?.letter).toMatch(/^A[QRST]$/);
+  });
+});

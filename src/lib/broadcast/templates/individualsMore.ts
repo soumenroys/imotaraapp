@@ -30,7 +30,7 @@ If that would help: ${SITE}
 
 What is the conversation you keep rehearsing?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("after-argument", "After an argument",
       "Send sparingly. Good as a standalone.",
@@ -47,7 +47,7 @@ If that is useful: ${SITE}
 
 Do you usually need to cool down first, or talk it out straight away?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("sunday-evening", "Sunday evening",
       "Time this for a Sunday afternoon.",
@@ -62,7 +62,7 @@ If you want somewhere to put it: ${SITE}
 
 Does Sunday evening land heavily for you, or is it a different day?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("cannot-name-it", "When you can't name the feeling",
       "For people who bounce off mood scales.",
@@ -79,7 +79,7 @@ If you want to try: ${SITE}
 
 What would you call the feeling you have most often, in your own words?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("comparison", "Comparing yourself to others",
       "Good for a younger audience.",
@@ -94,7 +94,7 @@ If you want to think it through: ${SITE}
 
 Who are you measuring yourself against at the moment?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("thing-you-dont-say", "The thing you keep not saying",
       "Direct. Works well as a second or third message.",
@@ -111,7 +111,7 @@ If you want to: ${SITE}
 
 What is yours? You do not have to tell me — but you could tell someone.
 
-— Suchismita`),
+— The Imotara team`),
 
     t("old-grief", "Grief that is old",
       "Handle with care. Do not send near a known anniversary.",
@@ -128,7 +128,7 @@ If you would like somewhere to say their name: ${SITE}
 
 Who do you still think about?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("anger-you-regret", "Anger you are ashamed of",
       "For people who feel bad about how they reacted.",
@@ -145,7 +145,7 @@ If you want to look at it: ${SITE}
 
 What usually comes out sideways when you are worn down?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("numb-not-sad", "Numb rather than sad",
       "For people who do not feel bad enough to ask for help.",
@@ -162,7 +162,7 @@ If you want somewhere to notice it: ${SITE}
 
 How long has it been flat, roughly?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("postponed-decision", "The decision you keep postponing",
       "Practical. Good for a coach-tone reader.",
@@ -177,7 +177,7 @@ If that would help: ${SITE}
 
 What have you been deciding for too long?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("you-are-so-strong", "When people say you are strong",
       "Resonates with carers and eldest siblings.",
@@ -194,7 +194,7 @@ If you would like that: ${SITE}
 
 When did someone last ask how you were and wait for the real answer?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("everyone-leans-on-you", "Being the one people lean on",
       "Close to the previous one — send one or the other, not both.",
@@ -211,7 +211,7 @@ If that helps: ${SITE}
 
 Who would you call, if you were the one who needed to?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("lonely-in-a-full-house", "Loneliness with people around",
       "For readers in joint families or shared homes.",
@@ -228,7 +228,7 @@ If you want that: ${SITE}
 
 Where do you go when you need ten minutes to yourself?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("starting-something-new", "Starting something new",
       "Good for a new job, course or city.",
@@ -243,7 +243,7 @@ If you want somewhere to offload at the end of those days: ${SITE}
 
 What is new for you at the moment?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("imposter", "The feeling you don't belong there",
       "Workplace-flavoured but not corporate.",
@@ -260,7 +260,7 @@ If you want to test that: ${SITE}
 
 What is the thing you are sure you are about to be found out about?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("money-worry", "Money worry",
       "Careful tone. Never implies Imotara solves it.",
@@ -277,7 +277,7 @@ If that is useful: ${SITE}
 
 What is the worry that tends to wake you?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("health-anxiety", "Worry about your health",
       "⚠️ Must never give medical advice. It does not.",
@@ -296,7 +296,7 @@ If you want somewhere for the rest: ${SITE}
 
 What are you waiting on?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("caring-for-a-parent", "Caring for a parent",
       "Strong with a 35–60 audience.",
@@ -313,7 +313,7 @@ If you want somewhere to say them: ${SITE}
 
 How is it going, honestly?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("new-parent", "New parent exhaustion",
       "Avoid implying anything clinical about postnatal health.",
@@ -330,7 +330,7 @@ For the ordinary heavy days: ${SITE}
 
 How are you doing, separately from how the baby is doing?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("exam-results", "After results",
       "Time to a results season.",
@@ -347,7 +347,7 @@ If you want somewhere to do that: ${SITE}
 
 How did it actually land for you?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("job-loss", "Losing a job",
       "Dignified. Never cheerful about it.",
@@ -362,7 +362,7 @@ If you want somewhere that is not a networking conversation: ${SITE}
 
 What has been the hardest part — the money, or the rest of it?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("moving-city", "Moving somewhere new",
       "Good for students and relocating workers.",
@@ -379,7 +379,7 @@ If that helps: ${SITE}
 
 How long have you been where you are now?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("faded-friendship", "A friendship that faded",
       "Quiet, specific.",
@@ -394,7 +394,7 @@ If you want to think about whether to send it: ${SITE}
 
 Who came to mind just now?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("forgiving", "Forgiving someone",
       "Philosophical. Not religious.",
@@ -409,7 +409,7 @@ If you want to untangle it: ${SITE}
 
 Is there someone you are deciding about?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("apologising", "Owing someone an apology",
       "Pairs with the forgiving one — send either, not both.",
@@ -426,7 +426,7 @@ If you want to work out the wording: ${SITE}
 
 Who are you putting off?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("unsent-message", "The message you didn't send",
       "Light. Good between heavier ones.",
@@ -443,7 +443,7 @@ If you want to: ${SITE}
 
 What did you nearly send this week?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("journaling-without-journaling", "Journaling, without the journal",
       "For people who have failed at journaling.",
@@ -460,7 +460,7 @@ If that sounds better: ${SITE}
 
 How long did your longest journaling run last?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("voice-input", "Speaking instead of typing",
       "Feature-led: voice input.",
@@ -475,7 +475,7 @@ If you have only ever typed to it, it is worth trying once: ${SITE}
 
 Are you someone who thinks better out loud, or on paper?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("read-aloud", "Hearing it read back",
       "Feature-led: read-aloud.",
@@ -490,7 +490,7 @@ Turn it on in Settings, or just try it: ${SITE}
 
 Would you rather read or be read to, at the end of a long day?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("history-as-record", "Your history as a record",
       "Feature-led: history.",
@@ -505,7 +505,7 @@ Your history is there whenever you want it: ${SITE}
 
 Do you remember what was weighing on you this time last year?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("trends", "What a month actually looks like",
       "Feature-led: trends.",
@@ -522,7 +522,7 @@ Have a look: ${SITE}
 
 What do you think your pattern would show?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("small-steps", "Small steps, not transformation",
       "Feature-led: Grow.",
@@ -537,7 +537,7 @@ If you want one: ${SITE}
 
 What is one thing that would make this week marginally easier?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("works-offline", "It works without a signal",
       "Feature-led: offline.",
@@ -552,7 +552,7 @@ Worth knowing before you need it: ${SITE}
 
 Where do you usually end up using it?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("switching-devices", "Phone and laptop",
       "Feature-led: sync.",
@@ -567,7 +567,7 @@ If you want to set it up: ${SITE}
 
 Do you use it more on your phone or on a computer?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("deleting-history", "Deleting what you wrote",
       "Trust-building. Important one.",
@@ -584,7 +584,7 @@ The detail: ${SITE}/privacy
 
 Is there anything else about this you would want to know?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("festival-loneliness", "Festival season, alone",
       "Time to a festival period. Do not name one festival.",
@@ -599,7 +599,7 @@ If you want somewhere that is not a party: ${SITE}
 
 How are you spending it this year?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("weather-and-mood", "Weather and mood",
       "Gentle. Good filler between heavier sends.",
@@ -616,7 +616,7 @@ If you want to track it: ${SITE}
 
 Does the weather move your mood much?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("new-year-no-resolutions", "A new year, without resolutions",
       "Time to early January.",
@@ -631,7 +631,7 @@ If you want to look first: ${SITE}
 
 What was last year actually like for you?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("birthday", "Birthdays",
       "Do not personalise unless you have the date.",
@@ -646,7 +646,7 @@ If you want to think about it somewhere: ${SITE}
 
 Do birthdays land well for you, or not especially?
 
-— Suchismita`),
+— The Imotara team`),
 
     t("when-its-fine", "When things are actually fine",
       "⚠️ Important: not every message should assume distress.",
@@ -663,5 +663,5 @@ Whenever it suits: ${SITE}
 
 What has been going quietly well for you lately?
 
-— Suchismita`),
+— The Imotara team`),
 ];

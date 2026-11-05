@@ -151,9 +151,11 @@ describe("🔑 every template invites a reply", () => {
         expect(offenders).toEqual([]);
     });
 
-    it("is signed by a person", () => {
+    // 🔑 Owner, 5 Nov 2026: Suchismita resigned; mail now comes from social@ and is
+    // signed by the team — never by one person, so a departure never strands a template.
+    it("is signed by the team, and never by a former team member", () => {
         const offenders = TEMPLATES
-            .filter((t) => !/—\s*Suchismita/.test(t.body))
+            .filter((t) => !/— The Imotara team\s*$/.test(t.body.trim()) || /Suchismita/i.test(t.body))
             .map((t) => t.id);
         expect(offenders).toEqual([]);
     });

@@ -22,7 +22,7 @@ import { templatesFor } from "@/lib/broadcast/templates";
 import { SITE } from "@/lib/broadcast/templates/types";
 import { AUDIENCE_LABEL, STEP_LABEL, type Audience, type StepId } from "@/lib/outreach/sequence";
 
-export const SIGNATURE = "— Suchismita Sen, Imotara";
+export const SIGNATURE = "— The Imotara team";
 
 const STEP_BRIEF: Record<StepId, string> = {
   intro:

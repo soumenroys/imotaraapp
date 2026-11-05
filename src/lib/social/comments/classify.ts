@@ -19,7 +19,7 @@ export type CommentKind = "team" | "spam" | "crisis" | "genuine";
  * the owner rejects, never an automatic reply.
  */
 export const TEAM_HANDLES = ["imotaraofficial", "tapankumarkarmakar"] as const;
-export const TEAM_NAMES = ["imotara", "tapan kumar karmakar", "suchismita sen"] as const;
+export const TEAM_NAMES = ["imotara", "tapan kumar karmakar"] as const;
 
 /**
  * 🔑 The repost scam, as it actually arrived (Oct 2026): "please SenD me ThIS

@@ -13,7 +13,7 @@ const t = (
     id: string, title: string, note: string, subject: string, body: string,
 ): Template => ({ id: `ngos-${id}`, audience: "ngos", title, note, subject, body });
 
-const SIGN = "— Suchismita Sen, Imotara";
+const SIGN = "— The Imotara team";
 
 export const NGOS_MORE: Template[] = [
     // ── specific staff groups ───────────────────────────────────────────────

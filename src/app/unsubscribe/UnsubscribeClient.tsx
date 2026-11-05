@@ -41,8 +41,8 @@ export default function UnsubscribeClient({ token }: { token: string }) {
         <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-zinc-400">
           It may have been broken across two lines by your email program. Try
           clicking it again from the message, or write to{" "}
-          <a href="mailto:suchismita.sen@imotara.com" className="text-indigo-400 hover:underline">
-            suchismita.sen@imotara.com
+          <a href="mailto:social@imotara.com" className="text-indigo-400 hover:underline">
+            social@imotara.com
           </a>{" "}
           and we will remove you by hand. We will not ask you why.
         </p>

@@ -25,7 +25,7 @@ A little more: ${SITE}
 
 Would it be useful if I sent one page on how other organisations have set this up — or is staff wellbeing already covered for you?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-beneficiary-language",
@@ -45,7 +45,7 @@ More detail: ${SITE}
 
 Which languages does your work reach that your support capacity doesn't?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-between-sessions",
@@ -67,7 +67,7 @@ More: ${SITE}
 
 How long is the typical gap between sessions in your programme?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-pricing",
@@ -90,7 +90,7 @@ Background: ${SITE}
 
 Roughly how many people would be in scope — a team, a region, or everyone?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-lone-field-staff",
@@ -110,7 +110,7 @@ More: ${SITE}
 
 How many of your team are posted somewhere without colleagues nearby?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-measuring-without-surveillance",
@@ -130,7 +130,7 @@ More: ${SITE}
 
 What does your funder actually require you to evidence?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-volunteers",
@@ -150,7 +150,7 @@ More: ${SITE}
 
 Do you have a sense of why volunteers drift away from your programme?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-after-deployment",
@@ -170,7 +170,7 @@ More: ${SITE}
 
 What does your organisation currently offer teams in the weeks after they return?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-pilot",
@@ -190,7 +190,7 @@ Background, if useful: ${SITE}
 
 Is there one team where this would be worth trying — and who should I be talking to about it?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "ngos-follow-up",
@@ -210,6 +210,6 @@ If it's ever useful: ${SITE}
 
 Is there someone better placed for this that I should be writing to instead?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
 ];

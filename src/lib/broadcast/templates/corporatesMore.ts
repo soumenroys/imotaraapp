@@ -12,7 +12,7 @@ const t = (
     id: string, title: string, note: string, subject: string, body: string,
 ): Template => ({ id: `corporates-${id}`, audience: "corporates", title, note, subject, body });
 
-const SIGN = "— Suchismita Sen, Imotara";
+const SIGN = "— The Imotara team";
 
 export const CORPORATES_MORE: Template[] = [
     // ── employee groups ─────────────────────────────────────────────────────

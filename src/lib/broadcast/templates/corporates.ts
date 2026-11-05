@@ -22,7 +22,7 @@ More: ${SITE}
 
 What is your current EAP utilisation, if you track it?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-manager-checkins",
@@ -42,7 +42,7 @@ More: ${SITE}
 
 What does your leadership currently expect to see from a wellbeing programme?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-shift-and-remote",
@@ -62,7 +62,7 @@ More: ${SITE}
 
 What proportion of your workforce works outside standard hours?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-return-from-leave",
@@ -82,7 +82,7 @@ More: ${SITE}
 
 What does your organisation currently do for people in their first month back?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-cost",
@@ -104,7 +104,7 @@ More: ${SITE}
 
 How many people would be in scope — a team, a site, or the whole organisation?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-privacy",
@@ -124,7 +124,7 @@ More: ${SITE}
 
 Does your organisation have any requirement that would conflict with that?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-multilingual-workforce",
@@ -144,7 +144,7 @@ More: ${SITE}
 
 How many languages are spoken across your sites?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-pilot",
@@ -162,7 +162,7 @@ Background: ${SITE}
 
 Is there a team where this would be worth trying — and who else would need to be in that conversation?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-attrition",
@@ -182,7 +182,7 @@ More: ${SITE}
 
 What does your organisation learn in exit interviews that it wishes it had known six months earlier?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "corporates-follow-up",
@@ -202,6 +202,6 @@ If it becomes relevant: ${SITE}
 
 Does this sit with someone else I should be approaching?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
 ];

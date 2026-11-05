@@ -108,7 +108,7 @@ We then email you once to check the address is really yours, with a single link 
 ### Stop receiving updates
 Every update email has an **Unsubscribe** link at the bottom, and most email apps also show an unsubscribe button next to our name at the top. Either one works immediately — including for anything already queued to go out. You do not need to sign in, reply, or explain yourself.
 
-If the link does not work — some email programs break long links across two lines — write to **suchismita.sen@imotara.com** and we will remove you by hand. We will not ask you why.
+If the link does not work — some email programs break long links across two lines — write to **social@imotara.com** and we will remove you by hand. We will not ask you why.
 
 Unsubscribing from updates does **not** close your account or stop essential messages.
 

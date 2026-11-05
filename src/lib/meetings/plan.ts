@@ -3,7 +3,7 @@
 //
 // 🔑 OWNER, 31 Oct 2026 (corrected): "if users agreed to meet imotara
 // representative on a specific date and time, then the meeting need to be
-// scheduled in imotara.imotara@gmail.com calendar and tapan and suchismita need
+// scheduled in imotara.imotara@gmail.com calendar and tapan and suchismita need [5 Nov: Suchismita resigned ⇒ social@]
 // to be added there. the meeting schedule should be as per the user requested
 // date and time with that user location timezone." And 1 Nov 2026: the user is
 // invited too.
@@ -17,8 +17,8 @@ import { createHash } from "node:crypto";
 import { stoppedByAdmin, type Contact } from "@/lib/voice/rules";
 import { meetingSlot } from "@/lib/voice/slots";
 
-/** The team members every meeting invites (owner, 1 Nov 2026). */
-export const MEETING_TEAM = ["tapan@imotara.com", "suchismita.sen@imotara.com"] as const;
+/** Who every meeting invites (owner, 5 Nov 2026: Suchismita resigned ⇒ Tapan + the shared social@ mailbox). */
+export const MEETING_TEAM = ["tapan@imotara.com", "social@imotara.com"] as const;
 
 /** The calendar the events live in. ⛔ A grant for any other account is refused. */
 export const MEETING_CALENDAR_ACCOUNT = "imotara.imotara@gmail.com";

@@ -27,7 +27,7 @@ More: ${SITE}
 
 How do your residents usually spend the long afternoons?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-mother-tongue",
@@ -45,7 +45,7 @@ More: ${SITE}
 
 Which languages are spoken among your residents?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-staff",
@@ -65,7 +65,7 @@ More: ${SITE}
 
 What does your home currently offer staff after a resident dies?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-simple-to-use",
@@ -89,7 +89,7 @@ More: ${SITE}
 
 How comfortable are your residents with phones and tablets generally?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-distant-families",
@@ -109,7 +109,7 @@ More: ${SITE}
 
 How many of your residents have family outside the country?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-evenings",
@@ -127,7 +127,7 @@ More: ${SITE}
 
 When do your residents most often seem to want company?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-dignity",
@@ -147,7 +147,7 @@ More: ${SITE}
 
 Would that position be difficult with your families?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-pilot",
@@ -165,7 +165,7 @@ Background: ${SITE}
 
 Is there a floor where this would be worth trying — and who would need to agree?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-cost",
@@ -188,7 +188,7 @@ More: ${SITE}
 
 Roughly how many residents do you have?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "eldercare-follow-up",
@@ -208,6 +208,6 @@ If it becomes useful: ${SITE}
 
 Is there someone else I should be speaking to about it?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
 ];

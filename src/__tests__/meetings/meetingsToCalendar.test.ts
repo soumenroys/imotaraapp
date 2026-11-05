@@ -44,10 +44,10 @@ describe("which rows become meetings", () => {
     expect(w.kind === "book" && w.event.start).toEqual({ dateTime: "2026-11-04T15:00:00.000Z", timeZone: "Asia/Kolkata" });
   });
 
-  it("invites Tapan, Suchismita AND the person", () => {
+  it("invites Tapan, the social@ mailbox AND the person (Suchismita resigned 3 Nov)", () => {
     const [w] = meetingWork([contact()], NOW);
-    expect(w.kind === "book" && w.event.attendees.map((a) => a.email)).toEqual(["tapan@imotara.com", "suchismita.sen@imotara.com", "margaret@rosewood.org"]);
-    expect(MEETING_TEAM).toEqual(["tapan@imotara.com", "suchismita.sen@imotara.com"]);
+    expect(w.kind === "book" && w.event.attendees.map((a) => a.email)).toEqual(["tapan@imotara.com", "social@imotara.com", "margaret@rosewood.org"]);
+    expect(MEETING_TEAM).toEqual(["tapan@imotara.com", "social@imotara.com"]);
   });
 
   it("no email for the person: still booked for the team, and the sheet says to add it", () => {

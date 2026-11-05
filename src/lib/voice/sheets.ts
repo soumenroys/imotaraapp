@@ -464,7 +464,7 @@ export const NOTES: Record<Column, string> = {
   call_date: "REQUIRED for calls. The day to call — double-click for a calendar. A new, later date calls again.",
   call_time: "REQUIRED for calls. The time to call — choose from the list, or type any time (24-hour). ⚠️ The call service rings only 09:00–21:00 their time; a time outside is held until 09:00. No answer = retried automatically, up to 3 tries.",
   call_time_zone: "OPTIONAL. Only if the call should follow another zone than the row's Time zone.",
-  meeting_date: "REQUIRED for meetings — fill only when they AGREE TO MEET an Imotara team member. The day, in THEIR local time — double-click for a calendar. With Meeting time, it goes into the Imotara calendar within 10 minutes: Tapan, Suchismita and their Email address are invited.",
+  meeting_date: "REQUIRED for meetings — fill only when they AGREE TO MEET an Imotara team member. The day, in THEIR local time — double-click for a calendar. With Meeting time, it goes into the Imotara calendar within 10 minutes: Tapan, social@imotara.com and their Email address are invited.",
   meeting_time: "REQUIRED for meetings, with Meeting date. The time THEY agreed, in their local time (the row's Time zone) — choose from the list or type it (24-hour). Change it later and the invitation is updated.",
   meeting_time_zone: "OPTIONAL. Only if the meeting time is in another zone than the row's Time zone.",
   asked_for_call: "REQUIRED for the Individuals tab. yes ONLY if the person themselves asked us to call — and write when and how in 'How they agreed to be contacted'. Until TRAI DLT registration is done, individuals are called only with yes here.",
@@ -768,7 +768,7 @@ export async function updateGuide(): Promise<void> {
       ["No date = nothing happens. No consent (How they agreed to be contacted) = no call and no email. TO STOP SOMEONE: yes in Stop all contact?. Unsubscribe, a bounce, 'not interested', 'do not call' or a meeting also stop everything."],
       ["Dates: double-click the cell for a calendar. Times: choose from the list, or type any time (24-hour). Phone numbers take digits, +, spaces, ( ) and - only; email addresses are checked as you type."],
     ] },
-    { range: `${t}!B31`, values: [["MEETING: when someone agrees to meet the team, fill Meeting date + Meeting time as THEY said it, in their local time (the row's Time zone, or Meeting time zone), and their Email address. Within 10 minutes it is in the Imotara calendar, with Tapan, Suchismita and them invited — 'Meeting in calendar' shows ✅. Change the date or time and the invitation is updated."]] },
+    { range: `${t}!B31`, values: [["MEETING: when someone agrees to meet the team, fill Meeting date + Meeting time as THEY said it, in their local time (the row's Time zone, or Meeting time zone), and their Email address. Within 10 minutes it is in the Imotara calendar, with Tapan, social@imotara.com and them invited — 'Meeting in calendar' shows ✅. Change the date or time and the invitation is updated."]] },
   ];
   await google(`/values:batchUpdate`, { method: "POST", body: JSON.stringify({ valueInputOption: "RAW", data }) });
   // The Settings tab explains each switch in column C — say what they mean now (owner, 28 Oct 2026).

@@ -25,7 +25,7 @@ More: ${SITE}
 
 Roughly what proportion of your students do you think your counselling service actually reaches?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-exam-season",
@@ -45,7 +45,7 @@ More: ${SITE}
 
 When does your institution feel this most — before the exams, or after the results?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-teacher-wellbeing",
@@ -65,7 +65,7 @@ More: ${SITE}
 
 Does your institution currently offer staff anything separate from the student service?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-age-and-consent",
@@ -88,7 +88,7 @@ Our terms, in full: ${SITE}/terms
 
 What age range would be in scope at your institution?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-hostel-students",
@@ -108,7 +108,7 @@ More: ${SITE}
 
 How many of your students are residential?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-counsellor-caseload",
@@ -128,7 +128,7 @@ More: ${SITE}
 
 What's the ratio at your institution?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-multilingual-campus",
@@ -146,7 +146,7 @@ More: ${SITE}
 
 How many languages are spoken across your student body?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-what-institution-sees",
@@ -166,7 +166,7 @@ More: ${SITE}
 
 Does your institution have a reporting requirement that would conflict with that?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-pilot",
@@ -184,7 +184,7 @@ Background: ${SITE}
 
 Is there a department or year group where this would be worth trying — and who would need to agree to it?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
     {
         id: "education-follow-up",
@@ -204,6 +204,6 @@ If it becomes useful: ${SITE}
 
 Is there someone else at the institution I should be writing to?
 
-— Suchismita Sen, Imotara`,
+— The Imotara team`,
     },
 ];

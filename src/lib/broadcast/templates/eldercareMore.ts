@@ -16,7 +16,7 @@ const t = (
     id: string, title: string, note: string, subject: string, body: string,
 ): Template => ({ id: `eldercare-${id}`, audience: "eldercare", title, note, subject, body });
 
-const SIGN = "— Suchismita Sen, Imotara";
+const SIGN = "— The Imotara team";
 
 export const ELDERCARE_MORE: Template[] = [
     // ── residents ───────────────────────────────────────────────────────────

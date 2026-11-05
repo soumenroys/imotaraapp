@@ -25,7 +25,7 @@ If you'd like to pick it up again: ${SITE}
 
 What made you try it in the first place? I read every reply.
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-late-night",
@@ -47,7 +47,7 @@ And if it's ever heavier than that — please talk to someone. In India, Tele-MA
 
 Does the quiet hour tend to help you think, or make it harder?
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-own-language",
@@ -67,7 +67,7 @@ If you'd like to try it in yours: ${SITE}
 
 Which language do you find yourself thinking in when something is difficult?
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-patterns",
@@ -87,7 +87,7 @@ If you'd like to look: ${SITE}
 
 If you already know your pattern — what is it? I'd genuinely like to know.
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-not-advice",
@@ -107,7 +107,7 @@ If that sounds like the right shape: ${SITE}
 
 Which do you usually want first — to be heard, or to be helped?
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-no-account",
@@ -127,7 +127,7 @@ If you'd like to look without committing anything: ${SITE}
 
 Was there something specific that put you off? That's useful for me to know.
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-privacy",
@@ -150,7 +150,7 @@ The full detail, without the legal fog: ${SITE}/privacy
 
 Is there something you'd want to know that isn't answered there? Ask me directly.
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-companion",
@@ -170,7 +170,7 @@ If you'd like to set yours up: ${SITE}
 
 If you've named yours — what did you call it?
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-returning",
@@ -190,7 +190,7 @@ Whenever it's useful: ${SITE}
 
 How have the last few months actually been?
 
-— Suchismita`,
+— The Imotara team`,
     },
     {
         id: "individuals-not-therapy",
@@ -212,6 +212,6 @@ Imotara, for the ordinary days: ${SITE}
 
 Is there anything you wish a tool like this would stop pretending to be?
 
-— Suchismita`,
+— The Imotara team`,
     },
 ];

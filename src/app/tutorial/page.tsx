@@ -1660,7 +1660,7 @@ const FEATURES: Record<string, Feature[]> = {
         "We then send one email asking you to confirm the address. Nothing else follows until you press that link — so if someone types your address by mistake, just ignore it.",
         "To stop: open any update email and use the Unsubscribe link at the bottom — or the unsubscribe button your email app shows beside our name.",
         "You do not need to sign in, reply, or give a reason, and it applies to anything already on its way.",
-        "If a link is broken across two lines by your email program, write to suchismita.sen@imotara.com and we will remove you by hand.",
+        "If a link is broken across two lines by your email program, write to social@imotara.com and we will remove you by hand.",
         "Unsubscribing from updates does not close your account or stop essential messages.",
       ],
     },

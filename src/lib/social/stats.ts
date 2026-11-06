@@ -199,9 +199,16 @@ export async function capturePostStats(
   opts: { days?: number; now?: Date } = {},
 ): Promise<{ captured: number; skipped: number; problems: string[] }> {
   const problems: string[] = [];
+  /**
+   * 🔴 PLATFORM FIRST, TOKEN SECOND (6 Nov 2026). YouTube keeps a REFRESH
+   * token, not the access token loadChannelCredential reads, so asking for
+   * the token first stopped every YouTube run at "a row but no stored token"
+   * — before the YouTube reader was ever reached. Seen live on the first run.
+   */
+  const { data: acct } = await db.from("social_accounts").select("platform").eq("id", accountId).maybeSingle();
+  if (acct?.platform === "youtube") return captureYouTubePostStats(db, accountId, opts);
   const cred = await loadChannelCredential(db, accountId);
   if (!cred.ok) return { captured: 0, skipped: 0, problems: [cred.reason] };
-  if (cred.platform === "youtube") return captureYouTubePostStats(db, accountId, opts);
   if (cred.platform !== "facebook" && cred.platform !== "instagram") {
     return { captured: 0, skipped: 0, problems: [`No reader for ${cred.platform} yet.`] };
   }

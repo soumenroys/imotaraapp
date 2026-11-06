@@ -53,6 +53,10 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     steps: [
       { do: "Search the person's email address.", then: "Exact or partial — it matches on the address, not the name." },
       {
+        do: "Or narrow the list with the filters — plan, status, platform, last active, joined dates — and sort it.",
+        then: "Each row shows how many messages the person has sent and when they were last active, in India time (IST). Chats kept only on a phone are not counted.",
+      },
+      {
         do: "Open their row to see the tier they are on and how they got it.",
         then: "A tier can come from a purchase, an organisation's pool, or a grant made here.",
       },

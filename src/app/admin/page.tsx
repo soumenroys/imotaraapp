@@ -40,6 +40,10 @@ interface UserLicense {
   license_created_at: string | null;
   license_updated_at: string | null;
   banned_at?: string | null;
+  // admin_v5 (task #86) — absent until docs/sql/admin_v5_users_activity.sql is run.
+  message_count?: number | null;
+  last_active_at?: string | null;
+  platform?: string | null;
 }
 
 interface UserDetail {
@@ -94,6 +98,7 @@ import { AdminShell, SignOutButton, Tile, type NavKey } from "@/app/admin/_compo
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { CronHealth } from "@/app/admin/_components/CronHealth";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
+import { formatIST } from "@/lib/admin/userListFilters";
 
 const SESSION_KEY = "imotara_admin_token";
 
@@ -784,6 +789,13 @@ function UserLicenseRow({
             Joined {fmtDate(user.user_created_at)}
             {user.license_updated_at && ` · License updated ${timeAgo(user.license_updated_at)}`}
           </p>
+          {user.message_count !== undefined && (
+            <p className="mt-0.5 text-[10px] text-zinc-500">
+              {`${user.message_count ?? 0} message${user.message_count === 1 ? "" : "s"}`}
+              {` · Last active ${formatIST(user.last_active_at) ?? "never"}`}
+              {user.platform && ` · ${PLATFORM_LABEL[user.platform] ?? user.platform}`}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${tierBadge(user.tier)}`}>
@@ -2673,6 +2685,24 @@ function StatsSection({ token }: { token: string }) {
 // LicensesSection
 // ─────────────────────────────────────────────────────────────────────────────
 
+type UserFilterState = {
+  tier: string; status: string; platform: string; activeDays: string;
+  joinedFrom: string; joinedTo: string; sort: string;
+};
+const NO_FILTERS: UserFilterState = { tier: "", status: "", platform: "", activeDays: "", joinedFrom: "", joinedTo: "", sort: "" };
+const PLATFORM_LABEL: Record<string, string> = { web: "Web", android: "Android", ios: "iPhone" };
+const SORT_LABEL: Record<string, string> = {
+  "": "most recently updated", updated: "most recently updated",
+  last_active: "most recently active", messages: "most messages", joined: "newest first",
+};
+const USER_FILTER_SELECTS: { key: Exclude<keyof UserFilterState, "joinedFrom" | "joinedTo">; label: string; options: [string, string][] }[] = [
+  { key: "tier", label: "Plan", options: [["", "Any plan"], ["free", "Free"], ["plus", "Plus"], ["family", "Family"], ["none", "No licence"]] },
+  { key: "status", label: "Status", options: [["", "Any status"], ["trial", "Trial"], ["valid", "Valid"], ["cancelling", "Cancelling"], ["expired", "Expired"], ["invalid", "Withdrawn"]] },
+  { key: "platform", label: "Platform", options: [["", "Any platform"], ["web", "Web"], ["android", "Android"], ["ios", "iPhone"], ["unknown", "Not known"]] },
+  { key: "activeDays", label: "Last active", options: [["", "Any time"], ["1", "Last 24 hours"], ["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 90 days"], ["0", "Never"]] },
+  { key: "sort", label: "Sort by", options: [["", "Recently updated"], ["last_active", "Last active"], ["messages", "Most messages"], ["joined", "Newest"]] },
+];
+
 function LicensesSection({ token, myRole }: { token: string; myRole: string | null }) {
   type LicTab = "users" | "history";
   const [licTab, setLicTab]           = useState<LicTab>("users");
@@ -2686,17 +2716,24 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   // Leaving them in means the page you are looking at is mostly noise.
   const [hideGuests, setHideGuests]   = useState(true);
   const [filterUnavailable, setFilterUnavailable] = useState(false);
+  // Task #86: plan / status / platform / last-active / joined-date filters and
+  // a sort. Every value is re-checked on the server (lib/admin/userListFilters).
+  const [filters, setFilters] = useState<UserFilterState>(NO_FILTERS);
+  const [activityUnavailable, setActivityUnavailable] = useState(false);
+  const setFilter = (k: keyof UserFilterState, v: string) => setFilters((f) => ({ ...f, [k]: v }));
+  const filtersOn = (Object.keys(NO_FILTERS) as (keyof UserFilterState)[]).some((k) => filters[k] !== NO_FILTERS[k]);
   const PAGE_SIZE = 20;
   const [history, setHistory]         = useState<HistoryEntry[]>([]);
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
 
-  const fetchUsers = useCallback(async (q: string, p: number, hide: boolean) => {
+  const fetchUsers = useCallback(async (q: string, p: number, hide: boolean, f: UserFilterState) => {
     setLoading(true); setError("");
     try {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(p) });
       if (q) params.set("search", q);
       if (hide) params.set("excludeAnonymous", "1");
+      for (const [k, v] of Object.entries(f)) if (v) params.set(k, v);
       const res = await fetch(`/api/admin/licenses?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -2705,6 +2742,7 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
       setUsers(json.users ?? []);
       setTotal(typeof json.total === "number" ? json.total : null);
       setFilterUnavailable(!!json.filterUnavailable);
+      setActivityUnavailable(!!json.activityUnavailable);
     } catch { setError("Network error."); }
     finally { setLoading(false); }
   }, [token]);
@@ -2724,12 +2762,12 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   // Any change to what is being asked for puts you back on the first page —
   // otherwise narrowing a search while on page 4 lands on an empty screen that
   // looks like "no results".
-  useEffect(() => { setPage(0); }, [search, hideGuests, licTab]);
+  useEffect(() => { setPage(0); }, [search, hideGuests, licTab, filters]);
 
   useEffect(() => {
-    if (licTab === "users") fetchUsers(search, page, hideGuests);
+    if (licTab === "users") fetchUsers(search, page, hideGuests, filters);
     else fetchHistory();
-  }, [licTab, search, page, hideGuests, fetchUsers, fetchHistory]);
+  }, [licTab, search, page, hideGuests, filters, fetchUsers, fetchHistory]);
 
   return (
     <div>
@@ -2793,6 +2831,47 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
             )}
           </div>
 
+          {/* Filters + sort (task #86). Times are India time (IST). */}
+          <div className="mb-4 rounded-xl border border-white/8 bg-white/[0.03] p-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {USER_FILTER_SELECTS.map((sel) => (
+                <label key={sel.key} className="flex flex-col gap-1 text-[10px] text-zinc-500">
+                  {sel.label}
+                  <select value={filters[sel.key]} disabled={activityUnavailable}
+                    onChange={(e) => setFilter(sel.key, e.target.value)}
+                    className="rounded-lg border border-white/10 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/40 disabled:opacity-40">
+                    {sel.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+              ))}
+              <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
+                Joined from
+                <input type="date" value={filters.joinedFrom} disabled={activityUnavailable}
+                  onChange={(e) => setFilter("joinedFrom", e.target.value)}
+                  className="rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none [color-scheme:dark] disabled:opacity-40" />
+              </label>
+              <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
+                Joined to
+                <input type="date" value={filters.joinedTo} disabled={activityUnavailable}
+                  onChange={(e) => setFilter("joinedTo", e.target.value)}
+                  className="rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none [color-scheme:dark] disabled:opacity-40" />
+              </label>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-[10px] text-zinc-600">
+                {activityUnavailable
+                  ? "Filters, message counts and last active need the admin_v5 query — run docs/sql/admin_v5_users_activity.sql in Supabase."
+                  : "Last active is India time (IST). Message counts include only chats saved to the account — chats kept only on a phone are not counted."}
+              </span>
+              {filtersOn && (
+                <button type="button" onClick={() => setFilters(NO_FILTERS)}
+                  className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-zinc-400 hover:text-zinc-200">
+                  Clear filters
+                </button>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => <div key={i} className="h-16 animate-pulse rounded-2xl bg-white/5" />)}
@@ -2808,7 +2887,7 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
             <div className="space-y-3">
               {users.map((u) => (
                 <UserLicenseRow key={u.user_id} user={u} token={token} myRole={myRole}
-                  onUpdated={() => fetchUsers(search, page, hideGuests)} />
+                  onUpdated={() => fetchUsers(search, page, hideGuests, filters)} />
               ))}
               {/* Pager. `total` comes from count(*) OVER () and is absent on
                   the pre-migration fallback path, so "Next" falls back to
@@ -2824,7 +2903,9 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
                   {total !== null
                     ? `${total === 0 ? 0 : page * PAGE_SIZE + 1}–${page * PAGE_SIZE + users.length} of ${total}`
                     : `${users.length} on this page`}
-                  {search ? ` for "${search}"` : " · most recently updated"}
+                  {search ? ` for "${search}"` : ""}
+                  {` · ${SORT_LABEL[activityUnavailable ? "" : filters.sort] ?? "most recently updated"}`}
+                  {filtersOn && !activityUnavailable ? " · filtered" : ""}
                   {hideGuests && !filterUnavailable ? " · guests hidden" : ""}
                 </p>
 

@@ -47,7 +47,7 @@ describe("every user is reachable", () => {
     it("changing the search or the filter returns you to the first page", () => {
         // Narrowing a search while on page 4 would otherwise land on an empty
         // screen that reads as "no results".
-        expect(ui).toMatch(/useEffect\(\(\) => \{ setPage\(0\); \}, \[search, hideGuests, licTab\]\)/);
+        expect(ui).toMatch(/useEffect\(\(\) => \{ setPage\(0\); \}, \[search, hideGuests, licTab, filters\]\)/);
     });
 });
 

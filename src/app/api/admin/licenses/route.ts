@@ -1,12 +1,17 @@
 // src/app/api/admin/licenses/route.ts
 // GET  /api/admin/licenses?search=&page=0&limit=20&excludeAnonymous=1
-//                                                   — list/search users with licenses
+//        &tier=&status=&platform=&activeDays=&joinedFrom=&joinedTo=&sort=
+//                                                   — list/search users with licenses,
+//          each with message count, last active and platform (admin_v5, task #86)
 // POST /api/admin/licenses                          — assign or create a license (upsert)
 // Protected by ADMIN_SECRET Bearer token.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { adminAuthorized } from "@/app/api/admin/_auth";
+import { needsActivityQuery, parseUserListFilters } from "@/lib/admin/userListFilters";
+
+const MISSING_FN = /Could not find the function|PGRST202|does not exist/i;
 
 export async function GET(req: NextRequest) {
   if (!await adminAuthorized(req)) {
@@ -24,7 +29,38 @@ export async function GET(req: NextRequest) {
   // rows AND still skip the people it excluded.
   const excludeAnonymous = req.nextUrl.searchParams.get("excludeAnonymous") === "1";
 
+  const filters = parseUserListFilters(req.nextUrl.searchParams);
   const supabase = getSupabaseAdmin();
+
+  // admin_v5 adds the filters and, per person, message count / last active /
+  // platform. Until docs/sql/admin_v5_users_activity.sql is run, fall back to
+  // v4: the list still works, the new columns and filters are simply absent,
+  // and the page says so (activityUnavailable).
+  {
+    const v5 = await supabase.rpc("admin_search_users_v5", {
+      search_email:      search,
+      page_offset:       page * limit,
+      page_limit:        limit,
+      exclude_anonymous: excludeAnonymous,
+      f_tier:            filters.tier,
+      f_status:          filters.status,
+      f_platform:        filters.platform,
+      f_active_days:     filters.activeDays,
+      f_joined_from:     filters.joinedFrom,
+      f_joined_to:       filters.joinedTo,
+      sort_by:           filters.sort,
+    });
+    if (!v5.error) {
+      const users = v5.data ?? [];
+      const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
+      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false });
+    }
+    if (!MISSING_FN.test(`${v5.error.message} ${v5.error.code ?? ""}`)) {
+      console.error("[admin/licenses GET v5]", v5.error.message);
+      return NextResponse.json({ error: v5.error.message }, { status: 500 });
+    }
+    console.warn("[admin/licenses GET] admin_v5 not applied — falling back to v4", needsActivityQuery(filters) ? "(filters ignored)" : "");
+  }
 
   let { data, error } = await supabase.rpc("admin_search_users_with_licenses", {
     search_email:      search,
@@ -41,7 +77,7 @@ export async function GET(req: NextRequest) {
   // old signature so the screen keeps working, unfiltered, until the migration
   // lands.
   let filterUnavailable = false;
-  if (error && /Could not find the function|PGRST202|does not exist/i.test(`${error.message} ${error.code ?? ""}`)) {
+  if (error && MISSING_FN.test(`${error.message} ${error.code ?? ""}`)) {
     console.warn("[admin/licenses GET] admin_v4 migration not applied — falling back to the 3-arg RPC");
     filterUnavailable = true;
     ({ data, error } = await supabase.rpc("admin_search_users_with_licenses", {
@@ -63,7 +99,7 @@ export async function GET(req: NextRequest) {
     ? Number(users[0].total_count)
     : null;
 
-  return NextResponse.json({ users, total, page, limit, filterUnavailable });
+  return NextResponse.json({ users, total, page, limit, filterUnavailable, activityUnavailable: true });
 }
 
 export async function POST(req: NextRequest) {

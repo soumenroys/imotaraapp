@@ -350,14 +350,17 @@ describe("⛔ a 4:5 card fills itself without crowding", () => {
         expect(Math.abs(atLimit - unboosted)).toBeLessThan(2);
     });
 
-    it("⛔ and 1:1 and 9:16 are untouched, because nobody complained about them", () => {
+    it("🔑 Instagram is 4:5 too since 6 Nov 2026 (the 3:4 grid cut square cards) ⇒ it grows like Facebook", () => {
+        expect(sized("instagram", SHORT)).toBeGreaterThan(sized("instagram", LIMIT));
+    });
+
+    it("⛔ and 9:16 is untouched, because nobody complained about it", () => {
         /**
          * ⚠️ My first version of this rule was `h > w`, which also catches
          * YouTube's 1080×1920 — a frame whose card is already placed around
          * YouTube's own chrome and was checked by rendering
          * ⇒ trap_blunt_fix_trades_one_failure_for_its_opposite.
          */
-        expect(sized("instagram", SHORT)).toBe(sized("instagram", LIMIT));
         expect(sized("youtube", SHORT)).toBe(sized("youtube", LIMIT));
     });
 });

@@ -109,7 +109,8 @@ describe("how big a lone sentence is set", () => {
      * is the case that could overflow. Checked by rendering the worst case at
      * 1080×1350, not by reasoning about it.
      */
-    for (const platform of ["instagram", "x", "youtube"]) {
+    // ⚠️ Instagram left this list 6 Nov 2026 for the same reason Facebook did: it is 4:5 now.
+    for (const platform of ["x", "youtube"]) {
       const plain = compose({ platform, headline: "x".repeat(HEADLINE_MAX), support: "A support line." });
       const short = compose({ platform, headline: SHORT, support: "A support line." });
       expect(px(byRole(short.root, "headline")[0]), platform).toBe(px(byRole(plain.root, "headline")[0]));

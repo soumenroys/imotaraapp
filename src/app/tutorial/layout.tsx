@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { OG_IMAGE } from "@/lib/seo/ogImage";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata: Metadata = {
-  title: "Tutorial — How to Use Imotara",
+  title: brandTitle("Tutorial — How to Use Imotara"),
   description:
     "Complete step-by-step guide to every Imotara feature — chat, voice, emotion tracking, companion setup, TTS, cloud sync, data export, and more. For new and experienced users alike.",
   openGraph: {

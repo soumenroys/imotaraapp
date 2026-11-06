@@ -3,9 +3,10 @@
 // This page is linked from every wallet notification email and the top-up consent checkbox.
 
 import type { Metadata } from "next";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata: Metadata = {
-  title: "Wallet Terms & Policy — Imotara",
+  title: brandTitle("Wallet Terms & Policy — Imotara"),
   description: "Imotara Wallet balance validity, expiry, dormancy, and refund policy.",
 };
 

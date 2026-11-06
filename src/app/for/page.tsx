@@ -8,11 +8,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AUDIENCE_PAGES, type AudiencePage } from "@/data/audiencePages";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Who Imotara is for — Imotara",
+  title: brandTitle("Who Imotara is for — Imotara"),
   description:
     "Imotara for young people, young adults, adults, seniors and parents — and for NGOs, schools, hospitals and homes for the elderly. Private, 22 languages, free to start.",
   keywords: [

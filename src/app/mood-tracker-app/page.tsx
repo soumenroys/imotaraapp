@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Private Mood Tracker App — Talk About Your Feelings — Imotara",
+  title: brandTitle("Private Mood Tracker App — Talk About Your Feelings — Imotara"),
   description:
     "Imotara is a free private mood tracker app that lets you talk about your feelings, see emotional trends over time, and gain self-awareness — with no ads and full privacy.",
   keywords: [

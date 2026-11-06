@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Your Private Companion for Emotional Support — Imotara",
+  title: brandTitle("Your Private Companion for Emotional Support — Imotara"),
   description:
     "Imotara is a free private companion for emotional support. Talk about your feelings anytime, get gentle reflections, and track your mood — privately, in 22 languages, with no ads.",
   keywords: [

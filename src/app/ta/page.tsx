@@ -1,11 +1,12 @@
 // src/app/ta/page.tsx — Tamil multilingual landing page (server component, SSR)
 import type { Metadata } from "next";
 import Link from "next/link";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய நண்பர்",
+  title: brandTitle("Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய நண்பர்"),
   description:
     "Imotara ஒரு அமைதியான, தனிப்பட்ட AI தோழன், உங்கள் உணர்வுகளை கேட்கிறது, நினைவில் வைத்திருக்கிறது, எந்த தீர்ப்பும் இல்லாமல் பதிலளிக்கிறது. விளம்பரங்கள் இல்லை, கண்காணிப்பு இல்லை.",
   keywords: [

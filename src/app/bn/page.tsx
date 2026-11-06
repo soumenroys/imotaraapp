@@ -1,11 +1,12 @@
 // src/app/bn/page.tsx — Bengali multilingual landing page (server component, SSR)
 import type { Metadata } from "next";
 import Link from "next/link";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Imotara — আপনার আবেগের একজন অমর বন্ধু",
+  title: brandTitle("Imotara — আপনার আবেগের একজন অমর বন্ধু"),
   description:
     "Imotara একটি শান্ত, ব্যক্তিগত AI সঙ্গী যা আপনার আবেগ শোনে, মনে রাখে এবং বিচার ছাড়াই সাড়া দেয়। কোনো বিজ্ঞাপন নেই, কোনো নজরদারি নেই।",
   keywords: [

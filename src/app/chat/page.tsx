@@ -118,6 +118,8 @@ import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultC
 import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
 import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
+import OpeningGreeting from "@/components/imotara/OpeningGreeting";
+import { openingGreeting, opensWithGreeting } from "@/lib/imotara/openingGreeting";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
@@ -1704,7 +1706,11 @@ export default function ChatPage() {
           id: uid(),
           role: "assistant",
           content:
-            `Hi, I’m ${(getImotaraProfile()?.companion?.enabled && getImotaraProfile()?.companion?.name?.trim()) || "Imotara"} — a quiet companion. Try sending me a message.`,
+            // 🔑 Owner, 6 Nov 2026: the opening greeting says who is replying ⇒ openingGreeting.ts.
+            openingGreeting(
+              (getImotaraProfile()?.companion?.enabled && getImotaraProfile()?.companion?.name?.trim()) || "Imotara",
+              getImotaraProfile()?.user?.preferredLang,
+            ),
           createdAt: now,
           sessionId: seedId,
         },
@@ -3992,11 +3998,15 @@ export default function ChatPage() {
                 </div>
               </div>
             ) : !activeThread || activeThread.messages.length === 0 ? (
+              <>
+              {/* Who is replying — said once, first, in every chat (owner, 6 Nov 2026) */}
+              <OpeningGreeting companionName={companionDisplayName} lang={preferredLang} />
               <EmptyState
                 onChipSelect={(text) => { setDraft(text); }}
                 lang={preferredLang}
                 threads={threads}
               />
+              </>
             ) : (
               <div className="mx-auto max-w-3xl space-y-4">
                 {/* #21: Local mode indicator — shown when remote is off */}
@@ -4254,6 +4264,11 @@ export default function ChatPage() {
                       )}
                     </div>
                   </div>
+                )}
+
+                {/* Who is replying — always the chat's first words (owner, 6 Nov 2026) */}
+                {!showBookmarksOnly && !searchQuery.trim() && !opensWithGreeting(activeThread.messages[0]) && (
+                  <OpeningGreeting companionName={companionDisplayName} lang={preferredLang} />
                 )}
 
                 {activeThread.messages
@@ -4925,7 +4940,6 @@ export default function ChatPage() {
                 crisis helpline
               </a>
               . Imotara is a reflection companion, not a substitute for professional support.
-              Replies come from software, not a person.
             </p>
           </div>
         </main>

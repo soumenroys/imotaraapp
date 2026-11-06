@@ -26,6 +26,50 @@ const UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos";
  */
 export const YOUTUBE_UPLOAD_SCOPE = "https://www.googleapis.com/auth/youtube.upload";
 
+/**
+ * 🔑 READ-ONLY, added 6 Nov 2026 (owner: "collect YouTube … views"). Upload
+ * cannot read anything back — not even our own videos' view counts — so the
+ * daily stats had nothing for YouTube. `youtube.readonly` is the narrowest
+ * scope that reads `videos.list?part=statistics`; it cannot change or delete.
+ * ⚠️ Takes effect only after the channel is RE-CONNECTED once (new consent).
+ */
+export const YOUTUBE_READ_SCOPE = "https://www.googleapis.com/auth/youtube.readonly";
+
+/** Everything the connection asks for — upload to post, read-only to count views. */
+export const YOUTUBE_SCOPES = [YOUTUBE_UPLOAD_SCOPE, YOUTUBE_READ_SCOPE] as const;
+
+export type YouTubeVideoStats = { views: number | null; likes: number | null; comments: number | null; raw: unknown };
+
+/**
+ * Our Shorts' public counters, up to 50 per call (one quota unit).
+ * ⛔ A count YouTube does not return (hidden likes) stays NULL, never 0.
+ */
+export async function fetchYouTubeVideoStats(args: {
+  accessToken: string;
+  videoIds: string[];
+  fetchImpl?: typeof fetch;
+}): Promise<{ ok: true; stats: Record<string, YouTubeVideoStats> } | { ok: false; kind: YouTubeFailure; message: string }> {
+  const doFetch = args.fetchImpl ?? fetch;
+  const ids = args.videoIds.filter(Boolean).slice(0, 50);
+  if (!ids.length) return { ok: true, stats: {} };
+  const url = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${ids.map(encodeURIComponent).join(",")}`;
+  const res = await doFetch(url, { headers: { Authorization: `Bearer ${args.accessToken}` } });
+  const body = await res.text();
+  if (!res.ok) {
+    const c = classifyYouTubeError(res.status, body);
+    // 🔑 The commonest cause, said plainly: a grant made before the read scope existed.
+    const hint = res.status === 403 ? " — re-connect YouTube in Admin ⇒ Social so the read-only permission is granted" : "";
+    return { ok: false, kind: c.kind, message: c.message + hint };
+  }
+  const n = (v: unknown) => (v === undefined || v === null || v === "" ? null : Number(v));
+  const stats: Record<string, YouTubeVideoStats> = {};
+  for (const item of (JSON.parse(body).items ?? []) as { id: string; statistics?: Record<string, string> }[]) {
+    const st = item.statistics ?? {};
+    stats[item.id] = { views: n(st.viewCount), likes: n(st.likeCount), comments: n(st.commentCount), raw: st };
+  }
+  return { ok: true, stats };
+}
+
 export type YouTubeFailure = "auth" | "permission" | "content" | "quota" | "transient";
 
 export type YouTubePublish =

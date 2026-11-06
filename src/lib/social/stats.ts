@@ -17,7 +17,8 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { scrubRaw } from "@/lib/social/scrubRaw";
-import { loadChannelCredential } from "@/lib/social/channelCredentials";
+import { loadChannelCredential, loadCredentialFor } from "@/lib/social/channelCredentials";
+import { fetchYouTubeVideoStats } from "@/lib/social/adapters/youtube";
 import {
   fetchPageStats,
   fetchPostStats,
@@ -200,6 +201,7 @@ export async function capturePostStats(
   const problems: string[] = [];
   const cred = await loadChannelCredential(db, accountId);
   if (!cred.ok) return { captured: 0, skipped: 0, problems: [cred.reason] };
+  if (cred.platform === "youtube") return captureYouTubePostStats(db, accountId, opts);
   if (cred.platform !== "facebook" && cred.platform !== "instagram") {
     return { captured: 0, skipped: 0, problems: [`No reader for ${cred.platform} yet.`] };
   }
@@ -326,5 +328,75 @@ export async function capturePostStats(
     captured += 1;
   }
 
+  return { captured, skipped, problems };
+}
+
+/**
+ * 🔑 YOUTUBE, added 6 Nov 2026 (owner: "collect YouTube … views"). Until then
+ * the 14 Shorts published had no figure at all, so nobody could say whether
+ * YouTube was worth its daily slot.
+ *
+ * ⚠️ VIEWS go into `impressions`, because that is the column every chart
+ * reads as "how many times it was seen". YouTube's public counter is views;
+ * it has no reach. ⛔ Likes YouTube hides stay NULL ⇒ never "nobody liked it".
+ * One call covers up to 50 Shorts, a single quota unit.
+ */
+async function captureYouTubePostStats(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+  accountId: string,
+  opts: { days?: number; now?: Date },
+): Promise<{ captured: number; skipped: number; problems: string[] }> {
+  const cred = await loadCredentialFor(db, accountId, "youtube");
+  if (!cred.ok) return { captured: 0, skipped: 0, problems: [cred.reason] };
+
+  const days = opts.days ?? 14;
+  const since = new Date((opts.now?.getTime() ?? Date.now()) - days * 86_400_000).toISOString();
+  const { data: posts } = await db
+    .from("social_posts")
+    .select("id, external_post_id")
+    .eq("platform", "youtube")
+    .eq("status", "published")
+    .not("external_post_id", "is", null)
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
+    .limit(50);
+  const rows = (posts ?? []) as { id: string; external_post_id: string }[];
+  if (!rows.length) return { captured: 0, skipped: 0, problems: [] };
+
+  const read = await fetchYouTubeVideoStats({ accessToken: cred.token, videoIds: rows.map((r) => r.external_post_id) });
+  if (!read.ok) return { captured: 0, skipped: rows.length, problems: [read.message] };
+
+  const day = capturedOn(opts.now);
+  let captured = 0;
+  let skipped = 0;
+  const problems: string[] = [];
+  for (const r of rows) {
+    const st = read.stats[r.external_post_id];
+    if (!st) {
+      // ⚠️ Removed, private, or a wrong id — said, not counted as zero views.
+      problems.push(`${r.external_post_id}: YouTube returned no such video`);
+      skipped += 1;
+      continue;
+    }
+    const { error } = await db.from("social_post_stats").upsert(
+      {
+        post_id: r.id,
+        captured_on: day,
+        reactions: st.likes,
+        comments: st.comments,
+        shares: null,
+        impressions: st.views,
+        raw: scrubRaw(st.raw),
+      },
+      { onConflict: "post_id,captured_on" },
+    );
+    if (error) {
+      problems.push(`${r.id}: ${error.message}`);
+      skipped += 1;
+      continue;
+    }
+    captured += 1;
+  }
   return { captured, skipped, problems };
 }

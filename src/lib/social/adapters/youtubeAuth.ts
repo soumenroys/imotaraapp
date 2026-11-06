@@ -17,7 +17,7 @@
 // for this client (`auth_uri` / `token_uri`), not recalled
 // ⇒ trap_a_model_invents_specifics_it_cannot_have.
 
-import { YOUTUBE_UPLOAD_SCOPE } from "@/lib/social/adapters/youtube";
+import { YOUTUBE_SCOPES } from "@/lib/social/adapters/youtube";
 
 /** From the client JSON's `auth_uri`. */
 const AUTH_URL = "https://accounts.google.com/o/oauth2/auth";
@@ -110,7 +110,7 @@ export function youtubeConsentUrl(config: YouTubeOAuthConfig, state: string): st
   url.searchParams.set("client_id", config.clientId);
   url.searchParams.set("redirect_uri", config.redirectUri);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", YOUTUBE_UPLOAD_SCOPE);
+  url.searchParams.set("scope", YOUTUBE_SCOPES.join(" "));
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
   url.searchParams.set("include_granted_scopes", "false");

@@ -16,7 +16,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { youtubeOAuthConfig, exchangeYouTubeCode } from "@/lib/social/adapters/youtubeAuth";
 import { encryptToken, decryptToken, tokenAad, tokenTail, tokenFingerprint } from "@/lib/social/tokenCrypto";
 import { STATE_AAD, STATE_MAX_AGE_MS } from "@/app/api/admin/social/youtube/connect/route";
-import { YOUTUBE_UPLOAD_SCOPE } from "@/lib/social/adapters/youtube";
+import { YOUTUBE_SCOPES } from "@/lib/social/adapters/youtube";
 
 /**
  * 🔑 THE CHANNEL THIS APP POSTS TO, verified 19 Oct 2026 against the public
@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
          * params. The visible failure was "the channel is simply not connected"
          * ⇒ trap_a_sentence_that_states_the_world_goes_stale.
          */
-        scopes: [YOUTUBE_UPLOAD_SCOPE],
+        scopes: [...YOUTUBE_SCOPES],
         status: "ok",
         last_verified_at: new Date().toISOString(),
         last_error: null,

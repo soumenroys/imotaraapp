@@ -55,13 +55,16 @@ describe("🔴 the consent screen asks for the thing that lasts", () => {
         expect(url.searchParams.get("prompt")).toBe("consent");
     });
 
-    it("asks for exactly one scope, and it is the narrow one", () => {
+    it("asks for exactly two narrow scopes: upload, and READ-ONLY for view counts (6 Nov 2026)", () => {
         const url = new URL(youtubeConsentUrl(CONFIG, "s"));
         // ⚠️ `youtube`, `youtube.force-ssl` and `youtubepartner` can all upload
         // too, and can do a great deal more besides. Asking for the least is
         // what keeps the consent screen honest about what this app does.
-        expect(url.searchParams.get("scope")).toBe(YOUTUBE_UPLOAD_SCOPE);
-        expect(url.searchParams.get("scope")).toBe("https://www.googleapis.com/auth/youtube.upload");
+        // 🔑 youtube.readonly was added so the daily stats can read our Shorts'
+        // views; it cannot change or delete anything.
+        const scopes = (url.searchParams.get("scope") ?? "").split(" ").sort();
+        expect(scopes).toEqual([YOUTUBE_UPLOAD_SCOPE, "https://www.googleapis.com/auth/youtube.readonly"].sort());
+        expect(scopes.some((sc) => /\/auth\/youtube(\.force-ssl)?$|youtubepartner/.test(sc))).toBe(false);
     });
 
     it("carries the state, so a forged callback is not mistaken for ours", () => {

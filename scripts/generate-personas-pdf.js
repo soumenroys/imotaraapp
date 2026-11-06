@@ -665,7 +665,7 @@ html,body{
     </div>
 
     <!-- STRATEGIC INSIGHTS -->
-    <div class="sec">Strategic insights for Suchismita</div>
+    <div class="sec">Strategic insights for the marketing team</div>
     <div class="insight-grid">
       <div class="insight-card">
         <div class="insight-title">🔑 The free tier is the growth engine</div>

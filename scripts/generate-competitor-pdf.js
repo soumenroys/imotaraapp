@@ -952,7 +952,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
     </div>
 
     <!-- STRATEGIC TAKEAWAYS -->
-    <div class="sec">Strategic takeaways for marketing (Suchismita)</div>
+    <div class="sec">Strategic takeaways for marketing</div>
     <div class="takeaway-grid">
       <div class="takeaway-card" style="background:#FFF5F8;border-color:#FFD0E5;">
         <div class="takeaway-title">🗣️ Lead with language, every time</div>

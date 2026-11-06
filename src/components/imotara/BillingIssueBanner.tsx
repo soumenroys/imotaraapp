@@ -12,13 +12,13 @@ import { useSyncExternalStore } from "react";
 import { getLicenseServerSnapshot, getLicenseSnapshot, subscribeLicenseStore } from "@/lib/imotara/licenseStore";
 
 const MANAGE: Record<"apple" | "google_play", { url: string; label: string; store: string }> = {
-  apple: { url: "https://apps.apple.com/account/subscriptions", label: "Update payment in the App Store", store: "App Store" },
-  google_play: { url: "https://play.google.com/store/account/subscriptions?package=com.imotara.imotara", label: "Update payment in Google Play", store: "Google Play" },
+  apple: { url: "https://apps.apple.com/account/subscriptions", label: "Update payment in the App Store", store: "in the App Store" },
+  google_play: { url: "https://play.google.com/store/account/subscriptions?package=com.imotara.imotara", label: "Update payment in Google Play", store: "on Google Play" },
 };
 
 export function billingBannerText(store: "apple" | "google_play", until: string): string {
   const when = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(until));
-  return `Your last payment for Imotara Plus didn't go through on ${MANAGE[store].store}. Plus stays on until ${when} — update your payment method to keep it.`;
+  return `Your last payment for Imotara Plus didn't go through ${MANAGE[store].store}. Plus stays on until ${when} — update your payment method to keep it.`;
 }
 
 export default function BillingIssueBanner() {

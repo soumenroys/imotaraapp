@@ -29,6 +29,9 @@ export const MANAGE_URL: Record<BillingStore, string> = {
 };
 
 const STORE_NAME: Record<BillingStore, string> = { apple: "App Store", google_play: "Google Play" };
+/** English takes "in the App Store" but "on Google Play". */
+const ON_STORE: Record<BillingStore, string> = { apple: "in the App Store", google_play: "on Google Play" };
+const THE_STORE: Record<BillingStore, string> = { apple: "the App Store", google_play: "Google Play" };
 
 /** The licence row ⇒ the issue to show, or null. A grace date already past is no longer an issue. */
 export function billingIssueFromRow(
@@ -82,7 +85,7 @@ export function graceEmail(issue: BillingIssue): { subject: string; text: string
   const lines = [
     "Hi,",
     "",
-    `Your last payment for Imotara Plus didn't go through on ${where}. Nothing is lost: Plus stays on until ${when} while ${where} tries again.`,
+    `Your last payment for Imotara Plus didn't go through ${ON_STORE[issue.store]}. Nothing is lost: Plus stays on until ${when} while ${THE_STORE[issue.store]} tries again.`,
     "",
     `To keep it, please check the card or payment method in your ${where} subscriptions:`,
     url,

@@ -132,6 +132,7 @@ describe("the words", () => {
   it("says what happened, until when, and where to fix it — once", () => {
     expect(mail.subject).toBe("Your Imotara Plus payment didn't go through");
     expect(mail.text).toContain("22 November");
+    expect(mail.text).toContain("didn't go through in the App Store. Nothing is lost: Plus stays on until 22 November while the App Store tries again.");
     expect(mail.text.split(MANAGE_URL.apple).length - 1).toBe(1);
     expect((mail.html.match(/<a /g) ?? []).length).toBe(1);
   });

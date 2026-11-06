@@ -17,6 +17,7 @@
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
+import { gaEvent, signInKind } from "@/lib/analytics/gaEvent";
 
 // Module-level client — created once regardless of Strict Mode re-renders.
 // detectSessionInUrl:true (default) starts the PKCE exchange on first creation.
@@ -88,6 +89,10 @@ function CallbackHandler() {
             if (relevant) {
                 clearTimeout(fallback);
                 if (session) {
+                    // GA key event (#76): a NEW account is a sign-up — no personal data, provider only.
+                    if (event === "SIGNED_IN") {
+                        gaEvent(signInKind(session.user?.created_at), { method: String(session.user?.app_metadata?.provider ?? "unknown") });
+                    }
                     navigate(redirectTo);
                 } else {
                     navigate(`${redirectTo}?auth_error=no_session`);

@@ -116,6 +116,7 @@ import {
 } from "@/lib/emotion/keywordMaps";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
+import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
@@ -2939,6 +2940,7 @@ export default function ChatPage() {
     // Anonymous "messages per visit" tally — a count only, never the text
     // ⇒ lib/analytics/visitTallyClient.ts (owner, 31 Oct 2026).
     noteMessageSent();
+    noteFirstMessageForGa(); // GA key event, once per device ⇒ lib/analytics/gaEvent.ts
 
     let targetId = activeId;
     let createdNewThread = false;

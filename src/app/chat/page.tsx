@@ -4925,7 +4925,6 @@ export default function ChatPage() {
                 crisis helpline
               </a>
               . Imotara is a reflection companion, not a substitute for professional support.
-              Replies come from software, not a person.
             </p>
           </div>
         </main>

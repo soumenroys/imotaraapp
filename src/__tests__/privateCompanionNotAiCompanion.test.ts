@@ -2,7 +2,7 @@
 // project Imotara as Private Companion." Every public surface — pages, page
 // data, blog, Help Centre (and the help bot that reads it), llms.txt.
 // Code comments may still name the old phrase to explain the change.
-// ⚠️ The chat still says "Replies come from software, not a person." —
+// ⚠️ The chat still says its replies come from software (opening greeting, 6 Nov 2026) —
 // ⇒ chatSaysSoftwareNotPerson.test.ts. Positioning changed; honesty did not.
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";

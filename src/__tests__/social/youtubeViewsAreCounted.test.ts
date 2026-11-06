@@ -49,7 +49,7 @@ describe("reading our Shorts' counters", () => {
 describe("the daily stats job reads YouTube", () => {
   const src = readFileSync("src/lib/social/stats.ts", "utf8");
   it("routes a YouTube account to its own reader, with a MINTED token", () => {
-    expect(src).toMatch(/if \(acct\?\.platform === "youtube"\) return captureYouTubePostStats/);
+    expect(src).toMatch(/if \(platform === "youtube"\) return captureYouTubePostStats/);
     expect(src).toMatch(/loadCredentialFor\(db, accountId, "youtube"\)/);
   });
   it("views land in `impressions`, the column every chart reads", () => {

@@ -17,6 +17,8 @@ import { markCronFired } from "@/lib/cron/heartbeat";
 import { verifyGooglePlaySubscription } from "@/lib/googlePlay";
 import { sweepPlayRenewals, sweepAppleRenewals } from "@/lib/imotara/playRenewal";
 import { appleSubscriptionExpiry } from "@/lib/apple/storeServer";
+import { notifyGraceOnce } from "@/lib/imotara/billingIssue";
+import { sendOne, fromAddress, isResendConfigured } from "@/lib/broadcast/resendClient";
 
 export const maxDuration = 60;
 
@@ -38,12 +40,21 @@ export async function GET(req: NextRequest) {
   const apple = hasApple
     ? await sweepAppleRenewals(getSupabaseAdmin(), { expiry: (id) => appleSubscriptionExpiry(id) })
     : { checked: 0, extended: 0, errors: ["Apple IAP credentials not configured"] };
-  const errors = [...out.errors, ...apple.errors];
+  // 🔑 Anyone newly in a billing grace period gets ONE email ⇒ lib/imotara/billingIssue.ts.
+  const db = getSupabaseAdmin();
+  const notified = isResendConfigured()
+    ? await notifyGraceOnce(db, {
+        emailOf: async (userId) => (await db.auth.admin.getUserById(userId)).data.user?.email ?? null,
+        send: async (m) => (await sendOne({ from: fromAddress("Imotara"), replyTo: "social@imotara.com", ...m })).ok,
+      })
+    : { sent: 0, errors: ["Resend not configured — grace emails not sent"] };
+  const errors = [...out.errors, ...apple.errors, ...notified.errors];
   if (errors.length) console.error("[store-renewals]", errors.slice(0, 5));
   return NextResponse.json({
     ok: errors.length === 0,
     play: { checked: out.checked, extended: out.extended },
     apple: { checked: apple.checked, extended: apple.extended },
+    graceEmails: notified.sent,
     errors: errors.length,
   });
 }

@@ -48,6 +48,8 @@ export type LicenseResponse = {
         tokenBalance?: number;
     };
     org?: { orgId: string; orgName: string; orgRole: string; billingType?: string | null } | null;
+    /** "Your payment didn't go through" — set while a store subscription is in its billing grace period. */
+    billingIssue?: { kind: "grace"; until: string; store: "apple" | "google_play" } | null;
     user?: { id: string; email: string | null } | null;
 };
 

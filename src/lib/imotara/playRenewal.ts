@@ -23,10 +23,11 @@ import { NextResponse } from "next/server";
 import { grantLicense, PRODUCT_CATALOG, type LicenseProductId } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 import type { GooglePlayPurchaseResult } from "@/lib/googlePlay";
+import { recordBillingState } from "@/lib/imotara/billingIssue";
 
 export const PLAY_SUBSCRIPTION_SKUS = ["plus_monthly", "plus_annual", "pro_monthly", "pro_annual"] as const;
 
-type Verified = Pick<GooglePlayPurchaseResult, "valid" | "expiresAt" | "orderId">;
+type Verified = Pick<GooglePlayPurchaseResult, "valid" | "expiresAt" | "orderId" | "state">;
 
 /** Extend the token's OWNER to Google's expiry; one invoice per Google order (a renewal has a new order id). */
 export async function extendPlayGrant(
@@ -104,6 +105,9 @@ export async function sweepPlayRenewals(admin: SupabaseClient, deps: PlaySweepDe
     if (!(r.product_id in PRODUCT_CATALOG)) continue;
     try {
       const v = await deps.verify(r.product_id, r.payment_id);
+      // 🔑 Grace period ⇒ tell them (banner + one email); paid or lapsed ⇒ clear it ⇒ billingIssue.ts.
+      await recordBillingState(admin, r.user_id, "google_play",
+        v.valid && v.state === "SUBSCRIPTION_STATE_IN_GRACE_PERIOD" ? (v.expiresAt ?? null) : null);
       if (!v.valid) continue;
       const out = await extendPlayGrant(admin, r.user_id, r.product_id as LicenseProductId, v);
       if (out.ok) extended++;
@@ -119,7 +123,7 @@ export async function sweepPlayRenewals(admin: SupabaseClient, deps: PlaySweepDe
 
 export type AppleSweepDeps = {
   /** Apple's latest ACTIVE expiry for the subscription this transaction belongs to, or null. */
-  expiry: (transactionId: string) => Promise<{ ok: true; expiresAt: string | null } | { ok: false; error: string }>;
+  expiry: (transactionId: string) => Promise<{ ok: true; expiresAt: string | null; graceUntil?: string | null } | { ok: false; error: string }>;
 };
 
 /**
@@ -155,6 +159,8 @@ export async function sweepAppleRenewals(admin: SupabaseClient, deps: AppleSweep
     try {
       const st = await deps.expiry(String(r.payment_id));
       if (!st.ok) { errors.push(st.error); continue; }
+      // 🔑 Grace period ⇒ tell them (banner + one email); paid or lapsed ⇒ clear it ⇒ billingIssue.ts.
+      await recordBillingState(admin, r.user_id, "apple", st.graceUntil ?? null);
       if (!st.expiresAt) continue;
       const g = await grantLicense(r.user_id, r.product_id as LicenseProductId, admin, "apple", st.expiresAt);
       if (g.ok) extended++;

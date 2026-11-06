@@ -117,6 +117,7 @@ import {
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
+import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
@@ -4698,6 +4699,9 @@ export default function ChatPage() {
                 </button>
               </div>
             )}
+
+            {/* "Your last payment didn't go through" — only while a store subscription is in grace (6 Nov 2026) */}
+            <BillingIssueBanner />
 
             {/* Breathing widget — shown above composer when toggled */}
             {showBreathing && (

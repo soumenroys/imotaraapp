@@ -89,7 +89,8 @@ describe("both store routes actually pass it", () => {
     });
 
     it("🔴 Apple's verifier returns expiresDate, not just the productId", () => {
-        const route = read("src/app/api/license/verify-apple-purchase/route.ts");
+        // ⚠️ The verifier moved to lib/apple/storeServer.ts on 6 Nov 2026 (shared with the renewal sweep).
+        const route = read("src/lib/apple/storeServer.ts");
         expect(route).toContain("txPayload.expiresDate");
         // Apple sends milliseconds since the epoch; a raw number would be a
         // 1970 date and would expire every subscription instantly.

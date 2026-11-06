@@ -9,6 +9,7 @@ import { logDonation } from "@/lib/donations/logDonation";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId, PRODUCT_CATALOG } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
+import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
 import { isLicenseTier } from "@/types/license";
 import { releasePriorOrgMembership, orgTermExpiresAt, resolveOrgTier, grantOrgTierWithFloor } from "@/lib/imotara/org";
 
@@ -159,36 +160,40 @@ export async function POST(req: Request) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
                 // Idempotency: verify-payment may have already processed this paymentId.
                 // Skip if already in payment_licenses to prevent double-grant on token packs.
+                // 🔴 ONE grant per payment ⇒ lib/imotara/claimPayment.ts. This used to ASK
+                // first and RECORD after granting, so payment.captured, order.paid and
+                // the browser's verify-payment all passed the question ⇒ 3 grants.
+                // ⚠️ Keyed on the PAYMENT id, the same key verify-payment uses.
                 const paymentRef = paymentEntity?.id ?? orderEntity?.id;
-                if (paymentRef) {
-                    const { data: already } = await getSupabaseAdmin()
-                        .from("payment_licenses")
-                        .select("payment_id")
-                        .eq("payment_id", paymentRef)
-                        .maybeSingle();
-                    if (already) {
-                        console.log("[razorpay/webhook] already processed:", paymentRef, "— skipping");
-                        return NextResponse.json({ ok: true, skipped: "already_processed" });
-                    }
+                if (!paymentRef) {
+                    console.error("[razorpay/webhook] license payment with no payment/order id — not granted");
+                    return NextResponse.json({ ok: true, skipped: "no_payment_ref" });
+                }
+                const product2 = PRODUCT_CATALOG[productId];
+                const claim = await claimPayment(getSupabaseAdmin(), {
+                    payment_id:   paymentRef,
+                    user_id:      userId,
+                    product_id:   productId,
+                    tier:         product2.type === "subscription" ? product2.tier : "free",
+                    amount_paise: paymentEntity?.amount ?? ("paise" in product2 ? (product2 as { paise: number }).paise : 0),
+                    currency:     paymentEntity?.currency ?? "INR",
+                });
+                if (claim === "taken") {
+                    console.log("[razorpay/webhook] already processed:", paymentRef, "— skipping");
+                    return NextResponse.json({ ok: true, skipped: "already_processed" });
+                }
+                if (claim === "error") {
+                    // 5xx ⇒ Razorpay redelivers; the retry claims cleanly.
+                    return NextResponse.json({ ok: false, error: "could not record payment" }, { status: 503 });
                 }
 
                 try {
                     const result = await grantLicense(userId, productId, getSupabaseAdmin(), "razorpay");
-                    console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
-
-                    // Record in payment_licenses so verify-payment also sees it as already processed
-                    if (paymentRef) {
-                        const product2 = PRODUCT_CATALOG[productId];
-                        void getSupabaseAdmin().from("payment_licenses").upsert({
-                            payment_id:   paymentRef,
-                            user_id:      userId,
-                            product_id:   productId,
-                            tier:         result.ok ? result.tier ?? "free" : "free",
-                            amount_paise: paymentEntity?.amount ?? (product2 && "paise" in product2 ? (product2 as { paise: number }).paise : 0),
-                            currency:     paymentEntity?.currency ?? "INR",
-                            granted_at:   new Date().toISOString(),
-                        }, { onConflict: "payment_id", ignoreDuplicates: true });
+                    if (!result.ok) {
+                        await releasePayment(getSupabaseAdmin(), paymentRef);
+                        return NextResponse.json({ ok: false, error: "grant failed" }, { status: 503 });
                     }
+                    console.log("[razorpay/webhook] grantLicense OK:", productId, "user:", userId);
 
                     // Create invoice record (await + log errors — non-blocking to payment flow)
                     const product = PRODUCT_CATALOG[productId];
@@ -196,17 +201,19 @@ export async function POST(req: Request) {
                     createInvoice(getSupabaseAdmin(), {
                       userId,
                       productId,
-                      tier:            result.ok ? result.tier : undefined,
+                      tier:            result.tier,
                       description:     getProductDescription(productId),
                       paymentGateway:  "razorpay",
                       gatewayRef:      paymentEntity?.id ?? orderEntity?.id ?? "unknown",
                       amountPaise:     typeof amountPaise === "number" ? amountPaise : 0,
                       currency:        paymentEntity?.currency ?? "INR",
                       periodStart:     new Date().toISOString(),
-                      periodEnd:       result.ok ? result.expiresAt ?? undefined : undefined,
+                      periodEnd:       result.expiresAt ?? undefined,
                     }).catch((err: unknown) => console.error("[razorpay/webhook] invoice creation failed:", err));
                 } catch (e) {
                     console.error("[razorpay/webhook] grantLicense failed:", e);
+                    await releasePayment(getSupabaseAdmin(), paymentRef);
+                    return NextResponse.json({ ok: false, error: "grant failed" }, { status: 503 });
                 }
             } else {
                 // ---- Check if this is a Connect recharge (no purpose note set at order creation) ----

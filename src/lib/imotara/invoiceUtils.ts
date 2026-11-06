@@ -53,6 +53,24 @@ export async function createInvoice(
   admin: SupabaseClient,
   data:  Omit<InvoiceData, "invoiceNumber">
 ): Promise<{ id: string; invoiceNumber: string } | null> {
+  // 🔴 ONE invoice per payment (6 Nov 2026: every Razorpay payment had THREE,
+  // and the customer saw all three). The payment's own reference is the key;
+  // docs/sql/payment_invoices_one_per_payment.sql makes Postgres enforce it,
+  // and a racing second writer (23505) is handed the first one's invoice.
+  const existing = async () => {
+    const { data: found } = await admin
+      .from("payment_invoices")
+      .select("id, invoice_number")
+      .eq("payment_gateway", data.paymentGateway)
+      .eq("gateway_ref", data.gatewayRef)
+      .order("issued_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    return found ? { id: found.id as string, invoiceNumber: found.invoice_number as string } : null;
+  };
+  const already = await existing();
+  if (already) return already;
+
   const { data: invoice, error } = await admin
     .from("payment_invoices")
     .insert({
@@ -74,6 +92,7 @@ export async function createInvoice(
     .single();
 
   if (error) {
+    if (error.code === "23505") return existing();
     console.error("[createInvoice]", error.message);
     return null;
   }

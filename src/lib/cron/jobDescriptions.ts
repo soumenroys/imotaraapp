@@ -23,6 +23,8 @@ export const CRON_DESCRIPTIONS: Record<string, string> = {
     "Sends a gentle re-engagement nudge to people who have been inactive — and only to them.",
   "/api/cron/exchange-rates":
     "Fetches USD-base exchange rates into app_settings, so prices shown abroad are not months old.",
+  "/api/cron/store-renewals":
+    "Asks Google about every Play subscription we granted and extends the active ones to Google's expiry, so a renewal is not lost.",
   "/api/cron/connect-orphans":
     "Rescues Connect sessions stuck somewhere they cannot leave on their own.",
   "/api/cron/connect-settle-earnings":

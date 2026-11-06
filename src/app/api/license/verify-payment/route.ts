@@ -17,6 +17,7 @@ import {
     type LicenseProductId,
 } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
+import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
 
 const RZP_KEY_ID     = process.env.RAZORPAY_KEY_ID     ?? "";
 const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
@@ -143,14 +144,21 @@ export async function POST(req: Request) {
 
         const admin = getSupabaseAdmin();
 
-        // Idempotency — if this paymentId was already processed, return current license
-        const { data: existingPayment } = await admin
-            .from("payment_licenses")
-            .select("payment_id")
-            .eq("payment_id", paymentId)
-            .maybeSingle();
+        // 🔴 ONE grant per payment ⇒ lib/imotara/claimPayment.ts (3 grants per payment until 6 Nov 2026).
+        const product = PRODUCT_CATALOG[productId as LicenseProductId];
+        const claim = await claimPayment(admin, {
+            payment_id:   paymentId,
+            user_id:      userId,
+            product_id:   productId,
+            tier:         product.type === "subscription" ? product.tier : "free",
+            amount_paise: payment?.amount ?? product.paise,
+            currency:     payment?.currency ?? "INR",
+        });
+        if (claim === "error") {
+            return NextResponse.json({ ok: false, error: "Could not record the payment — please retry" }, { status: 503 });
+        }
 
-        if (existingPayment) {
+        if (claim === "taken") {
             const { data: lic } = await admin
                 .from("licenses")
                 .select("tier, token_balance, expires_at")
@@ -166,20 +174,12 @@ export async function POST(req: Request) {
             return res;
         }
 
-        // Record payment first to prevent double-grant on concurrent retries
-        const product = PRODUCT_CATALOG[productId as LicenseProductId];
-        await admin.from("payment_licenses").upsert({
-            payment_id:   paymentId,
-            user_id:      userId,
-            product_id:   productId,
-            tier:         product.type === "subscription" ? product.tier : "free",
-            amount_paise: payment?.amount ?? product.paise,
-            currency:     payment?.currency ?? "INR",
-        }, { onConflict: "payment_id", ignoreDuplicates: true });
 
         const result = await grantLicense(userId, productId, admin, "razorpay");
 
         if (!result.ok) {
+            // Nothing was granted ⇒ give the claim back, or the paid retry would be told "already done".
+            await releasePayment(admin, paymentId);
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
 

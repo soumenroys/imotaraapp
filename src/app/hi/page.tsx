@@ -1,11 +1,12 @@
 // src/app/hi/page.tsx — Hindi multilingual landing page (server component, SSR)
 import type { Metadata } from "next";
 import Link from "next/link";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Imotara — आपकी भावनाओं का एक अमर दोस्त",
+  title: brandTitle("Imotara — आपकी भावनाओं का एक अमर दोस्त"),
   description:
     "Imotara एक शांत, निजी AI साथी है जो आपकी भावनाओं को सुनता है, याद रखता है, और बिना किसी निर्णय के प्रतिक्रिया देता है। कोई विज्ञापन नहीं, कोई निगरानी नहीं।",
   keywords: [

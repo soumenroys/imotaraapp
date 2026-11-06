@@ -1,9 +1,10 @@
 import Link from "next/link";
 import PageShell from "@/components/imotara/PageShell";
 import { BUSINESS } from "@/lib/imotara/businessIdentity";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
-  title: "Refund & Cancellation Policy — Imotara",
+  title: brandTitle("Refund & Cancellation Policy — Imotara"),
   description:
     "How to cancel an Imotara plan and how refunds work — on the web, on iOS and on Android.",
 };

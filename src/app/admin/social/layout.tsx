@@ -8,9 +8,10 @@
 // "Imotara" on every admin screen is the same bug with a smaller blast radius.
 
 import type { Metadata } from "next";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata: Metadata = {
-  title: "Social posting — Imotara admin",
+  title: brandTitle("Social posting — Imotara admin"),
   // ⛔ Behind a login, and nothing here should ever reach an index.
   robots: { index: false, follow: false },
 };

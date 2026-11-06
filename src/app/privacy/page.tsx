@@ -5,9 +5,10 @@ import {
 } from "@/lib/account/retentionPolicy";
 import PrivacyActionsPanel from "@/components/imotara/PrivacyActionsPanel";
 import packageJson from "../../../package.json";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
-  title: "Privacy Policy — Imotara",
+  title: brandTitle("Privacy Policy — Imotara"),
   description:
     "How Imotara collects, stores, and protects your data — with consent, clarity, and control.",
 };

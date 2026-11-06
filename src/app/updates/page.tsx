@@ -1,11 +1,12 @@
 // src/app/updates/page.tsx
 import type { Metadata } from "next";
 import UpdatesForm from "./UpdatesForm";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "Get updates from Imotara",
+  title: brandTitle("Get updates from Imotara"),
   description:
     "Hear from Imotara now and then — new features, quiet improvements, and occasional offers. Rarely, never sold on, and one click to stop.",
   alternates: { canonical: `${SITE_URL}/updates` },

@@ -14,9 +14,10 @@ import { AdminChrome } from "@/app/admin/_components/AdminChrome";
 // and a server component importing its values gets client references, which
 // evaluate to `undefined` here. See appearance.ts.
 import { resetBeforePaintScript } from "@/app/admin/_components/appearance";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata: Metadata = {
-  title: "Imotara admin",
+  title: brandTitle("Imotara admin"),
   // ⛔ Behind a login, and nothing here should ever reach an index.
   robots: { index: false, follow: false },
 };

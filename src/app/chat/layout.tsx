@@ -1,5 +1,6 @@
+import { brandTitle } from "@/lib/seo/brandTitle";
 export const metadata = {
-  title: "Chat — Imotara",
+  title: brandTitle("Chat — Imotara"),
   description:
     "A calm space to talk. Your words are processed with care and never sold.",
 };

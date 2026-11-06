@@ -1,9 +1,10 @@
 // src/app/updates/confirm/page.tsx
 import type { Metadata } from "next";
 import Link from "next/link";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata: Metadata = {
-  title: "Email confirmed — Imotara",
+  title: brandTitle("Email confirmed — Imotara"),
   robots: { index: false, follow: false },
 };
 

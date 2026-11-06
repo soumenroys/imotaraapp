@@ -2,9 +2,10 @@ import Link from "next/link";
 import PageShell from "@/components/imotara/PageShell";
 import { BUSINESS } from "@/lib/imotara/businessIdentity";
 import { INDIA_CRISIS_RESOURCES } from "@/lib/safety/crisisResources";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
-  title: "Contact Us — Imotara",
+  title: brandTitle("Contact Us — Imotara"),
   description:
     "How to reach Imotara — support email, phone, and our registered business address. Not a crisis service.",
 };

@@ -23,6 +23,7 @@ import { publisherNode, NOT_THERAPY_SCHEMA_NOTE } from "@/lib/seo/publisher";
 
 import { ANSWER_PAGES, answerPageFor, type AnswerSlug } from "@/data/answerPages";
 import { OG_IMAGE } from "@/lib/seo/ogImage";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -43,7 +44,7 @@ export async function generateMetadata({
     if (!page) return {};
     const url = `${SITE_URL}/answers/${page.slug}`;
     return {
-        title: page.metaTitle,
+        title: brandTitle(page.metaTitle),
         description: page.metaDescription,
         keywords: page.keywords,
         alternates: { canonical: url },

@@ -1,10 +1,11 @@
 // src/app/about/page.tsx
 import type { Metadata } from "next";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: "About — Imotara",
+  title: brandTitle("About — Imotara"),
   description:
     "What Imotara is, why it exists, and the principles behind an emotion-aware, privacy-first companion. No ads, no surveillance — just somewhere quiet to think out loud.",
   alternates: { canonical: `${SITE_URL}/about` },

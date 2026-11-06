@@ -15,6 +15,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AUDIENCE_PAGES, type AudienceSlug } from "@/data/audiencePages";
+import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
 
@@ -58,7 +59,7 @@ export async function generateMetadata({
   if (!page) return {};
   const url = `${SITE_URL}/for/${page.slug}`;
   return {
-    title: page.metaTitle,
+    title: brandTitle(page.metaTitle),
     description: page.metaDescription,
     keywords: page.keywords,
     alternates: { canonical: url },

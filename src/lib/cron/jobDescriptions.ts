@@ -56,7 +56,7 @@ export const CRON_DESCRIPTIONS: Record<string, string> = {
   "/api/cron/outreach-mail":
     "Sends the outreach emails due from the Call Directory sheet (introduction, day-7 follow-up, day-21 note, and details a call asked for) using approved drafts, writing any missing draft for review. Does nothing while outreach email is off.",
   "/api/cron/indexnow":
-    "Once per new version of the website, tells Bing (and through it ChatGPT search, Copilot and DuckDuckGo) about every public page, so they are found without waiting to be crawled.",
+    "After a new version of the website, tells Bing (and through it ChatGPT search, Copilot and DuckDuckGo) about any NEW public page at once, and about every page at most once a week — never the same unchanged pages on every release.",
 };
 
 /**

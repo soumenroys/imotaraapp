@@ -137,7 +137,7 @@ describe("when stock is taken", () => {
 
 describe("what it refuses to pretend", () => {
   it("says plainly there is no reader for the other channels", () => {
-    expect(stats).toMatch(/There is no way to read \$\{cred\.platform\} figures yet/);
+    expect(stats).toMatch(/There is no way to read \$\{platform\} channel figures yet/);
   });
 
   it("one post failing does not lose the rest of the day", () => {

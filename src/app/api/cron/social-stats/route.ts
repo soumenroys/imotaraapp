@@ -81,7 +81,11 @@ export async function GET(req: NextRequest) {
         firstProblem: posts.problems[0] ?? "(no reason recorded)",
       });
     }
-    if (!stats.ok) {
+    // 7 Nov (#81): a platform we have no reader for yet is a plain note, not an
+    // error — an error every day for an expected gap trains everyone to ignore errors.
+    if (!stats.ok && stats.unsupported) {
+      console.log("[social-stats] no channel-figure reader yet", { platform: a.platform });
+    } else if (!stats.ok) {
       console.error("[social-stats] channel figures could not be read", {
         platform: a.platform,
         reason: stats.reason,
@@ -93,7 +97,7 @@ export async function GET(req: NextRequest) {
       ...(stats.ok
         ? { followers: stats.followers, baseline: stats.baseline, note: stats.note }
         : { problem: stats.reason }),
-      posts: { captured: posts.captured, skipped: posts.skipped, problems: posts.problems.slice(0, 5) },
+      posts: { captured: posts.captured, skipped: posts.skipped, problems: posts.problems.slice(0, 5), ...(posts.unsupported ? { unsupported: posts.unsupported } : {}) },
     });
   }
 

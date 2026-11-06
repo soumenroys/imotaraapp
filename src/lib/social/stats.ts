@@ -40,7 +40,20 @@ export function capturedOn(now: Date = new Date()): string {
 
 export type CaptureResult =
   | { ok: true; followers: number | null; baseline: boolean; note: string }
-  | { ok: false; reason: string };
+  /** `unsupported` = we have no reader for this platform yet — expected, not a fault. */
+  | { ok: false; reason: string; unsupported?: true };
+
+/** Platforms whose figures this file can read through a stored access token. */
+const READABLE = new Set(["facebook", "instagram"]);
+
+async function platformOf(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  db: SupabaseClient<any, any, any>,
+  accountId: string,
+): Promise<string | null> {
+  const { data } = await db.from("social_accounts").select("platform").eq("id", accountId).maybeSingle();
+  return (data?.platform as string | undefined) ?? null;
+}
 
 /**
  * Take one day's figures for a channel.
@@ -55,13 +68,24 @@ export async function captureChannelStats(
   accountId: string,
   opts: { note?: string; now?: Date } = {},
 ): Promise<CaptureResult> {
+  /**
+   * 🔴 PLATFORM FIRST, TOKEN SECOND (7 Nov 2026, #81). YouTube keeps a refresh
+   * token and X none that this reader uses, so asking for the access token first
+   * logged "That channel has a row but no stored token" for both every day — a
+   * false alarm that reads like a broken connection. Same bug as capturePostStats
+   * had on 6 Nov.
+   */
+  const platform = await platformOf(db, accountId);
+  if (platform && !READABLE.has(platform)) {
+    // ⛔ Said, not skipped. A channel silently absent from the record looks
+    // identical to a channel that never grew.
+    return { ok: false, unsupported: true, reason: `There is no way to read ${platform} channel figures yet.` };
+  }
   const cred = await loadChannelCredential(db, accountId);
   if (!cred.ok) return { ok: false, reason: cred.reason };
 
-  if (cred.platform !== "facebook" && cred.platform !== "instagram") {
-    // ⛔ Said, not skipped. A channel silently absent from the record looks
-    // identical to a channel that never grew.
-    return { ok: false, reason: `There is no way to read ${cred.platform} figures yet.` };
+  if (!READABLE.has(cred.platform)) {
+    return { ok: false, unsupported: true, reason: `There is no way to read ${cred.platform} channel figures yet.` };
   }
 
   /**
@@ -197,7 +221,7 @@ export async function capturePostStats(
   db: SupabaseClient<any, any, any>,
   accountId: string,
   opts: { days?: number; now?: Date } = {},
-): Promise<{ captured: number; skipped: number; problems: string[] }> {
+): Promise<{ captured: number; skipped: number; problems: string[]; unsupported?: string }> {
   const problems: string[] = [];
   /**
    * 🔴 PLATFORM FIRST, TOKEN SECOND (6 Nov 2026). YouTube keeps a REFRESH
@@ -205,8 +229,12 @@ export async function capturePostStats(
    * the token first stopped every YouTube run at "a row but no stored token"
    * — before the YouTube reader was ever reached. Seen live on the first run.
    */
-  const { data: acct } = await db.from("social_accounts").select("platform").eq("id", accountId).maybeSingle();
-  if (acct?.platform === "youtube") return captureYouTubePostStats(db, accountId, opts);
+  const platform = await platformOf(db, accountId);
+  if (platform === "youtube") return captureYouTubePostStats(db, accountId, opts);
+  // 7 Nov (#81): any other platform without a reader is said as such, BEFORE the
+  // token lookup — X has no stored access token, so the old order logged a
+  // misleading "no stored token" every day.
+  if (platform && !READABLE.has(platform)) return { captured: 0, skipped: 0, problems: [], unsupported: `No reader for ${platform} posts yet.` };
   const cred = await loadChannelCredential(db, accountId);
   if (!cred.ok) return { captured: 0, skipped: 0, problems: [cred.reason] };
   if (cred.platform !== "facebook" && cred.platform !== "instagram") {

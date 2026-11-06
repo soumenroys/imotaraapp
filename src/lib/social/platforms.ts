@@ -207,7 +207,15 @@ export const PLATFORMS: Record<PlatformId, PlatformSpec> = {
   instagram: {
     id: "instagram",
     label: "Instagram",
-    picture: { width: 1080, height: 1080, note: "square; the feed crops anything else" },
+    /**
+     * 🔴 WAS SQUARE until 6 Nov 2026. Instagram's PROFILE GRID now shows 3:4
+     * tiles, which cut a square card at both side edges — the live grid read
+     * "reply that listens, in" / "e relief of no one" (owner OK'd the change
+     * 6 Nov). 4:5 is the tallest a feed photo may be, shows whole in the
+     * feed, and loses only ~34px per side in the grid (1012 of 1080 wide),
+     * which is inside the composer's side margin.
+     */
+    picture: { width: 1080, height: 1350, note: "4:5 — whole in the feed; the 3:4 grid trims only ~34px a side" },
     limits: { hard: 2200, soft: 125 },
     /**
      * ⛔ DELIBERATELY UNCHANGED at the measured median. Instagram folds at

@@ -97,9 +97,11 @@ describe("each channel is composed at its own size", () => {
         const sizes = PLATFORM_IDS.map((id) => `${PLATFORMS[id].picture.width}x${PLATFORMS[id].picture.height}`);
         // ⚠️ Facebook and LinkedIn are deliberately near-identical (630 vs 627);
         // the point is that a square and a 16:9 are NOT quietly the same.
-        expect(new Set(sizes).size).toBeGreaterThanOrEqual(4);
-        expect(sizes).toContain("1080x1080");
+        expect(new Set(sizes).size).toBeGreaterThanOrEqual(3);
         expect(sizes).toContain("1600x900");
+        expect(sizes).toContain("1080x1920");
+        // 🔴 6 Nov 2026: Instagram's 3:4 profile grid cut SQUARE cards at both edges ⇒ 4:5.
+        expect(`${PLATFORMS.instagram.picture.width}x${PLATFORMS.instagram.picture.height}`).toBe("1080x1350");
     });
 
     for (const id of PLATFORM_IDS) {

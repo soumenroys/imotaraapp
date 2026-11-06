@@ -174,32 +174,59 @@ export async function verifyAppleTransaction(transactionId: string): Promise<{
  * Status: 1 active · 2 expired · 3 billing retry · 4 grace period · 5 revoked.
  * ⇒ Only 1 and 4 count; the answer is the LATEST expiry among them, or null.
  */
-export function latestActiveExpiry(
-  body: { data?: { lastTransactions?: { status?: number; signedTransactionInfo?: string }[] }[] },
+type StatusBody = {
+  data?: { lastTransactions?: { status?: number; signedTransactionInfo?: string; signedRenewalInfo?: string }[] }[];
+};
+
+function decodeJws<T>(jws: string | undefined, verify: (jws: string) => boolean): T | null {
+  if (!jws || !verify(jws)) return null;
+  try {
+    return JSON.parse(Buffer.from(jws.split(".")[1], "base64url").toString("utf8")) as T;
+  } catch {
+    return null; // an unreadable entry is skipped, never guessed
+  }
+}
+
+/**
+ * Apple's answer, reduced to the two dates we act on:
+ *  • expiresAt  — the latest expiry among ACTIVE (1) or GRACE (4) entries ⇒ the grant;
+ *  • graceUntil — when status is 4 (billing grace period, 6 Nov 2026), the date
+ *    the grace ends (renewal info's gracePeriodExpiresDate, else the expiry) ⇒
+ *    the person is told their payment failed ⇒ lib/imotara/billingIssue.ts.
+ */
+export function subscriptionSnapshot(
+  body: StatusBody,
   verify: (jws: string) => boolean = verifyAppleJWS,
-): string | null {
+): { expiresAt: string | null; graceUntil: string | null } {
   let best = 0;
+  let grace = 0;
   for (const group of body.data ?? []) {
     for (const t of group.lastTransactions ?? []) {
       if (t.status !== 1 && t.status !== 4) continue;
-      const jws = t.signedTransactionInfo;
-      if (!jws || !verify(jws)) continue;
-      try {
-        const payload = JSON.parse(Buffer.from(jws.split(".")[1], "base64url").toString("utf8")) as { expiresDate?: number };
-        const ms = Number(payload.expiresDate ?? NaN);
-        if (Number.isFinite(ms) && ms > best) best = ms;
-      } catch {
-        // an unreadable entry is skipped, never guessed
+      const tx = decodeJws<{ expiresDate?: number }>(t.signedTransactionInfo, verify);
+      if (!tx) continue;
+      const ms = Number(tx.expiresDate ?? NaN);
+      if (Number.isFinite(ms) && ms > best) best = ms;
+      if (t.status === 4) {
+        const renewal = decodeJws<{ gracePeriodExpiresDate?: number }>(t.signedRenewalInfo, verify);
+        const g = Number(renewal?.gracePeriodExpiresDate ?? ms);
+        if (Number.isFinite(g) && g > grace) grace = g;
       }
     }
   }
-  return best > 0 ? new Date(best).toISOString() : null;
+  const iso = (ms: number) => (ms > 0 ? new Date(ms).toISOString() : null);
+  return { expiresAt: iso(best), graceUntil: iso(grace) };
+}
+
+/** The latest ACTIVE expiry (kept for callers that only need the grant date). */
+export function latestActiveExpiry(body: StatusBody, verify: (jws: string) => boolean = verifyAppleJWS): string | null {
+  return subscriptionSnapshot(body, verify).expiresAt;
 }
 
 export async function appleSubscriptionExpiry(
   transactionId: string,
   fetchImpl: typeof fetch = fetch,
-): Promise<{ ok: true; expiresAt: string | null } | { ok: false; error: string }> {
+): Promise<{ ok: true; expiresAt: string | null; graceUntil: string | null } | { ok: false; error: string }> {
   const token = makeAppleJWT();
   for (const base of ["https://api.storekit.apple.com", "https://api.storekit-sandbox.apple.com"]) {
     const res = await fetchImpl(`${base}/inApps/v1/subscriptions/${encodeURIComponent(transactionId)}`, {
@@ -208,7 +235,7 @@ export async function appleSubscriptionExpiry(
     }).catch(() => undefined);
     if (!res || res.status === 404) continue;
     if (!res.ok) return { ok: false, error: `Apple returned ${res.status}` };
-    return { ok: true, expiresAt: latestActiveExpiry(await res.json()) };
+    return { ok: true, ...subscriptionSnapshot(await res.json()) };
   }
   return { ok: false, error: "Subscription not found in Apple production or sandbox" };
 }

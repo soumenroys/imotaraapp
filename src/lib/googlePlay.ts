@@ -63,6 +63,8 @@ async function getAccessToken(clientEmail: string, privateKey: string): Promise<
 export interface GooglePlayPurchaseResult {
   valid:       boolean;
   expiresAt?:  string | null;
+  /** Google's own subscriptionState, e.g. SUBSCRIPTION_STATE_IN_GRACE_PERIOD (subscriptions only). */
+  state?:      string;
   orderId?:    string;
   error?:      string;
 }
@@ -100,6 +102,7 @@ export async function verifyGooglePlaySubscription(
 
     return {
       valid:      isActive,
+      state,
       expiresAt:  expiresAt ? new Date(expiresAt).toISOString() : null,
       orderId:    data.latestOrderId ?? undefined,
     };

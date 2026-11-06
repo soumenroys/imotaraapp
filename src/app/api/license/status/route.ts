@@ -7,6 +7,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { resolveUserTier } from "@/lib/imotara/org";
 import { normaliseTier } from "@/types/license";
 import { isClientStale, minSupportedVersion } from "@/lib/imotara/clientVersion";
+import { billingIssueFromRow, type BillingIssue } from "@/lib/imotara/billingIssue";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -121,10 +122,25 @@ export async function GET(req: Request) {
             }
         }
 
+        // 🔑 "Your payment didn't go through" (6 Nov 2026) ⇒ lib/imotara/billingIssue.ts.
+        // ⚠️ Read on its own and FAIL-SOFT: before docs/sql/licenses_billing_issue.sql
+        // runs, the columns do not exist, and that must never break the licence answer.
+        let billingIssue: BillingIssue | null = null;
+        if (userId && !effectiveStatus.startsWith("expired")) {
+            const { data: b, error: bErr } = await getSupabaseAdmin()
+                .from("licenses")
+                .select("billing_issue, billing_issue_until, billing_issue_store")
+                .eq("user_id", userId)
+                .maybeSingle();
+            if (!bErr) billingIssue = billingIssueFromRow(b);
+        }
+
         const res = NextResponse.json(
             {
                 ok: true,
                 mode: fallback.mode,
+                // Additive: older apps ignore it; 1.6.3+ and the website show the banner.
+                billingIssue,
                 license: {
                     status:       effectiveStatus,
                     tier:         effectiveTier,

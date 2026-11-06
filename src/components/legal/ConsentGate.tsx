@@ -163,6 +163,8 @@ export default function ConsentGate({ lang, countryCode, onAccepted }: Props) {
                         still above the fold, still unambiguous. */}
                     <p className="mb-5 text-center text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                         {copy.body}
+                        {/* Who writes the replies — said once, here (owner, 6 Nov 2026) */}
+                        <span className="mt-1 block">{copy.software}</span>
                     </p>
 
                     {/* Emergency block. Deliberately warm, not alarming — this is

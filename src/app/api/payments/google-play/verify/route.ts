@@ -13,6 +13,8 @@ import {
 import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
 import type { LicenseProductId } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
+import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
+import { renewPlaySubscription } from "@/lib/imotara/playRenewal";
 
 const PACKAGE_NAME = process.env.GOOGLE_PLAY_PACKAGE_NAME ?? "com.imotara.imotara";
 
@@ -48,18 +50,7 @@ export async function POST(req: NextRequest) {
   const admin          = getSupabaseAdmin();
   const isSubscription = SUBSCRIPTION_SKUS.has(productId);
 
-  // Idempotency — check if already processed
-  const { data: existing } = await admin
-    .from("payment_licenses")
-    .select("payment_id")
-    .eq("payment_id", purchaseToken)
-    .maybeSingle();
-
-  if (existing) {
-    return NextResponse.json({ ok: true, message: "already_processed" });
-  }
-
-  // Verify with Google Play
+  // Verify with Google Play FIRST — a renewal and a first purchase both need Google's word.
   const verification = isSubscription
     ? await verifyGooglePlaySubscription(PACKAGE_NAME, productId, purchaseToken)
     : await verifyGooglePlayProduct(PACKAGE_NAME, productId, purchaseToken);
@@ -68,23 +59,32 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: verification.error ?? "Purchase not valid" }, { status: 400 });
   }
 
-  // Acknowledge (required within 3 days or Google refunds automatically)
-  void acknowledgeGooglePlayPurchase(PACKAGE_NAME, productId, purchaseToken, isSubscription);
-
-  // Insert idempotency record BEFORE granting (prevents double-grant if request retried)
-  // Use token as payment_id; tier filled in after grant succeeds
-  const { error: insertErr } = await admin.from("payment_licenses").insert({
+  // 🔴 ONE grant per purchase ⇒ lib/imotara/claimPayment.ts (6 Nov 2026).
+  const claim = await claimPayment(admin, {
     payment_id:   purchaseToken,
     user_id:      userId,
     product_id:   productId,
     tier:         "pending", // updated below after grant
     amount_paise: 0,   // Google Play amount unavailable server-side (set per country in Play Console)
     currency:     "USD", // Default; actual local currency determined by Play Console per region
-    granted_at:   new Date().toISOString(),
   });
-  if (insertErr && !insertErr.message.includes("duplicate")) {
-    console.error("[google-play/verify] payment_licenses insert failed:", insertErr.message);
+  if (claim === "error") {
+    return NextResponse.json({ ok: false, error: "Could not record the purchase — please retry" }, { status: 503 });
   }
+
+  if (claim === "taken") {
+    // 🔑 A Play SUBSCRIPTION keeps ONE purchase token across every renewal.
+    // Until 6 Nov 2026 a known token was answered "already_processed" — so a
+    // renewal could never extend Plus, and every Android subscriber would have
+    // lost it after the first period. ⇒ a known subscription token is a
+    // RENEWAL: extend to Google's own expiry (grant never shortens, adds no
+    // tokens ⇒ safe to repeat). A token pack is genuinely done.
+    if (!isSubscription) return NextResponse.json({ ok: true, message: "already_processed" });
+    return renewPlaySubscription(admin, userId, productId as LicenseProductId, purchaseToken, verification);
+  }
+
+  // Acknowledge (required within 3 days or Google refunds automatically)
+  void acknowledgeGooglePlayPurchase(PACKAGE_NAME, productId, purchaseToken, isSubscription);
 
   // Grant license
   // 🔴 Pass Play's OWN expiry, not the catalog's day count. verification
@@ -96,6 +96,7 @@ export async function POST(req: NextRequest) {
     isSubscription ? verification.expiresAt : null,
   );
   if (!result.ok) {
+    await releasePayment(admin, purchaseToken);
     return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
   }
 

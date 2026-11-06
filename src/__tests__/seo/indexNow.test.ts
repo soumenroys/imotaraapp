@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { INDEXNOW_KEY, MAX_URLS, buildPayload, shouldSubmit } from "@/lib/seo/indexNow";
+import { FULL_EVERY_DAYS, INDEXNOW_KEY, MAX_URLS, buildPayload, planSubmission, shouldSubmit } from "@/lib/seo/indexNow";
 
 describe("the key file proves ownership", () => {
   it("public/<key>.txt exists and holds exactly the key", () => {
@@ -48,6 +48,26 @@ describe("⛔ once per deployment — never a daily flood", () => {
   it("no deployment id (local or unknown) ⇒ never", () => expect(shouldSubmit(null, undefined)).toBe(false));
 });
 
+describe("⛔ only what is new — 7 Nov 2026: 8 deployments sent all 85 pages 8× (680 in 19 h)", () => {
+  const U = ["https://www.imotara.com/", "https://www.imotara.com/faq", "https://www.imotara.com/about"];
+  const NOW = Date.parse("2026-11-07T12:00:00Z");
+  const daysAgo = (d: number) => new Date(NOW - d * 86_400_000).toISOString();
+
+  it("first ever run ⇒ the full list", () => expect(planSubmission(null, U, NOW)).toEqual({ kind: "full", urls: U }));
+  it("a second deployment the same day, no new page ⇒ NOTHING sent", () =>
+    expect(planSubmission({ fullAt: daysAgo(0.1), sent: U }, U, NOW)).toEqual({ kind: "none", urls: [] }));
+  it("a new page ⇒ only that page, at once", () =>
+    expect(planSubmission({ fullAt: daysAgo(2), sent: U.slice(0, 2) }, U, NOW)).toEqual({ kind: "new", urls: ["https://www.imotara.com/about"] }));
+  it(`the full list again only after ${FULL_EVERY_DAYS} days`, () => {
+    expect(planSubmission({ fullAt: daysAgo(FULL_EVERY_DAYS - 0.5), sent: U }, U, NOW).kind).toBe("none");
+    expect(planSubmission({ fullAt: daysAgo(FULL_EVERY_DAYS), sent: U }, U, NOW).kind).toBe("full");
+  });
+  it("the OLD memory (sent everything at `at`) counts as a full send — the fix itself causes no extra flood", () => {
+    expect(planSubmission({ deployment: "dpl_x", at: daysAgo(0.2) }, U, NOW)).toEqual({ kind: "none", urls: [] });
+    expect(planSubmission({ deployment: "dpl_x", at: daysAgo(8) }, U, NOW).kind).toBe("full");
+  });
+});
+
 describe("the job", () => {
   const route = readFileSync(join(process.cwd(), "src/app/api/cron/indexnow/route.ts"), "utf8");
   it("runs only in production — a preview must never announce its URLs as the site's", () =>
@@ -56,8 +76,13 @@ describe("the job", () => {
     expect(route).toMatch(/cronAuthorised\(req\)/);
     expect(route).toMatch(/export async function GET/);
   });
-  it("remembers the deployment only after IndexNow accepted it", () => {
-    expect(route.indexOf("if (!r.ok)")).toBeLessThan(route.indexOf('from("app_settings").upsert'));
+  it("remembers a SENT list only after IndexNow accepted it", () => {
+    const send = route.indexOf("await submit(payload)");
+    expect(route.indexOf("if (!r.ok)", send)).toBeLessThan(route.indexOf("await remember(plan.kind", send));
+  });
+  it("sends what the plan says, not the whole sitemap", () => {
+    expect(route).toMatch(/buildPayload\(plan\.urls\)/);
+    expect(route).not.toMatch(/submit\(all\)/);
   });
   it("is scheduled", () => expect(readFileSync(join(process.cwd(), "vercel.json"), "utf8")).toMatch(/"\/api\/cron\/indexnow"/));
 });

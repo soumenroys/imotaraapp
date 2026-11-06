@@ -114,3 +114,54 @@ export async function sweepPlayRenewals(admin: SupabaseClient, deps: PlaySweepDe
   }
   return { checked: rows.length, extended, errors };
 }
+
+// ── Apple ────────────────────────────────────────────────────────────────────
+
+export type AppleSweepDeps = {
+  /** Apple's latest ACTIVE expiry for the subscription this transaction belongs to, or null. */
+  expiry: (transactionId: string) => Promise<{ ok: true; expiresAt: string | null } | { ok: false; error: string }>;
+};
+
+/**
+ * 🔑 iPhone renewals, 6 Nov 2026 — the Apple half of the same gap: a renewal
+ * gets a NEW transaction id the app only sends when someone opens the upgrade
+ * sheet. Apple's "Get All Subscription Statuses" answers from ANY transaction
+ * of the subscription, so one stored id per (person, product) is enough.
+ * Active ⇒ extend to Apple's expiry (never shortens, adds no tokens); else
+ * leave it, the licence lapses on its own date.
+ */
+export async function sweepAppleRenewals(admin: SupabaseClient, deps: AppleSweepDeps) {
+  const { data, error } = await admin
+    .from("payment_licenses")
+    .select("payment_id, user_id, product_id, tier")
+    .in("product_id", PLAY_SUBSCRIPTION_SKUS as unknown as string[])
+    .neq("tier", "pending");
+  if (error) return { checked: 0, extended: 0, errors: [error.message] };
+
+  // Apple transaction ids are all digits; one per person + product is enough.
+  const seen = new Set<string>();
+  const rows = (data ?? []).filter((r) => {
+    if (!/^\d+$/.test(String(r.payment_id))) return false;
+    const k = `${r.user_id}|${r.product_id}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+
+  let extended = 0;
+  const errors: string[] = [];
+  for (const r of rows) {
+    if (!(r.product_id in PRODUCT_CATALOG)) continue;
+    try {
+      const st = await deps.expiry(String(r.payment_id));
+      if (!st.ok) { errors.push(st.error); continue; }
+      if (!st.expiresAt) continue;
+      const g = await grantLicense(r.user_id, r.product_id as LicenseProductId, admin, "apple", st.expiresAt);
+      if (g.ok) extended++;
+      else errors.push(g.error ?? "grant failed");
+    } catch (e) {
+      errors.push(String(e));
+    }
+  }
+  return { checked: rows.length, extended, errors };
+}

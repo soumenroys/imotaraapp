@@ -24,7 +24,7 @@ export const CRON_DESCRIPTIONS: Record<string, string> = {
   "/api/cron/exchange-rates":
     "Fetches USD-base exchange rates into app_settings, so prices shown abroad are not months old.",
   "/api/cron/store-renewals":
-    "Asks Google about every Play subscription we granted and extends the active ones to Google's expiry, so a renewal is not lost.",
+    "Asks Google and Apple about every app-store subscription we granted and extends the active ones to the store's own expiry, so a renewal is not lost.",
   "/api/cron/connect-orphans":
     "Rescues Connect sessions stuck somewhere they cannot leave on their own.",
   "/api/cron/connect-settle-earnings":

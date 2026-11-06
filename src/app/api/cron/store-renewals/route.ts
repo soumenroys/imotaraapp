@@ -8,14 +8,15 @@
 // OFF in Play Console (seen 6 Nov 2026) and need a Pub/Sub topic. A daily
 // question needs nothing new, and catches a missed push too.
 //
-// ⚠️ Apple is NOT covered here yet: a renewal there gets a NEW transaction id,
-// which the app sends only when the upgrade sheet restores purchases.
+// 🔑 Apple too (6 Nov 2026): a renewal there gets a NEW transaction id the app
+// sends only when the upgrade sheet restores purchases ⇒ sweepAppleRenewals.
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { verifyGooglePlaySubscription } from "@/lib/googlePlay";
-import { sweepPlayRenewals } from "@/lib/imotara/playRenewal";
+import { sweepPlayRenewals, sweepAppleRenewals } from "@/lib/imotara/playRenewal";
+import { appleSubscriptionExpiry } from "@/lib/apple/storeServer";
 
 export const maxDuration = 60;
 
@@ -33,6 +34,16 @@ export async function GET(req: NextRequest) {
   const out = await sweepPlayRenewals(getSupabaseAdmin(), {
     verify: (productId, token) => verifyGooglePlaySubscription(PACKAGE_NAME, productId, token),
   });
-  if (out.errors.length) console.error("[store-renewals]", out.errors.slice(0, 5));
-  return NextResponse.json({ ok: out.errors.length === 0, ...out, errors: out.errors.length });
+  const hasApple = !!(process.env.APPLE_IAP_ISSUER_ID && process.env.APPLE_IAP_KEY_ID && process.env.APPLE_IAP_PRIVATE_KEY);
+  const apple = hasApple
+    ? await sweepAppleRenewals(getSupabaseAdmin(), { expiry: (id) => appleSubscriptionExpiry(id) })
+    : { checked: 0, extended: 0, errors: ["Apple IAP credentials not configured"] };
+  const errors = [...out.errors, ...apple.errors];
+  if (errors.length) console.error("[store-renewals]", errors.slice(0, 5));
+  return NextResponse.json({
+    ok: errors.length === 0,
+    play: { checked: out.checked, extended: out.extended },
+    apple: { checked: apple.checked, extended: apple.extended },
+    errors: errors.length,
+  });
 }

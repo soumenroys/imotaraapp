@@ -9,7 +9,8 @@
 
 import { NextResponse } from "next/server";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
-import { createSign, createVerify, createPublicKey } from "crypto";
+import { verifyAppleTransaction, APPLE_BUNDLE_ID } from "@/lib/apple/storeServer";
+import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import {
     grantLicense,
@@ -17,159 +18,6 @@ import {
     PRODUCT_CATALOG,
     type LicenseProductId,
 } from "@/lib/imotara/grantLicense";
-
-const APPLE_BUNDLE_ID = "com.imotara.imotara";
-
-// ── Apple App Store Server API JWT ────────────────────────────────────────────
-
-function makeAppleJWT(): string {
-    const issuerId  = process.env.APPLE_IAP_ISSUER_ID  ?? "";
-    const keyId     = process.env.APPLE_IAP_KEY_ID     ?? "";
-    // Vercel sometimes stores PEM keys with literal \n instead of real newlines.
-    const privateKey = (process.env.APPLE_IAP_PRIVATE_KEY ?? "").replace(/\\n/g, "\n");
-
-    const now    = Math.floor(Date.now() / 1000);
-    const header  = Buffer.from(JSON.stringify({ alg: "ES256", kid: keyId })).toString("base64url");
-    const payload = Buffer.from(JSON.stringify({
-        iss: issuerId,
-        iat: now,
-        exp: now + 3600,
-        aud: "appstoreconnect-v1",
-        bid: APPLE_BUNDLE_ID,
-    })).toString("base64url");
-
-    const message   = `${header}.${payload}`;
-    const sign      = createSign("SHA256");
-    sign.update(message);
-    // JWT ES256 requires IEEE P1363 format (raw r‖s), not DER — same as JWS verification.
-    const signature = sign.sign({ key: privateKey, dsaEncoding: "ieee-p1363" }, "base64url");
-    return `${message}.${signature}`;
-}
-
-// ── JWS signature verification ────────────────────────────────────────────────
-// Apple signs signedTransactionInfo with their own EC private key.
-// The x5c header field carries the leaf certificate whose public key we use
-// to verify the ES256 signature. This confirms the payload was not tampered
-// with even if HTTPS were somehow compromised.
-
-function verifyAppleJWS(jws: string): boolean {
-    try {
-        const parts = jws.split(".");
-        if (parts.length !== 3) return false;
-
-        const header = JSON.parse(
-            Buffer.from(parts[0], "base64url").toString("utf8")
-        ) as { alg?: string; x5c?: string[] };
-
-        if (header.alg !== "ES256") return false;
-        if (!Array.isArray(header.x5c) || header.x5c.length === 0) return false;
-
-        // Reconstruct PEM from the leaf DER certificate (base64-encoded in x5c[0])
-        const leafPem = [
-            "-----BEGIN CERTIFICATE-----",
-            ...(header.x5c[0].match(/.{1,64}/g) ?? []),
-            "-----END CERTIFICATE-----",
-        ].join("\n");
-
-        const publicKey  = createPublicKey(leafPem);
-        const signedData = `${parts[0]}.${parts[1]}`;
-        const signature  = Buffer.from(parts[2], "base64url");
-
-        // JWS ES256 signatures use IEEE P1363 format (raw 64-byte R‖S),
-        // NOT the DER-encoded format that Node.js expects by default.
-        // Without dsaEncoding: 'ieee-p1363', verification always fails.
-        const verifier = createVerify("SHA256");
-        verifier.update(signedData);
-        return verifier.verify({ key: publicKey, dsaEncoding: "ieee-p1363" }, signature);
-    } catch {
-        return false;
-    }
-}
-
-// ── Verify transaction with Apple ─────────────────────────────────────────────
-// Tries production first, then sandbox (covers TestFlight purchases).
-
-async function verifyAppleTransaction(transactionId: string): Promise<{
-    ok: boolean;
-    appleProductId?: string;
-    environment?: string;
-    /**
-     * The store's own expiry, ISO 8601, for auto-renewable subscriptions.
-     * 🔴 This payload always carried it and this function used to return only
-     * productId — so the grant fell back to the catalog's 31/366 days and a
-     * 7-day free trial would have granted a full month of Plus.
-     */
-    expiresAt?: string | null;
-    error?: string;
-}> {
-    const token = makeAppleJWT();
-    const endpoints = [
-        { url: `https://api.storekit.apple.com/inApps/v1/transactions/${transactionId}`,         env: "production" },
-        { url: `https://api.storekit-sandbox.apple.com/inApps/v1/transactions/${transactionId}`, env: "sandbox" },
-    ];
-
-    for (const { url, env } of endpoints) {
-        let res: Response | undefined;
-        // Retry up to 3 times with 1s delay — StoreKit can fire onPurchaseSuccess
-        // before Apple's servers have indexed the transaction (race condition).
-        for (let attempt = 0; attempt < 3; attempt++) {
-            if (attempt > 0) await new Promise((r) => setTimeout(r, 1000));
-            try {
-                res = await fetch(url, {
-                    headers: { Authorization: `Bearer ${token}` },
-                    signal: AbortSignal.timeout(8_000),
-                });
-                if (res.status !== 404) break;
-            } catch {
-                res = undefined;
-            }
-        }
-
-        if (!res || res.status === 404) continue;
-
-        if (!res.ok) {
-            const errText = await res.text().catch(() => "");
-            console.error(`[verify-apple-purchase] Apple API ${env} returned ${res.status}:`, errText);
-            return { ok: false, error: `Apple API ${env} returned ${res.status}` };
-        }
-
-        const json = await res.json() as { signedTransactionInfo?: string };
-        const jws  = json?.signedTransactionInfo;
-        if (!jws) return { ok: false, error: "No signedTransactionInfo in Apple response" };
-
-        // Verify the ES256 signature using the x5c leaf certificate from the JWS header.
-        // This ensures the payload was signed by Apple and was not tampered with.
-        if (!verifyAppleJWS(jws)) {
-            console.error("[verify-apple-purchase] JWS signature verification failed for transaction", transactionId);
-            return { ok: false, error: "Apple JWS signature verification failed" };
-        }
-
-        const parts = jws.split(".");
-        let txPayload: Record<string, unknown>;
-        try {
-            txPayload = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
-        } catch {
-            return { ok: false, error: "Could not parse Apple transaction payload" };
-        }
-
-        // `expiresDate` is milliseconds since the epoch, and is absent on
-        // consumables (token packs). Anything unparseable becomes null, which
-        // means "fall back to the catalog" — never a wrong date.
-        const rawExpiry = Number(txPayload.expiresDate ?? NaN);
-        const expiresAt = Number.isFinite(rawExpiry) && rawExpiry > 0
-            ? new Date(rawExpiry).toISOString()
-            : null;
-
-        return {
-            ok: true,
-            appleProductId: String(txPayload.productId ?? ""),
-            environment: env,
-            expiresAt,
-        };
-    }
-
-    return { ok: false, error: "Transaction not found in Apple production or sandbox" };
-}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -210,9 +58,15 @@ export async function POST(req: Request) {
         // Also select tier so we can detect a prior failed grantLicense and recover.
         const { data: existingPayment } = await admin
             .from("payment_licenses")
-            .select("payment_id, tier")
+            .select("payment_id, tier, user_id")
             .eq("payment_id", transactionId)
             .maybeSingle();
+
+        // ⛔ 6 Nov 2026: a known transaction re-granted Plus to WHOEVER sent it.
+        // It belongs to the account that first redeemed it — say nothing more.
+        if (existingPayment && existingPayment.user_id && existingPayment.user_id !== userId) {
+            return NextResponse.json({ ok: false, error: "This purchase belongs to another account." }, { status: 409 });
+        }
 
         if (existingPayment) {
             const { data: lic } = await admin
@@ -305,19 +159,26 @@ export async function POST(req: Request) {
             }
         }
 
-        // Record transaction first (prevents double-grant on retry)
+        // 🔴 ONE grant per transaction ⇒ lib/imotara/claimPayment.ts. This used to
+        // ask "seen it?" above and record it here, so two reports of one token
+        // pack (purchase listener + restore) arriving together granted twice.
         const product = PRODUCT_CATALOG[productId as LicenseProductId];
-        const { error: upsertErr } = await admin.from("payment_licenses").upsert({
+        const claim = await claimPayment(admin, {
             payment_id:   transactionId,
             user_id:      userId,
             product_id:   productId,
             tier:         product.type === "subscription" ? product.tier : "free",
             amount_paise: product.paise, // INR paise (App Store pricing set per country by App Store Connect)
             currency:     "INR",         // Indian pricing basis; App Store handles local currency per region
-        }, { onConflict: "payment_id", ignoreDuplicates: true });
-        if (upsertErr) {
-            console.error("[verify-apple-purchase] payment_licenses upsert failed:", upsertErr.message);
-            return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 500 });
+        });
+        if (claim === "error") {
+            return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 503 });
+        }
+        if (claim === "taken") {
+            const { data: lic } = await admin.from("licenses").select("tier, token_balance, expires_at").eq("user_id", userId).maybeSingle();
+            const res = NextResponse.json({ ok: true, tier: lic?.tier ?? "free", tokenBalance: lic?.token_balance ?? 0, expiresAt: lic?.expires_at ?? null });
+            res.headers.set("Cache-Control", "no-store");
+            return res;
         }
 
         // 🔴 Apple's expiry wins over the catalog's day count — see
@@ -328,6 +189,7 @@ export async function POST(req: Request) {
             verification.expiresAt,
         );
         if (!result.ok) {
+            await releasePayment(admin, transactionId);
             return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
         }
 

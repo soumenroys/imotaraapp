@@ -29,6 +29,7 @@ import { instagramCardPlan } from "@/lib/social/instagramCardPlan";
 import { platformSpec } from "@/lib/social/platforms";
 import { mediaPlan } from "@/lib/social/mediaPlan";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { withTrackedLink } from "@/lib/social/brandMarks";
 
 export const maxDuration = 300;
 
@@ -396,7 +397,9 @@ export async function GET(req: NextRequest) {
            * ⇒ trap_a_model_invents_specifics_it_cannot_have.
            */
           title,
-          description: post.body as string,
+          // #92: the one channel whose text may carry a link — tagged, so GA can
+          // tell a visit from YouTube apart from "Direct" ⇒ brandMarks.withTrackedLink.
+          description: withTrackedLink(post.body as string, "youtube"),
           videoBytes: bytes,
           /**
            * 🔴 DECLARED EXPLICITLY ON EVERY UPLOAD, both of them. Imotara is

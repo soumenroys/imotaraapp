@@ -188,6 +188,7 @@ Fill Version / buildNumber / versionCode / Date / Owner, then all non-negotiable
 - [ ] iOS build visible in App Store Connect TestFlight.
 - [ ] Android build "In review" in Play Console production track.
 - [ ] Update `RELEASE_GO_NO_GO.md` with the final decision and notes.
+- [ ] **"New version available" notice (app 1.6.6+).** Only AFTER a store shows the new version LIVE (not "in review"), set that store's number in Vercel → Env Vars → Production and redeploy: `IMOTARA_LATEST_APP_VERSION_IOS` / `IMOTARA_LATEST_APP_VERSION_ANDROID` (e.g. `1.6.6`). Apps older than that number then show "A new version of Imotara is available — Update / Not now" when opened (never on a first open). ⛔ Never set it before the store has it — people would be sent to a store page without the update. Unset = no notice. Check: `curl https://www.imotara.com/api/app/latest-version`.
 
 ---
 

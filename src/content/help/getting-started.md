@@ -24,7 +24,7 @@ It is deliberately short. The point is that nobody should discover what Imotara 
 You go straight into the conversation — there is no setup to fill in first.
 
 - **On the web**, the home page asks **"How are you feeling right now?"**. Tap a mood (Good, Sad, Stressed, Frustrated, Anxious, Lonely) and the chat opens with a first line already written in your language. Nothing is sent until you press send. Or tap **Start talking**.
-- **On Android and iPhone** (version 1.6.5 and later), the app goes from the welcome screen straight to the chat, with one-tap starters in your language.
+- **On Android and iPhone** (version 1.6.6 and later), the app goes from the welcome screen straight to the chat, with one-tap starters in your language.
 - Imotara starts with neutral settings: no name, a neutral companion style, and replies from our secure servers. You can change any of these in Settings.
 - **On the phone**, after your first real conversation, Imotara offers once — on a later open — to set your name and how your companion talks with you. Tap **Skip setup** and nothing changes. If you already set these in Settings, it doesn't ask.
 - Want that setup again? **Settings → Tips & tours → Restart onboarding** shows it on your next open. It doesn't delete your history.

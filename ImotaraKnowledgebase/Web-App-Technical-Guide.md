@@ -1,6 +1,6 @@
 # Imotara — Web App Technical Guide
 
-The web app (`imotaraapp`, `github.com/soumenroys/imotaraapp`) is both the user-facing web client at **www.imotara.com** and the **entire backend** for the mobile app — all API routes, payments, admin, org, and Connect logic live here. Current release: **v1.6.5**.
+The web app (`imotaraapp`, `github.com/soumenroys/imotaraapp`) is both the user-facing web client at **www.imotara.com** and the **entire backend** for the mobile app — all API routes, payments, admin, org, and Connect logic live here. Current release: **v1.6.6**.
 
 ## 1. Tech stack
 
@@ -92,7 +92,7 @@ From `.env.example`: Supabase (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_UR
 
 The v1.2.7 release was dominated by a 5-pass **NGO/org licensing security audit** (29 findings): cross-org seat leaks, seat-pool capacity leaks, TOCTOU races on org creation, real user banning, global API-key rate limiting, `connect_reviewer` privilege-escalation fix, Imotara-owner org-delete, NGO verification approve/reject — plus honest de-scoping of overclaimed features (LMS embed, referral tracking, Impact Report "PDF" → "Coming soon"/corrected), TTS reliability fixes, and payment security hardening (server-side Stripe price computation, Apple IAP fail-closed, cross-tenant IDOR fixes).
 
-### 7 Nov 2026 (v1.6.5) — getting people talking, and back
+### 7 Nov 2026 (web live; phone in v1.6.6) — getting people talking, and back
 - **Home ⇒ chat (#91):** the home page asks "How are you feeling right now?"; a mood links to `/chat?mood=<key>` (the KEY, never words, travels in the URL) and the chat pre-fills the opener in the person's language — they still press send (`src/lib/imotara/homeMoods.ts`). The bottom banners no longer cover the composer on `/chat`; the first-visit cloud default still runs there.
 - **Privacy words (#94):** home, chat and the local-data notice now say history stays in the browser and replies come from our secure servers by default (switchable to on-device only).
 - **Coming back (#77c):** the welcome-back message names how the person was last time, in 22 languages; crisis-safe; never quotes them. Table `src/lib/imotara/returningLine.ts`, byte-identical in imotara-mobile (a test compares when the mobile copy exists).

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { isWithinLaunchOffer, getLaunchOfferEndsAt } from "@/lib/imotara/license";
 import { HOME_FAQ_SCHEMA } from "@/lib/seo/homeFaqSchema";
+import { HOME_MOODS } from "@/lib/imotara/homeMoods";
+import { gaEvent } from "@/lib/analytics/gaEvent";
 
 function IconChat(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -150,15 +152,36 @@ export default function Home() {
             respect for your privacy.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+          {/* #91 (7 Nov 2026): the first card asks, and one tap starts the
+              conversation. GA: 321 people saw this page for 7 seconds on
+              average and only 18% reached /chat ⇒ lib/imotara/homeMoods.ts */}
+          <div className="mt-7">
+            <p className="text-sm font-medium text-zinc-200">How are you feeling right now?</p>
+            <div className="mt-3 flex flex-wrap gap-2" role="list" aria-label="Pick how you feel to start talking">
+              {HOME_MOODS.map((m) => (
+                <Link
+                  key={m.key}
+                  role="listitem"
+                  href={`/chat?mood=${m.key}`}
+                  onClick={() => gaEvent("home_mood", { mood: m.key })}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-sm text-zinc-100 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+                >
+                  <span aria-hidden="true">{m.emoji}</span>
+                  <span>{m.label}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/chat"
                 className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-gradient-to-r from-indigo-500 via-sky-500 to-emerald-400 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-sky-900/40 transition hover:brightness-110 focus:outline-none focus:ring-2 focus:ring-indigo-400/70 focus:ring-offset-2 focus:ring-offset-transparent"
-                aria-label="Get started chatting with Imotara"
+                aria-label="Start talking with Imotara"
               >
-                <span>Get Started</span>
-                <span className="text-xs opacity-80">/chat</span>
+                <span>Start talking</span>
+                <span className="text-xs opacity-80">free · no sign-up</span>
               </Link>
 
               <Link
@@ -172,8 +195,10 @@ export default function Home() {
             </div>
 
             <p className="max-w-sm text-xs text-zinc-400">
-              Local-first by default. Your words are stored in this browser. Remote
-              analysis happens only if you explicitly allow it in settings.
+              {/* #94 (owner, 7 Nov 2026): words match behaviour — new visitors get
+                  cloud replies by default (FirstVisitBanner). */}
+              Your conversations are kept in this browser. Replies come from our
+              secure servers — you can switch to on-device only in Settings.
             </p>
           </div>
         </div>

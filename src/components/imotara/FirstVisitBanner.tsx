@@ -9,7 +9,10 @@ const CONSENT_KEY = "imotara.analysisConsent.v1";
 const ONBOARDED_KEY = "imotara.onboarded.v1";
 
 // Paths where user-onboarding banners should never appear
-const SUPPRESS_PATHS = ["/admin", "/help"];
+// "/chat": both banners are pinned to the bottom of the screen — exactly where
+// the message box is. Seen live 7 Nov 2026 (#91): a first-time visitor arriving
+// in Chat could not see where to type. They still show on every other page.
+const SUPPRESS_PATHS = ["/admin", "/help", "/chat"];
 
 export default function FirstVisitBanner() {
   const [show, setShow] = useState(false);
@@ -17,7 +20,12 @@ export default function FirstVisitBanner() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) return;
+    // ⚠️ "/admin" and "/help" skip everything, as before. "/chat" only hides the
+    // BANNER: the first-visit default below must still run for someone who
+    // lands straight in Chat, or their first replies would come from the
+    // on-device engine instead of the cloud one.
+    const hideHere = SUPPRESS_PATHS.some((p) => pathname.startsWith(p));
+    if (hideHere && !pathname.startsWith("/chat")) return;
     try {
       const consented = window.localStorage.getItem(CONSENT_KEY);
       const onboarded = window.localStorage.getItem(ONBOARDED_KEY);
@@ -26,7 +34,8 @@ export default function FirstVisitBanner() {
         // User can switch to local-only in Settings at any time.
         saveConsentMode("allow-remote");
       }
-      if (!onboarded) setShow(true);
+      if (hideHere) setShow(false);
+      else if (!onboarded) setShow(true);
     } catch {
       // localStorage unavailable — don't show
     }

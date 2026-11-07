@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const STORAGE_KEY = "imotara.localNotice.v1";
-const SUPPRESS_PATHS = ["/admin", "/help"];
+// "/chat": both banners are pinned to the bottom of the screen — exactly where
+// the message box is. Seen live 7 Nov 2026 (#91): a first-time visitor arriving
+// in Chat could not see where to type. They still show on every other page.
+const SUPPRESS_PATHS = ["/admin", "/help", "/chat"];
 
 export default function LocalDataNotice() {
     const [visible, setVisible] = useState(false);
@@ -14,7 +17,8 @@ export default function LocalDataNotice() {
     // Show banner only on client, only if not dismissed, never on admin paths
     useEffect(() => {
         if (typeof window === "undefined") return;
-        if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) return;
+        // Hide (not just "do not show"): it may already be up from the page before.
+        if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) { setVisible(false); return; }
         try {
             const val = window.localStorage.getItem(STORAGE_KEY);
             if (val !== "dismissed") setVisible(true);
@@ -68,14 +72,17 @@ export default function LocalDataNotice() {
 
                 {/* Message block */}
                 <div className="flex-1 space-y-1">
+                    {/* #94 (owner, 7 Nov 2026): this used to say nothing is sent to
+                        our servers unless you allow it — but new visitors get cloud
+                        replies by default. The words now match what happens. */}
                     <p className="font-medium text-zinc-50">
-                        Local-only storage by default
+                        How Imotara handles your words
                     </p>
 
                     <p className="leading-snug text-zinc-300">
-                        Imotara stores your chat and emotion history <b>only on this
-                            device</b>. Nothing is sent to our servers unless you turn on sync
-                        or allow remote analysis.
+                        Your chat history is kept <b>on this device</b>. To reply, your
+                        messages are sent to our secure servers. You can switch to
+                        on-device only replies in Settings.
                     </p>
                 </div>
 

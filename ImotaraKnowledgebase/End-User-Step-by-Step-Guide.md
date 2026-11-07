@@ -92,6 +92,7 @@ Steps:
 1. In **Settings**, enable **Sentiment seed chips** ("Show quick-tap mood hint chips above the message input"). **On web** this is under **Chat behaviour**.
 2. In Chat, tap a chip above the composer to seed the message with a mood hint.
 3. First-time users see intake chips such as **Overwhelmed, Anxious, Low, Okay, Good, Just exploring** under "How are you feeling right now?" — tap one to begin.
+4. **On web, from the home page:** the first card asks **"How are you feeling right now?"** with six moods (**Good, Sad, Stressed, Frustrated, Anxious, Lonely**). Tapping one opens Chat with a matching first line already written in the message box, in your chosen language — press send, or change it first. Nothing is sent until you press send, and the intake questions are skipped because you have already said how you feel. **Start talking** (free · no sign-up) opens Chat without a mood.
 
 ### 3e. Quick panels (mobile)
 1. **On mobile → Settings → Quick panels**, enable **Swipe right — Your Companion** and/or **Swipe left — Plan & Support**.

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import MoodStartRow from "@/components/imotara/MoodStartRow";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
@@ -53,7 +54,7 @@ const faqs = [
   },
   {
     q: "Does Imotara share my mood data?",
-    a: "No. By default all data is stored locally on your device. Optional cloud sync is available but requires your explicit consent and can be turned off at any time.",
+    a: "No — your mood data is never sold or shared with advertisers. Entries are saved on your device. To write replies, your messages go to our secure servers (you can switch to on-device only in Settings). Backup across devices is optional and can be turned off at any time.",
   },
   {
     q: "What does the mood timeline show?",
@@ -84,8 +85,10 @@ export default function MoodTrackerAppPage() {
           <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300">
             Imotara is a free mood tracker and emotional companion — a private space to write how you feel,
             receive gentle AI reflections, and watch your emotional patterns unfold over time. No ads, no account
-            required, no data sharing.
+            required, no data selling.
           </p>
+          {/* #77f: one tap from "how I feel" to a written opener in the chat */}
+          <MoodStartRow from="mood-tracker-app" />
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/chat"

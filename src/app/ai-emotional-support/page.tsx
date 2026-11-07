@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import MoodStartRow from "@/components/imotara/MoodStartRow";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
@@ -53,7 +54,7 @@ const faqs = [
   },
   {
     q: "Is my emotional data private?",
-    a: "Yes. All conversations are stored on your device by default. Cloud sync is optional and requires your explicit consent. No ads, no data selling.",
+    a: "Yes. Your conversation history and mood entries are saved on your device. Replies come from our secure servers by default — you can switch to on-device only in Settings. Backup across devices is optional and needs your consent. No ads, no data selling.",
   },
   {
     q: "Can I use Imotara when I feel anxious or overwhelmed?",
@@ -83,9 +84,11 @@ export default function AiEmotionalSupportPage() {
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300">
             Imotara is a free, private companion that listens to how you feel — without judgment, without ads,
-            and without sharing your data. Talk about anything on your mind and receive gentle, thoughtful reflections
+            and without selling your data. Talk about anything on your mind and receive gentle, thoughtful reflections
             in your language, at your pace.
           </p>
+          {/* #77f: one tap from "how I feel" to a written opener in the chat */}
+          <MoodStartRow from="ai-emotional-support" />
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/chat"
@@ -121,7 +124,7 @@ export default function AiEmotionalSupportPage() {
               ["Reflect your patterns", "Over time, Imotara surfaces emotional trends — so you can see how your feelings shift across days and weeks."],
               ["Available anytime", "No appointments, no waiting rooms. Open Imotara whenever you need a quiet space — day or night."],
               ["22 languages supported", "Imotara understands and responds in English, Hindi, Bengali, Tamil, Spanish, French, Arabic, Japanese, and 14 more languages."],
-              ["Local-first privacy", "Your words stay on your device by default. Cloud sync is optional and requires your consent."],
+              ["Private by design", "Your history stays on your device. Replies come from our secure servers — or switch to on-device only in Settings."],
               ["Free to use, no ads", "Imotara is free to use with no subscription required. No ads, no data selling. Imotara Plus is optional."],
             ].map(([title, desc]) => (
               <li key={title as string} className="flex gap-3">

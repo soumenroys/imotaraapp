@@ -20,7 +20,7 @@ The web app (`imotaraapp`, `github.com/soumenroys/imotaraapp`) is both the user-
 imotaraapp/
 ├─ public/                   # icons, manifest, sw.js, sounds/, tts-preview/ (42 MP3s), avatars/ (WebP)
 ├─ scripts/                  # devRoutes.mjs, bump-version.mjs, ping-sitemap.mjs,
-│                            #   generate-tts-previews.mjs, ~15 generate-*-pdf.js marketing generators
+│                            #   generate-tts-previews.mjs, ~15 generate-*-pdf.js marketing generators  (personas + competitor generators measure every page since 7 Nov 2026 — ≤5% over A4 ⇒ scaled to fit, more ⇒ the run fails, #82)
 ├─ tests/imotara-ai/         # E2E AI eval harness: runner.ts, judge.ts, scenarios.<lang>.ts (22 langs)
 ├─ docs/                     # ARCHITECTURE.md, IMOTARA_OVERVIEW.md, LICENSING.md, CHANGELOG_v1.2.7.md,
 │  ├─ sql/                   #   79 raw SQL migration files (the actual DB schema — no ORM, no Prisma)
@@ -91,3 +91,9 @@ From `.env.example`: Supabase (`NEXT_PUBLIC_SUPABASE_URL/ANON_KEY`, `SUPABASE_UR
 ## 10. Recent development themes (v1.2.7)
 
 The v1.2.7 release was dominated by a 5-pass **NGO/org licensing security audit** (29 findings): cross-org seat leaks, seat-pool capacity leaks, TOCTOU races on org creation, real user banning, global API-key rate limiting, `connect_reviewer` privilege-escalation fix, Imotara-owner org-delete, NGO verification approve/reject — plus honest de-scoping of overclaimed features (LMS embed, referral tracking, Impact Report "PDF" → "Coming soon"/corrected), TTS reliability fixes, and payment security hardening (server-side Stripe price computation, Apple IAP fail-closed, cross-tenant IDOR fixes).
+
+### 7 Nov 2026 (v1.6.5) — getting people talking, and back
+- **Home ⇒ chat (#91):** the home page asks "How are you feeling right now?"; a mood links to `/chat?mood=<key>` (the KEY, never words, travels in the URL) and the chat pre-fills the opener in the person's language — they still press send (`src/lib/imotara/homeMoods.ts`). The bottom banners no longer cover the composer on `/chat`; the first-visit cloud default still runs there.
+- **Privacy words (#94):** home, chat and the local-data notice now say history stays in the browser and replies come from our secure servers by default (switchable to on-device only).
+- **Coming back (#77c):** the welcome-back message names how the person was last time, in 22 languages; crisis-safe; never quotes them. Table `src/lib/imotara/returningLine.ts`, byte-identical in imotara-mobile (a test compares when the mobile copy exists).
+- **Update notice source (#98):** `GET /api/app/latest-version` — see Database & Backend Reference.

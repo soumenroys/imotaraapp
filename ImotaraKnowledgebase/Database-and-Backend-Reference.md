@@ -218,6 +218,7 @@ Grouped by area; one line each.
 - `POST/DELETE /api/push/subscribe`, `GET /api/push/cron` — web push.
 - `GET /api/health` — env-presence health check (no secret values).
 - `/api/cron/*` — see §6.
+- `GET /api/app/latest-version` — public; `{ ios, android }` from `IMOTARA_LATEST_APP_VERSION_IOS` / `_ANDROID` (unset ⇒ null). Read by the phone app (1.6.6+) to show "A new version is available". Set each only after that store shows the version LIVE (Release Runbook, Part C).
 
 ---
 
@@ -236,6 +237,7 @@ Every cron route is gated by **`CRON_SECRET`**. Most check `Authorization: Beare
 | ~~`/api/cron/wallet-forfeit`~~ | — | **Descheduled 2026-07-18, route file deleted 2026-07-19** (was `0 4 * * *`). Used to attempt zeroing expired balances to `status='forfeited'`, conflicting with the v3 "never zero / dormant" policy — see §1. No longer in `vercel.json` and no longer in the codebase at all; the cron table now has 8 entries, not 9. |
 | `/api/cron/connect-scheduled` | `0 * * * *` (hourly) | Auto-cancels pending scheduled sessions whose `scheduled_at` passed >2h ago; notifies the user via push. |
 | `/api/cron/broadcast-queue` | `* * * * *` (every minute) | Promotes any `scheduled` broadcast whose time has passed, then drains the send queue in batches of up to 100 through Resend, within the warm-up ceiling. Substitutes `{{name}}`/`{{email}}` per recipient. The idle path is a single query. A fatal error (revoked key, unverified domain) **pauses** the broadcast, leaves the queue intact and **emails the owner over SMTP** — deliberately not through Resend, since the failure being reported is usually Resend itself. Transient errors increment `attempts` and give up at 25. |
+| `/api/cron/indexnow` | `17 * * * *` (hourly, :47 IST) | Tells Bing/IndexNow about pages. Since 7 Nov 2026 (#14): NEW pages are sent at once, the FULL list at most once every 7 days (`planSubmission` in `src/lib/seo/indexNow.ts`, memory `sent`/`fullAt`) — it used to resend all ~85 pages on every deploy. |
 | `/api/cron/connect-recharge-expiry` | `*/30 * * * *` (every 30 min) | Marks abandoned `connect_recharges` (`pending` >30 min) as `failed`, clearing the partial-unique-index that would otherwise block new recharges for that user+consultant pair. |
 
 ---

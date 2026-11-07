@@ -677,17 +677,16 @@ const FEATURES: Record<string, Feature[]> = {
     },
     {
       icon: "👋",
-      title: "Onboarding (First Launch)",
-      short: "A 3-step onboarding helps your companion understand you before the first reply.",
-      long: "When you first open Imotara, a short onboarding modal asks three things: your name (optional), the relationship tone you want with your companion (friend, mentor, coach, etc.), and your preferred language. None of these are mandatory — you can skip and change them anytime in Settings.",
+      title: "First Launch",
+      short: "Imotara opens straight into the conversation — no setup before your first message.",
+      long: "On the web, the home page asks 'How are you feeling right now?' — tap a mood and the chat opens with a first line already written in your language; you only press send. On Android and iPhone (from version 1.6.5), the first open goes from the welcome screen straight to the chat, with one-tap starters in your language. Imotara begins with neutral settings: no name, a neutral companion style, and replies from our secure servers (you can switch to on-device only in Settings). After your first real conversation, the app offers once — on a later open — to set your name and how your companion talks with you (Friend, Mentor, Elder, Coach and more). Skip it and nothing changes; if you already set these in Settings, it never asks.",
       steps: [
-        "Open Imotara for the first time.",
-        "Step 1: Enter your name (optional — the companion will use it if provided).",
-        "Step 2: Choose a relationship tone — Friend, Mentor, Elder, Coach, Sibling, Junior buddy, Parent-like, Partner-like.",
-        "Step 3: Choose your preferred language from 22 options.",
-        "Tap 'Start' — you land on the Chat screen, ready to go.",
+        "Open Imotara. On the web, tap a mood on the home page or 'Start talking'.",
+        "You land in the chat. Tap a starter or type anything, then press send.",
+        "Phone: on a later open, Imotara may offer to personalise — add your name and companion style, or tap 'Skip setup'.",
+        "Change your name, companion style or language any time in Settings.",
       ],
-      tip: "To redo onboarding later: Settings → expand 'Tips & tours' → Restart onboarding.",
+      tip: "To see the personalisation setup again: Settings → expand 'Tips & tours' → Restart onboarding.",
     },
     {
       icon: "💬",
@@ -1894,13 +1893,13 @@ const FEATURES: Record<string, Feature[]> = {
     {
       icon: "🔄",
       title: "Restart Onboarding",
-      short: "Redo the 3-step onboarding flow — your data and settings are not affected.",
-      long: "If you want to reconfigure your companion from scratch (new name, different relationship tone, different language), restarting onboarding is the quickest way. It doesn't delete any history or settings — it just re-walks you through the setup steps.",
+      short: "Open the personalisation setup again — your history and other settings are not affected.",
+      long: "If you want to set your companion up again (a new name or a different companion style), restarting onboarding shows the setup on your next open. It doesn't delete any history, and skipping it keeps the style you already have. It never changes whether replies come from our servers or stay on-device — that stays exactly as you set it in Settings.",
       steps: [
         "Go to Settings → expand 'Tips & tours'.",
         "Tap 'Restart onboarding'.",
         "Confirm in the prompt.",
-        "The onboarding modal opens on your next Chat visit.",
+        "The setup opens the next time you open Imotara.",
       ],
     },
     {

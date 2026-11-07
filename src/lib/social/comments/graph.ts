@@ -9,6 +9,7 @@
 // system-user token, as the publisher does.
 
 import { graph } from "@/lib/social/adapters/facebook";
+import { isOurFirstComment } from "@/lib/social/firstComment";
 
 export type RawComment = {
   platform: "facebook" | "instagram";
@@ -37,7 +38,12 @@ const q = (token: string) => `access_token=${encodeURIComponent(token)}`;
 export async function facebookComments(pageId: string, pageToken: string, doFetch: Fetch = fetch): Promise<RawComment[]> {
   const posts = rows(await call(doFetch, graph(`${encodeURIComponent(pageId)}/published_posts`) +
     `?fields=id,message,comments.limit(50){id,from,message,created_time}&limit=25&${q(pageToken)}`));
-  return posts.flatMap((p) => rows(p.comments).map((c) => ({
+  // ⛔ The Page's OWN comments (e.g. the first-comment link, #92) are not
+  // visitors' comments: never drafted for, never classified — a link comment
+  // would otherwise be hidden as spam. By author, and by tag when Meta hides it.
+  const ours = (c: Record<string, unknown>) =>
+    str((c.from as { id?: string } | undefined)?.id) === pageId || isOurFirstComment(str(c.message));
+  return posts.flatMap((p) => rows(p.comments).filter((c) => !ours(c)).map((c) => ({
     platform: "facebook" as const,
     commentId: str(c.id),
     postId: str(p.id),
@@ -79,6 +85,16 @@ export async function hideComment(c: Pick<RawComment, "platform" | "commentId">,
 }
 
 /** A public reply under the comment. Returns the reply's id. */
+/** A top-level comment ON A POST, as the Page (Facebook only). Returns the comment id. */
+export async function commentOnPost(postId: string, message: string, token: string, doFetch: Fetch = fetch): Promise<string> {
+  const json = await call(doFetch, graph(`${encodeURIComponent(postId)}/comments`), {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ message, access_token: token }).toString(),
+  });
+  return str(json.id);
+}
+
 export async function replyToComment(c: Pick<RawComment, "platform" | "commentId">, message: string, token: string, doFetch: Fetch = fetch): Promise<string> {
   const edge = c.platform === "facebook" ? "comments" : "replies";
   const json = await call(doFetch, graph(`${encodeURIComponent(c.commentId)}/${edge}`), {

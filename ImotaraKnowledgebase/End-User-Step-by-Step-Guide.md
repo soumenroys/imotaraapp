@@ -91,8 +91,15 @@ Steps:
 ### 3d. Emotion / sentiment chips
 1. In **Settings**, enable **Sentiment seed chips** ("Show quick-tap mood hint chips above the message input"). **On web** this is under **Chat behaviour**.
 2. In Chat, tap a chip above the composer to seed the message with a mood hint.
-3. First-time users see intake chips such as **Overwhelmed, Anxious, Low, Okay, Good, Just exploring** under "How are you feeling right now?" — tap one to begin.
+3. **On web**, first-time users see intake chips such as **Overwhelmed, Anxious, Low, Okay, Good, Just exploring** under "How are you feeling right now?" — tap one to begin (skipped when they arrive from a home-page mood). **On mobile from 1.6.5** these intake questions no longer open by themselves.
 4. **On web, from the home page:** the first card asks **"How are you feeling right now?"** with six moods (**Good, Sad, Stressed, Frustrated, Anxious, Lonely**). Tapping one opens Chat with a matching first line already written in the message box, in your chosen language — press send, or change it first. Nothing is sent until you press send, and the intake questions are skipped because you have already said how you feel. **Start talking** (free · no sign-up) opens Chat without a mood.
+
+### 3f. First open, coming back, and app updates
+1. **First open (mobile 1.6.5+):** welcome screen → straight into Chat with one-tap starters in the person's language. Defaults: no name, neutral companion style, replies from our servers (switchable to on-device only in Settings).
+2. **Personalisation offer (mobile):** after a first real conversation, on a later open, the name + companion-style setup is offered once. **Skip setup** changes nothing; it is not offered if a name or style was already set in Settings.
+3. **Redo it:** **Settings → Tips & tours → Restart onboarding** ⇒ the setup opens on the next launch. (1.6.6 fixes 1.6.5, where Restart applied the first-open defaults instead of showing the setup.)
+4. **Coming back (web + mobile):** after a gap, the chat opens with how the person was last time — e.g. "Last time you were feeling low. How are you doing today?" — in their language (22). After a crisis it only says "I'm glad you're back. How are you doing right now?"; it never quotes what they wrote.
+5. **Update card (mobile 1.6.6+):** when the store has a newer version, "A new version of Imotara is available — Update / Not now" appears on opening the app (never on the first open). Support: if someone asks why they don't see it, the store version numbers may not be set yet — see the Release Runbook, Part C.
 
 ### 3e. Quick panels (mobile)
 1. **On mobile → Settings → Quick panels**, enable **Swipe right — Your Companion** and/or **Swipe left — Plan & Support**.

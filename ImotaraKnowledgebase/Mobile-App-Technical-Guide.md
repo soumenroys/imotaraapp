@@ -1,6 +1,6 @@
 # Imotara — Mobile App Technical Guide
 
-Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.6.4 (build 164)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
+Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.6.5 (build 165)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
 
 ## 1. Stack summary
 
@@ -42,7 +42,7 @@ A `createBottomTabNavigator` with `backBehavior="history"` and Ionicons:
 4. **Connect** (`src/screens/connect/ConnectScreen.tsx`, ~5,600 lines, header hidden) — human-consultant marketplace: consultant search/favorites, wallet top-ups & recharges (Razorpay), live sessions with per-minute ticking, translation, reviews. All sub-views are local state (no nested stack navigator).
 5. **Settings** (`src/screens/SettingsScreen.tsx`, ~5,200 lines) — profile/companion tone, plan & upgrade (UpgradeSheet / IOSTipJar / Razorpay presets), sync controls, notifications, data export, "Managed by" org badge, settings search.
 
-A global **SyncStatusStrip** overlays the top of the app ("Syncing…", "Synced ✓", "Sync failed — will retry"), driven by `HistoryContext`. Onboarding is a one-time modal gated on AsyncStorage key `imotara.onboarding.done.v1`.
+A global **SyncStatusStrip** overlays the top of the app ("Syncing…", "Synced ✓", "Sync failed — will retry"), driven by `HistoryContext`. Onboarding (name + companion style) is gated on AsyncStorage key `imotara.onboarding.done.v1`. **From 7 Nov 2026 (#97a) a first open goes straight to the chat**: the key is set to `deferred` with the "Skip setup" defaults (no name, neutral style, cloud replies), the 3-step intake questionnaire no longer opens by itself, and the setup is offered once on a later open — only after a first real conversation and only if no name or style was set in Settings (`src/lib/onboarding/firstRun.ts`).
 
 **Deep linking** — scheme `imotara://` maps `imotara://chat|history|trends|settings|connect` to the tabs. The same scheme is central to the OAuth relay (§3).
 

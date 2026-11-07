@@ -113,7 +113,10 @@ import {
   isCrisisTier2,
   EN_FELT_HEAVY_RE,
   EN_FELT_A_LOT_RE,
+  HI_ANGER_REGEX, TA_ANGER_REGEX, TE_ANGER_REGEX, GU_ANGER_REGEX, KN_ANGER_REGEX, ML_ANGER_REGEX,
+  PA_ANGER_REGEX, OR_ANGER_REGEX, MR_ANGER_REGEX, JP_ANGER_REGEX, HE_ANGER_REGEX, AR_ANGER_REGEX, DE_ANGER_REGEX,
 } from "@/lib/emotion/keywordMaps";
+import { returningFeeling, returningLangOf, returningLine, type FeelingDetectors } from "@/lib/imotara/returningLine";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
@@ -2115,7 +2118,13 @@ export default function ChatPage() {
 
     const profile = getImotaraProfile();
     const firstName = profile?.user?.name?.trim().split(/\s+/)[0] ?? "";
-    const lang = (profile?.user?.preferredLang ?? "en") as string;
+    // #77c: "auto" used to fall through to English. Their chosen language,
+    // else the language of what they last wrote, else English.
+    const userTexts = msgs.filter((m) => m.role === "user").map((m) => m.content ?? "");
+    const lastUserText = userTexts[userTexts.length - 1] ?? "";
+    const scriptLang = detectScriptLang(lastUserText);
+    const lang = returningLangOf(profile?.user?.preferredLang) ?? returningLangOf(scriptLang) ?? "en";
+    const feeling = returningFeeling(userTexts, RETURNING_DETECTORS);
 
     // #3: Language-aware re-entry messages
     // Slot 0 = short gap (<6h), 1 = next-day, 2 = within week, 3 = longer
@@ -2193,8 +2202,15 @@ export default function ChatPage() {
     const set = REENTRY[lang] ?? null;
     let reentryText: string;
 
-    if (set) {
+    if (feeling !== "plain") {
+      // 🔑 #77c: how they were last time, in their language. ⛔ After a crisis
+      // only "I'm glad you're back" — no feeling, no topic.
+      reentryText = returningLine(feeling, lang);
+    } else if (set) {
       reentryText = set[slotIndex].replace("{name}", nameToken);
+    } else if (lang !== "en") {
+      // The 10 languages the time-of-gap lines never covered.
+      reentryText = returningLine("plain", lang);
     } else {
       // English fallback
       const EN: ReentrySet = [
@@ -5498,6 +5514,18 @@ const URDU_HINT    = /[\u0679\u0688\u0691\u06BA\u06D2]/;
 // cheap client-side pre-check to skip the network call entirely for every
 // language that doesn't need it).
 const TTS_TRANSLITERATION_LANGS = new Set(["bn", "gu", "te", "kn", "ml", "ur", "or"]);
+
+// #77c (7 Nov 2026): what the returning line may say ⇒ lib/imotara/returningLine.ts.
+// ⛔ isCrisis is the SAME union the invite card uses — never narrower.
+const ANGER_RES = [BN_ANGER_REGEX, HI_ANGER_REGEX, TA_ANGER_REGEX, TE_ANGER_REGEX, GU_ANGER_REGEX, KN_ANGER_REGEX,
+  ML_ANGER_REGEX, PA_ANGER_REGEX, OR_ANGER_REGEX, MR_ANGER_REGEX, JP_ANGER_REGEX, HE_ANGER_REGEX, AR_ANGER_REGEX, DE_ANGER_REGEX];
+const EN_ANGER_RE = /\b(angry|anger|furious|mad at|irritated|annoyed|rage|frustrated|pissed)\b/i;
+const RETURNING_DETECTORS: FeelingDetectors = {
+  isCrisis: (t) => isCrisisTier2(t) || CRISIS_TIER1_RE.test(t) || CRISIS_INDIC_TIER1_RE.test(t) || CRISIS_ROMAN_INDIC_TIER1_RE.test(t),
+  isSad: (t) => isSadText(t),
+  isStressed: (t) => isStressText(t) || /\b(anxious|anxiety|worried|worry|nervous|panic|stressed|overwhelmed|scared)\b/i.test(t),
+  isAngry: (t) => EN_ANGER_RE.test(t) || ANGER_RES.some((re) => { re.lastIndex = 0; return re.test(t); }),
+};
 
 function detectScriptLang(text: string): string | null {
   if (/[\u0590-\u05FF]/.test(text)) return "he-IL";   // Hebrew

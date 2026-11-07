@@ -354,7 +354,7 @@ html,body{
     <div class="ftr-left"><img class="ftr-logo" src="${logoSrc}" alt="Imotara"/>
       <span class="ftr-copy">© 2026 Imotara · Confidential · Target Audience Personas</span></div>
     <div class="ftr-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
-    <div class="ftr-page">Page 1 of 3</div>
+    <div class="ftr-page">Page 1 of 4</div>
   </div>
 </div>
 
@@ -504,7 +504,7 @@ html,body{
     <div class="ftr-left"><img class="ftr-logo" src="${logoSrc}" alt="Imotara"/>
       <span class="ftr-copy">© 2026 Imotara · Confidential · Target Audience Personas</span></div>
     <div class="ftr-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
-    <div class="ftr-page">Page 2 of 3</div>
+    <div class="ftr-page">Page 2 of 4</div>
   </div>
 </div>
 
@@ -664,6 +664,29 @@ html,body{
 
     </div>
 
+
+  </div>
+
+  <div class="ftr">
+    <div class="ftr-left"><img class="ftr-logo" src="${logoSrc}" alt="Imotara"/>
+      <span class="ftr-copy">© 2026 Imotara · Confidential · Target Audience Personas</span></div>
+    <div class="ftr-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
+    <div class="ftr-page">Page 3 of 4</div>
+  </div>
+</div>
+
+<div class="page">
+  <div class="hdr">
+    <div class="hdr-left">
+      <img class="hdr-logo" src="${logoSrc}" alt="Imotara"/>
+      <div><div class="hdr-sub">Strategic Insights for the Marketing Team</div></div>
+    </div>
+    <div class="hdr-badge">Confidential · June 2026</div>
+  </div>
+  <div class="gbar"></div>
+
+  <div class="body" style="padding-top:16px;">
+
     <!-- STRATEGIC INSIGHTS -->
     <div class="sec">Strategic insights for the marketing team</div>
     <div class="insight-grid">
@@ -691,7 +714,7 @@ html,body{
     <div class="ftr-left"><img class="ftr-logo" src="${logoSrc}" alt="Imotara"/>
       <span class="ftr-copy">© 2026 Imotara · Confidential · Target Audience Personas</span></div>
     <div class="ftr-mid">imotara.com &nbsp;·&nbsp; soumenroys@gmail.com</div>
-    <div class="ftr-page">Page 3 of 3</div>
+    <div class="ftr-page">Page 4 of 4</div>
   </div>
 </div>
 
@@ -704,6 +727,28 @@ html,body{
   const page    = await browser.newPage();
   await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1500);
+  // 🔴 #82 (7 Nov 2026): a page taller than A4 used to spill silently — the
+  // personas PDF came out as 5 sheets (a blank one, and two insight cards on a
+  // stray 5th) while every footer said "of 3". Now: up to 5% too tall ⇒ the
+  // page body is scaled to fit; more ⇒ STOP, so nobody ships a broken PDF.
+  const A4_PX = 297 / 25.4 * 96;
+  const fit = await page.evaluate((a4) => [...document.querySelectorAll('.page')].map((pg, i) => {
+    const h = pg.getBoundingClientRect().height;
+    if (h <= a4 + 0.5) return { i: i + 1, ok: true };
+    const body = pg.querySelector('.body');
+    const over = h - a4;
+    if (!body || over / a4 > 0.05) return { i: i + 1, ok: false, mm: Math.round(over / 96 * 25.4) };
+    const f = (body.getBoundingClientRect().height - over - 1) / body.getBoundingClientRect().height;
+    body.style.width = (100 / f) + '%';
+    body.style.zoom = String(f);
+    return { i: i + 1, ok: true, scaled: f.toFixed(3) };
+  }), A4_PX);
+  const tooTall = fit.filter((p) => !p.ok);
+  if (tooTall.length) {
+    await browser.close();
+    throw new Error('Pages too tall for A4 (move content to a new page): ' + tooTall.map((p) => `page ${p.i} +${p.mm}mm`).join(', '));
+  }
+  fit.filter((p) => p.scaled).forEach((p) => console.log(`page ${p.i} scaled to ${p.scaled} to fit A4`));
   await page.pdf({
     path: pdfPath, format: 'A4', printBackground: true,
     margin: { top: '0', right: '0', bottom: '0', left: '0' },

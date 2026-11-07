@@ -309,3 +309,32 @@ export async function allQrCodes(platform: string): Promise<QrCode[]> {
   return out;
 }
 
+
+/**
+ * 🔑 #92 (7 Nov 2026): GA — organic social sent 7 website sessions in 28 days.
+ * On channels where a link may sit in the text (`linksInBody`, i.e. YouTube),
+ * that link must carry UTM tags or GA files the visit under "Direct" and we
+ * cannot tell a post that worked from one that did not.
+ *
+ * A bare imotara.com link the writer already used is TAGGED in place (never a
+ * second link — "a single link is fine"); with none, one tagged line is added
+ * at the end. Text that already carries utm_ is left exactly as it is.
+ */
+export function trackedSiteUrl(platform: string): string {
+  return `https://www.imotara.com/?utm_source=${encodeURIComponent(platform)}&utm_medium=social&utm_campaign=post`;
+}
+
+export function withTrackedLink(body: string, platform: string): string {
+  if (/utm_source=/.test(body)) return body;
+  const tags = `utm_source=${encodeURIComponent(platform)}&utm_medium=social&utm_campaign=post`;
+  // Any imotara.com link — home or a deeper page — gets the tags; trailing
+  // punctuation stays outside the URL.
+  const anyLink = /https?:\/\/(?:www\.)?imotara\.com(\/[^\s)\]]*?)?(?=[.,!?]?(?:[\s)\]]|$))/g;
+  if (anyLink.test(body)) {
+    return body.replace(anyLink, (_m, path?: string) => {
+      const p = path && path !== "/" ? path : "/";
+      return `https://www.imotara.com${p}${p.includes("?") ? "&" : "?"}${tags}`;
+    });
+  }
+  return `${body.trimEnd()}\n\n${trackedSiteUrl(platform)}`;
+}

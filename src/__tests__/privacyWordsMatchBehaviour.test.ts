@@ -31,3 +31,17 @@ describe("while new visitors default to cloud replies, no screen says otherwise"
     expect(toggle).toMatch(/value: "local-only"/);
   });
 });
+
+// #77f (7 Nov 2026): the pages AI assistants send people to — and READ when
+// they describe Imotara — carried the same untrue "on your device by default"
+// claims. Same owner decision as #94: the words follow the behaviour.
+describe("the AI-assistant landing pages say the same true thing", () => {
+  const pages = ["ai-emotional-support", "ai-mental-wellness", "mood-tracker-app"].map((s) => [s, readFileSync(`src/app/${s}/page.tsx`, "utf8")] as const);
+  it.each(pages)("%s: ⛔ no 'on-device by default' / 'local-first' / 'no data sharing' claims", (_s, src) => {
+    expect(src).not.toMatch(/stay on your device by default|stored on your device by default|On-device by default|local-first by design|stores data locally by default|without sharing your data|no data sharing|By default all data is stored locally/i);
+  });
+  it.each(pages)("%s: says replies use our secure servers and offers the one-tap moods", (_s, src) => {
+    expect(src).toMatch(/secure servers/);
+    expect(src).toMatch(/<MoodStartRow from="/);
+  });
+});

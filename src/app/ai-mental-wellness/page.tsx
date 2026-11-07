@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import MoodStartRow from "@/components/imotara/MoodStartRow";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
@@ -53,7 +54,7 @@ const faqs = [
   },
   {
     q: "Is Imotara safe and private?",
-    a: "Yes. Imotara is local-first by design. Your conversations and mood data are stored on your device. There are no ads, no data selling, and cloud sync is strictly opt-in.",
+    a: "Yes. Your conversation history and mood entries are saved on your device. Replies come from our secure servers by default — you can switch to on-device only in Settings. Backup across devices is optional and needs your consent. No ads, no data selling.",
   },
   {
     q: "What languages does Imotara support?",
@@ -65,7 +66,7 @@ const faqs = [
   },
   {
     q: "How is Imotara different from other mental wellness apps?",
-    a: "Most mental wellness apps are subscription-based, ad-supported, or require creating an account. Imotara is free, has no ads, works without an account, stores data locally by default, and supports 22 languages — making it accessible to a much wider audience.",
+    a: "Most mental wellness apps are subscription-based, ad-supported, or require creating an account. Imotara is free, has no ads, works without an account, keeps your history on your device, and supports 22 languages — making it accessible to a much wider audience.",
   },
 ];
 
@@ -90,6 +91,8 @@ export default function AiMentalWellnessPage() {
             track your mood, practice mindfulness, and build emotional self-awareness — in 22 languages,
             with no ads and no account required.
           </p>
+          {/* #77f: one tap from "how I feel" to a written opener in the chat */}
+          <MoodStartRow from="ai-mental-wellness" />
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
               href="/chat"
@@ -161,7 +164,7 @@ export default function AiMentalWellnessPage() {
               <tbody className="space-y-2">
                 {[
                   ["Free", "✓ Fully free", "Often subscription"],
-                  ["Private / local-first", "✓ On-device by default", "Cloud-first, ads"],
+                  ["Private", "✓ History on your device · no ads", "Cloud-first, ads"],
                   ["No account needed", "✓ No sign-up", "Usually required"],
                   ["Companion reflections", "✓ Private & secure", "Scripted or none"],
                   ["Mood timeline", "✓ Built-in", "Often paywalled"],

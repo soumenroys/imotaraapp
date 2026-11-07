@@ -133,7 +133,7 @@ export const BN_CONFUSED_REGEX =
   /বুঝতে পারছি না|বুঝতে পারছিনা|মাথা কাজ করছে না|মাথা কাজ করছ না/i;
 
 export const HI_STRESS_REGEX =
-  /(परेशान|तनाव|चिंता|घबराहट|बेचैन|\bpareshaan\b|\bpareshan\b|\btanav\b|\bchinta\b|\bghabrahat\b|\bbechain\b|\btension\b)/i;
+  /(परेशान|तनाव|चिंता|घबराहट|बेचैन|टेंशन|टेन्शन|\bpareshaan\b|\bpareshan\b|\btanav\b|\bchinta\b|\bghabrahat\b|\bbechain\b|\btension\b)/i;
 
 export const HI_SAD_REGEX =
   /(उदास|दुखी|रोना|रो रहा|रो रही|बहुत बुरा लग रहा|मन नहीं लग रहा|अकेला|अकेली|\budaas\b|\bdukhi\b|\brona\b|\bro\s+raha\s+hoon\b|\bro\s+rahi\s+hoon\b|\bbahut\s+bura\s+lag\s+raha\b|\bman\s+nahi\s+lag\s+raha\b|\bakela\b|\bakeli\b)/i;

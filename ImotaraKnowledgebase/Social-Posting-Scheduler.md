@@ -101,7 +101,7 @@ The animation is the card assembling itself: rule, then headline, then the suppo
 
 ## 5. Channels and tokens
 
-Five: Facebook, LinkedIn, Instagram, X, YouTube. None can publish yet; each row says why in its own terms.
+Five: Facebook, LinkedIn, Instagram, X, YouTube. ⚠️ *Updated 7 Nov 2026:* "none can publish yet" was written before publishing went live in late October — Facebook, Instagram, LinkedIn and YouTube now publish on their schedules; each row still says in its own terms why it cannot, when it cannot.
 
 **Tokens are encrypted** (AES-256-GCM, bound to the row). No key ⇒ the route refuses with 503 rather than storing plaintext. Only the last four characters are ever shown back. A fingerprint tells a replacement from a re-paste.
 
@@ -138,6 +138,12 @@ Five: Facebook, LinkedIn, Instagram, X, YouTube. None can publish yet; each row 
 **Env:** `SOCIAL_TOKEN_KEY` (32 bytes, base64 — set in Vercel, production + preview, `sensitive`) · `CRON_SECRET` (shared with the other crons)
 
 ---
+
+## 7a. Links back to the website (7 Nov 2026, #92)
+
+Post text carries no links by design (reach), which is why social sent ~7 visits in 28 days. Two exceptions, both tagged so Google Analytics can tell them apart (`trackedSiteUrl` / `withTrackedLink` in `src/lib/social/brandMarks.ts`):
+- **YouTube:** every description carries a tracked imotara.com link (an existing imotara.com link is tagged in place).
+- **Facebook first-comment TRIAL, 7–22 Nov 2026:** after a post publishes, the Page adds one comment with a tracked link (`utm_campaign=first_comment`, `src/lib/social/firstComment.ts`). It switches itself off on 22 Nov. The comment auto-reply system ignores the Page's own comment. 🔴 Review reach and visits against the baseline on 22 Nov (board #96) before keeping or dropping it.
 
 ## 8. Things that have already gone wrong here
 

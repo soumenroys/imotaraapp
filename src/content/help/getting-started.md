@@ -19,12 +19,26 @@ It is deliberately short. The point is that nobody should discover what Imotara 
 
 > **Imotara is not therapy**, not a crisis service, and not a replacement for a professional who knows you. If you are in danger or thinking of harming yourself, please contact a real service — in India, **Tele-MANAS on 14416**, free and around the clock, or **112** for emergencies.
 
+## What happens after the welcome screen
+
+You go straight into the conversation — there is no setup to fill in first.
+
+- **On the web**, the home page asks **"How are you feeling right now?"**. Tap a mood (Good, Sad, Stressed, Frustrated, Anxious, Lonely) and the chat opens with a first line already written in your language. Nothing is sent until you press send. Or tap **Start talking**.
+- **On Android and iPhone** (version 1.6.6 and later), the app goes from the welcome screen straight to the chat, with one-tap starters in your language.
+- Imotara starts with neutral settings: no name, a neutral companion style, and replies from our secure servers. You can change any of these in Settings.
+- **On the phone**, after your first real conversation, Imotara offers once — on a later open — to set your name and how your companion talks with you. Tap **Skip setup** and nothing changes. If you already set these in Settings, it doesn't ask.
+- Want that setup again? **Settings → Tips & tours → Restart onboarding** shows it on your next open. It doesn't delete your history.
+
+**Coming back later:** when you return after a while, Imotara opens with a short line about how you were last time — for example *"Last time you were feeling low. How are you doing today?"* — in your language. It never repeats what you wrote, and if your last conversation was about being in danger, it simply says it's glad you're back.
+
+**Updates (phone, from version 1.6.6):** when a newer version of the app is in the App Store or Google Play, a small card says so when you open the app — **Update** opens the store page, **Not now** hides it until the next time. It never appears the very first time you open Imotara.
+
 ## Using Imotara without an account
 
 You don't need to sign up to start. Here's how:
 
 1. Open the app — on web, go to **www.imotara.com**; on mobile, open the Imotara app.
-2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work without signing in — your data is stored locally on your device.
+2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work without signing in — your history is stored on your device. Replies come from our secure servers by default; you can switch to on-device only in Settings.
 3. Keep in mind what anonymous use *can't* do: cross-device sync, cloud backup, and unlimited voice aren't available. Read-aloud has a small daily cap (about 15 per day) and voice transcription about 20 per day when you're not signed in.
 4. Cloud-generated features (Companion's Letter, Growth Arc, Year in Review) need an account and an internet connection.
 5. If you reach the free daily limit of 20 cloud replies, Imotara quietly switches to on-device replies — the conversation is never blocked.

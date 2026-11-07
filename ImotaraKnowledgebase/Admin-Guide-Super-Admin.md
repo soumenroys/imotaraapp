@@ -265,6 +265,8 @@ Behavior (`DELETE /api/admin/users/[userId]`, owner-only, `{confirmEmail}` in th
 2. Open the detail panel — it shows the license row, payment history, and admin history for that user.
 3. Set tier, status, expiry, and token balance, then save.
 
+**Find users (added 7 Nov 2026, #86):** the User Licenses list has filters — tier, status, platform, and a joined/active date range — and each row shows **N messages · Last active <date> IST · platform**. Dates are entered and shown in IST. Backed by `admin_search_users_v5` (`docs/sql/admin_v5_users_activity.sql`); if that function is missing the route falls back to v4 and the activity line is hidden (`activityUnavailable`).
+
 Behavior (`src/app/api/admin/licenses/route.ts` and `.../[userId]/route.ts`):
 - `POST /api/admin/licenses` upserts the license (`source: manual`) and records a history entry with a derived action (`assign`, `tier_change`, `extend`, `token_adjust`, `withdraw`, `status_change`).
 - `PATCH /api/admin/licenses/[userId]` supports partial updates including **absolute** `tokenBalance` or **relative** `tokenDelta` (floored at 0). It auto-creates a free license row if none exists.

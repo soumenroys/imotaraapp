@@ -8,6 +8,7 @@ import {
   returningFeeling, returningLine, returningLangOf, RETURNING_LINES, RETURNING_LANGS, type FeelingDetectors,
 } from "@/lib/imotara/returningLine";
 import { hasMobileRepo, readMobileFile } from "./helpers/siblingRepo";
+import { isStressText } from "@/lib/emotion/keywordMaps";
 
 const fake: FeelingDetectors = {
   isCrisis: (t) => /CRISIS/.test(t),
@@ -61,6 +62,13 @@ describe("the words", () => {
         expect(RETURNING_LINES[l].crisis).not.toBe(RETURNING_LINES[l][f]);
       }
     }
+  });
+});
+
+describe("Hindi 'टेंशन' (owner OK 7 Nov)", () => {
+  it("both spellings read as stress", () => {
+    expect(isStressText("मुझे बहुत टेंशन है")).toBe(true);
+    expect(isStressText("बहुत टेन्शन हो रहा है")).toBe(true);
   });
 });
 

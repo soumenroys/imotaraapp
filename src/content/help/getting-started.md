@@ -27,7 +27,7 @@ You go straight into the conversation — there is no setup to fill in first.
 - **On Android and iPhone** (version 1.6.6 and later), the app goes from the welcome screen straight to the chat, with one-tap starters in your language.
 - Imotara starts with neutral settings: no name, a neutral companion style, and replies from our secure servers. You can change any of these in Settings.
 - **On the phone**, after your first real conversation, Imotara offers once — on a later open — to set your name and how your companion talks with you. Tap **Skip setup** and nothing changes. If you already set these in Settings, it doesn't ask.
-- Want that setup again? **Settings → Tips & tours → Restart onboarding** shows it on your next open. It doesn't delete your history.
+- Want that setup again? **Settings → Tips & tours** (web) or **Settings → Advanced** (phone) **→ Restart onboarding** shows it on your next open. It doesn't delete your history.
 
 **Coming back later:** when you return after a while, Imotara opens with a short line about how you were last time — for example *"Last time you were feeling low. How are you doing today?"* — in your language. It never repeats what you wrote, and if your last conversation was about being in danger, it simply says it's glad you're back.
 

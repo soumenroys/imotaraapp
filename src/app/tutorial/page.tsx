@@ -686,7 +686,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Phone: on a later open, Imotara may offer to personalise — add your name and companion style, or tap 'Skip setup'.",
         "Change your name, companion style or language any time in Settings.",
       ],
-      tip: "To see the personalisation setup again: Settings → expand 'Tips & tours' → Restart onboarding.",
+      tip: "To see the personalisation setup again: Settings → 'Tips & tours' on the web, or 'Advanced' on the phone → Restart onboarding.",
     },
     {
       icon: "💬",
@@ -1885,7 +1885,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Reset the discovery tips that appear the first time you visit each screen.",
       long: "First-visit tips are small informational banners that appear when you first use a feature. If you dismissed them too quickly, you can reset them here to see them again. You can also reset the welcome tip that appears on your first Chat session.",
       steps: [
-        "Go to Settings → expand 'Tips & tours'.",
+        "Go to Settings → expand 'Tips & tours' (web) or 'Advanced' (phone).",
         "Tap 'Reset discovery cards' to see feature tips again.",
         "Tap 'Reset welcome tip' to see the first-chat greeting again.",
       ],
@@ -1896,7 +1896,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Open the personalisation setup again — your history and other settings are not affected.",
       long: "If you want to set your companion up again (a new name or a different companion style), restarting onboarding shows the setup on your next open. It doesn't delete any history, and skipping it keeps the style you already have. It never changes whether replies come from our servers or stay on-device — that stays exactly as you set it in Settings.",
       steps: [
-        "Go to Settings → expand 'Tips & tours'.",
+        "Go to Settings → expand 'Tips & tours' (web) or 'Advanced' (phone).",
         "Tap 'Restart onboarding'.",
         "Confirm in the prompt.",
         "The setup opens the next time you open Imotara.",

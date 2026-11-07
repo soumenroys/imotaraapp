@@ -18,7 +18,7 @@ import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { postingIsPaused } from "@/lib/social/store";
 import { loadChannelCredential, loadCredentialFor } from "@/lib/social/channelCredentials";
-import { publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
+import { pageAccessToken, publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
 import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
 import { publishToInstagram, publishCarouselToInstagram, publishReelToInstagram } from "@/lib/social/adapters/instagram";
 import { publishToX, uploadXMedia } from "@/lib/social/adapters/x";
@@ -30,6 +30,8 @@ import { platformSpec } from "@/lib/social/platforms";
 import { mediaPlan } from "@/lib/social/mediaPlan";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { withTrackedLink } from "@/lib/social/brandMarks";
+import { firstCommentActive, firstCommentText } from "@/lib/social/firstComment";
+import { commentOnPost } from "@/lib/social/comments/graph";
 
 export const maxDuration = 300;
 
@@ -686,6 +688,25 @@ export async function GET(req: NextRequest) {
     }
 
     if (result.ok) {
+      /**
+       * #92 FIRST-COMMENT TRIAL (owner, 7 Nov 2026) ⇒ lib/social/firstComment.
+       * Facebook only, only after the post exists, and only until TRIAL_UNTIL —
+       * it switches itself off. ⛔ Best effort: a failed comment is logged and
+       * never touches the post, which is already live.
+       */
+      if (platform === "facebook" && result.postId && firstCommentActive()) {
+        try {
+          const page = await pageAccessToken({ token: cred.token, pageId: cred.externalId });
+          if (page.ok) {
+            const cid = await commentOnPost(result.postId, firstCommentText(), page.token);
+            console.log("[social-publish] first comment posted", { postId: result.postId, commentId: cid });
+          } else {
+            console.warn("[social-publish] first comment skipped — no Page token:", page.message);
+          }
+        } catch (e) {
+          console.warn("[social-publish] first comment failed (post is live):", (e as Error).message);
+        }
+      }
       await db
         .from("social_posts")
         .update({

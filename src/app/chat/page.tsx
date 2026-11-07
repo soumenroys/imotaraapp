@@ -117,6 +117,7 @@ import {
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
+import { moodStarter } from "@/lib/imotara/homeMoods";
 import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
@@ -895,6 +896,8 @@ export default function ChatPage() {
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
   const urlMessageId = (searchParams?.get("messageId") ?? "").trim();
+  // #91 (7 Nov 2026): a mood tapped on the home page ⇒ /chat?mood=sad.
+  const urlMood = (searchParams?.get("mood") ?? "").trim();
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -1733,6 +1736,28 @@ export default function ChatPage() {
     () => threads.find((t) => t.id === activeId) ?? null,
     [threads, activeId],
   );
+
+  // #91 (7 Nov 2026): a mood tapped on the home page arrives already written in
+  // the box, in the person's language — they only press send. Never sent for
+  // them, and never over anything they typed: it only fills an EMPTY box, or
+  // replaces our own earlier fill when the saved language loads a moment later.
+  const moodPrefillRef = useRef<string | null>(null);
+  // "Empty" = the person has not written yet. A first visit already holds the
+  // companion's own welcome line (seen live 7 Nov), so counting ALL messages
+  // blocked the fill on exactly the visit it exists for.
+  const activeIsEmpty = !activeThread || !activeThread.messages.some((m) => m.role === "user");
+  useEffect(() => {
+    if (!mounted || !urlMood || !activeIsEmpty) return;
+    const starter = moodStarter(urlMood, preferredLang, MOOD_OPTIONS_BY_LANG);
+    if (!starter) return;
+    // First fill: only into an empty box. After that: only replace OUR text
+    // (language loaded late) — if they cleared or edited it, leave it alone.
+    if (moodPrefillRef.current === null ? draft !== "" : draft !== moodPrefillRef.current) return;
+    if (draft === starter) return;
+    moodPrefillRef.current = starter;
+    setDraft(starter);
+    composerRef.current?.focus();
+  }, [mounted, urlMood, activeIsEmpty, preferredLang, draft]);
 
   // Emotion-reactive ambient glow — derived from latest non-neutral emotion in current thread
   const latestEmotion = useMemo(() => {
@@ -3996,6 +4021,7 @@ export default function ChatPage() {
                 onChipSelect={(text) => { setDraft(text); }}
                 lang={preferredLang}
                 threads={threads}
+                skipIntake={!!moodStarter(urlMood, preferredLang, MOOD_OPTIONS_BY_LANG)}
               />
             ) : (
               <div className="mx-auto max-w-3xl space-y-4">
@@ -5158,7 +5184,7 @@ const DEPTH_COMPANION_LINE: Record<0 | 1 | 2 | 3, string> = {
   3: "You know I'm always here. How are you carrying things today?",
 };
 
-function EmptyState({ onChipSelect, lang = "en", threads = [] }: { onChipSelect: (text: string) => void; lang?: string; threads?: Array<{ messages: Array<{ role: string }> }> }) {
+function EmptyState({ onChipSelect, lang = "en", threads = [], skipIntake = false }: { onChipSelect: (text: string) => void; lang?: string; threads?: Array<{ messages: Array<{ role: string }> }>; skipIntake?: boolean }) {
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [greeting, setGreeting] = useState("");
   const [intakeStep, setIntakeStep] = useState<0 | 1 | 2 | 3>(0);
@@ -5177,9 +5203,12 @@ function EmptyState({ onChipSelect, lang = "en", threads = [] }: { onChipSelect:
 
   useEffect(() => {
     try {
+      // #91: someone who already told us their mood on the home page goes
+      // straight to the box — three more questions first is where people left.
+      if (skipIntake) return;
       if (!localStorage.getItem(INTAKE_DONE_KEY)) setIntakeStep(1);
     } catch {}
-  }, []);
+  }, [skipIntake]);
 
   const moodOptions = MOOD_OPTIONS_BY_LANG[lang] ?? MOOD_OPTIONS_BY_LANG.en;
   const moodHeading = MOOD_HEADING[lang] ?? MOOD_HEADING.en;

@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 const STORAGE_KEY = "imotara.localNotice.v1";
-const SUPPRESS_PATHS = ["/admin", "/help"];
+// "/chat": both banners are pinned to the bottom of the screen — exactly where
+// the message box is. Seen live 7 Nov 2026 (#91): a first-time visitor arriving
+// in Chat could not see where to type. They still show on every other page.
+const SUPPRESS_PATHS = ["/admin", "/help", "/chat"];
 
 export default function LocalDataNotice() {
     const [visible, setVisible] = useState(false);
@@ -14,7 +17,8 @@ export default function LocalDataNotice() {
     // Show banner only on client, only if not dismissed, never on admin paths
     useEffect(() => {
         if (typeof window === "undefined") return;
-        if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) return;
+        // Hide (not just "do not show"): it may already be up from the page before.
+        if (SUPPRESS_PATHS.some((p) => pathname.startsWith(p))) { setVisible(false); return; }
         try {
             const val = window.localStorage.getItem(STORAGE_KEY);
             if (val !== "dismissed") setVisible(true);

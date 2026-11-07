@@ -3906,11 +3906,16 @@ export default function ChatPage() {
                       )}
                       {/* Privacy / data notice */}
                       <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                        {/* #94 (owner, 7 Nov 2026): said "analyzes locally" whatever the mode was. */}
                         <p className="text-xs leading-5 text-zinc-300/90">
-                          Your choice is stored only on this device. Right now, Imotara analyzes emotions locally in your browser.
+                          {remoteAllowed
+                            ? "Your choice is stored only on this device. Right now, replies and emotion reading use our secure servers."
+                            : "Your choice is stored only on this device. Right now, Imotara analyzes emotions locally in your browser."}
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-300/90">
-                          Your words stay on-device unless you explicitly allow remote. You can{" "}
+                          {remoteAllowed
+                            ? "Your history is kept on this device, and you can switch to on-device only in Settings. You can "
+                            : "Your words stay on-device unless you explicitly allow remote. You can "}
                           <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete what&apos;s stored on this device</Link>{" "}
                           anytime.
                         </p>

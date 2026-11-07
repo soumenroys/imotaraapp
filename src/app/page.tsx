@@ -195,8 +195,10 @@ export default function Home() {
             </div>
 
             <p className="max-w-sm text-xs text-zinc-400">
-              Local-first by default. Your words are stored in this browser. Remote
-              analysis happens only if you explicitly allow it in settings.
+              {/* #94 (owner, 7 Nov 2026): words match behaviour — new visitors get
+                  cloud replies by default (FirstVisitBanner). */}
+              Your conversations are kept in this browser. Replies come from our
+              secure servers — you can switch to on-device only in Settings.
             </p>
           </div>
         </div>

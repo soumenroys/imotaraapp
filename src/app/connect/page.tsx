@@ -411,9 +411,29 @@ function BrowseTab() {
           <Loader2 className="animate-spin text-violet-400" size={24} />
         </div>
       ) : displayed.length === 0 ? (
-        <div className="imotara-glass-card rounded-2xl py-16 text-center">
-          <p className="text-zinc-400">No companions found. Try adjusting your filters.</p>
-        </div>
+        // #108 (owner, 8 Nov 2026): with NO companions listed at all, "try adjusting
+        // your filters" was untrue — nobody was there to find. Say so plainly, point
+        // to the chat, and keep the door open for new companions.
+        noFiltersActive(filter) ? (
+          <div className="imotara-glass-card rounded-2xl px-6 py-12 text-center">
+            <p className="text-base font-medium text-zinc-200">No companions are available right now.</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-zinc-400">
+              We&apos;re welcoming new Wellness Companions — please check back soon. If you&apos;d like to talk now, the chat is here any time.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+              <a href="/chat" className="rounded-xl bg-violet-600/80 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-600">
+                Open the chat
+              </a>
+              <a href="/connect/register" className="rounded-xl border border-white/15 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/5">
+                Join as a companion
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="imotara-glass-card rounded-2xl py-16 text-center">
+            <p className="text-zinc-400">No companions found. Try adjusting your filters.</p>
+          </div>
+        )
       ) : (
         <>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1834,6 +1854,11 @@ function DashboardTab() {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 const VALID_TABS: Tab[] = ["browse", "sessions", "wallet", "dashboard"];
+
+/** #108: true when the list is empty because nobody is listed, not because of a filter. */
+function noFiltersActive(f: { gender: string; online: boolean; tag: string; category: string; lang: string }): boolean {
+  return !f.gender && !f.online && !f.tag && !f.category && !f.lang;
+}
 
 export default function ConnectPage() {
   const router = useRouter();

@@ -7,6 +7,7 @@
 // JWT or the JWS check wrong.
 
 import { createSign, createVerify, createPublicKey } from "crypto";
+import { verifyAppleCertChain } from "@/lib/apple/appleCertChain";
 
 export const APPLE_BUNDLE_ID = "com.imotara.imotara";
 
@@ -70,10 +71,32 @@ export function verifyAppleJWS(jws: string): boolean {
         // Without dsaEncoding: 'ieee-p1363', verification always fails.
         const verifier = createVerify("SHA256");
         verifier.update(signedData);
-        return verifier.verify({ key: publicKey, dsaEncoding: "ieee-p1363" }, signature);
+        if (!verifier.verify({ key: publicKey, dsaEncoding: "ieee-p1363" }, signature)) return false;
+
+        // #80 (8 Nov 2026): the signature only proves the payload matches the
+        // certificate it came with. Is that certificate Apple's? ⇒ appleCertChain.
+        // 🔑 REPORT-ONLY until real Apple answers have been seen passing in the
+        // logs (no Apple key exists outside production to test with). Then set
+        // APPLE_JWS_CHAIN_MODE=enforce — one env change, no code change.
+        const chain = verifyAppleCertChain(header.x5c);
+        if (!chain.ok) {
+            if (appleChainMode() === "enforce") {
+                console.error("[apple-jws] REJECTED — certificate chain:", chain.reason);
+                return false;
+            }
+            console.warn("[apple-jws] chain check failed (report-only, still accepted):", chain.reason);
+        } else {
+            console.log("[apple-jws] chain check passed");
+        }
+        return true;
     } catch {
         return false;
     }
+}
+
+/** "report" (default) logs a bad chain and still accepts; "enforce" rejects it. */
+export function appleChainMode(): "report" | "enforce" {
+    return (process.env.APPLE_JWS_CHAIN_MODE ?? "").trim().toLowerCase() === "enforce" ? "enforce" : "report";
 }
 
 // ── Verify transaction with Apple ─────────────────────────────────────────────

@@ -188,6 +188,7 @@ Bearer auth. Body `{ productId, transactionId }`. Flow:
 - **Fails closed** if `APPLE_IAP_ISSUER_ID`/`APPLE_IAP_KEY_ID`/`APPLE_IAP_PRIVATE_KEY` are missing (503 — never grants unverified).
 - Builds an ES256 App Store Server API JWT, calls production then sandbox (covers TestFlight), retries 3× on 404 (StoreKit indexing race).
 - **Verifies Apple's JWS signature** using the x5c leaf certificate (IEEE P1363 encoding), then confirms Apple's `productId` (after stripping the `com.imotara.imotara.` bundle prefix) matches the claimed catalog key.
+- **Certificate chain (8 Nov 2026, #80):** the signature alone only proves the payload matches the certificate it came with. `lib/apple/appleCertChain.ts` also checks the x5c chain: each certificate in date, each signed by the next, the top one **exactly Apple Root CA - G3** (pinned in code, SHA-256 `63:34:3A:BF…:91:79`), and Apple's marker OIDs on the intermediate and leaf. ⚠️ Starts in **report-only** mode (`APPLE_JWS_CHAIN_MODE` unset): a failing chain is logged as `[apple-jws] chain check failed (report-only…)` and still accepted, because no Apple key exists outside production to test with. Once the logs show `[apple-jws] chain check passed` on real answers, set `APPLE_JWS_CHAIN_MODE=enforce` (Production) and redeploy. ⛔ Must be `enforce` before App Store Server Notifications are ever added.
 - Records payment, grants `..., "apple"`, writes invoice.
 
 ### 4.4 Google Play (Android) — `POST /api/payments/google-play/verify`

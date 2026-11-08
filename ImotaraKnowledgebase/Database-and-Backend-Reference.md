@@ -1,6 +1,6 @@
 # Imotara — Database & Backend Reference
 
-*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.6.6.*
+*Operations and engineering reference for the Imotara web backend: Supabase Postgres, the hand-applied migration workflow, the full table catalog, the key SECURITY DEFINER RPCs and triggers, the RLS model, the complete `/api/**` route map, all scheduled cron jobs, and the environment-variable reference. Current as of v1.6.7.*
 
 ---
 
@@ -77,7 +77,7 @@ There is no migration runner. Ordering is **by naming convention and documented 
 | `connect_favorites` | User bookmarks a consultant | `user_id`, `consultant_id` |
 | `connect_session_notes` | Consultant's private per-session notes | `session_id`, `consultant_user_id`, `content` |
 | `user_bans` | User ban records (`connect_v11`) | `user_id`, ban metadata |
-| `crisis_events` | Metadata-only crisis-detection log (`crisis_events_v1`, added 2026-08-14) — **no message text stored**, service-role-only RLS (`USING (false)`), viewable at `/admin/crisis-events` | `user_id`, `platform` (web/mobile), `preferred_lang`, `created_at`. Written by `/api/chat-reply` when `CRISIS_HINT_REGEX` fires, deduped to one row per ~60min episode per user. |
+| `crisis_events` | Metadata-only crisis-detection log (`crisis_events_v1`, added 2026-08-14) — **no message text stored**, service-role-only RLS (`USING (false)`), viewable at `/admin/crisis-events` | `user_id`, `platform` (web/mobile), `preferred_lang`, `created_at`. Written by `/api/chat-reply` when `CRISIS_HINT_REGEX` fires, deduped to one row per ~60min episode per user. Since 8 Nov 2026 (#105) also `card_shown`, `card_lang`, `tier`, `resources_country`, `resource_ids` — filled in by `POST /api/safety/crisis-shown` from the card itself (web + app 1.6.7). |
 | `app_settings` | KV store; holds `exchange_rates` (updated daily by cron) | `key` (PK), `value` (jsonb) |
 
 ### Wallet (unified INR wallet — distinct from `connect_wallet`)

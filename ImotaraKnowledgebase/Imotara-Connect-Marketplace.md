@@ -1,6 +1,8 @@
 # Imotara Connect — Consultant Marketplace
 
-*Reference for Imotara Connect: the human-companion marketplace layered onto Imotara. Covers the user-side booking + per-minute wallet billing flow, the two wallet systems, consultant onboarding and earnings, session lifecycle and crons, moderation/admin, safety, and support answers. Grounded in `src/app/api/connect/**`, `src/lib/connect/**`, `src/lib/wallet/**`, `src/app/connect/**`, and the `connect_*` / `imotara_wallet_*` SQL. Current as of v1.6.6.*
+*Reference for Imotara Connect: the human-companion marketplace layered onto Imotara. Covers the user-side booking + per-minute wallet billing flow, the two wallet systems, consultant onboarding and earnings, session lifecycle and crons, moderation/admin, safety, and support answers. Grounded in `src/app/api/connect/**`, `src/lib/connect/**`, `src/lib/wallet/**`, `src/app/connect/**`, and the `connect_*` / `imotara_wallet_*` SQL. Current as of v1.6.7.*
+
+> **Empty list (8 Nov 2026, #108, owner):** when NO companion is listed and no filter is set, the web Browse tab says "No companions are available right now", offers **Open the chat** and **Join as a companion** — never "try adjusting your filters" (that line stays for a filtered list that comes back empty). The app gets the same message in its next release. Since 8 Nov there are 0 live companions (the last listing was removed when its companion left).
 
 > **Status.** Connect ships as working code (37 numbered `connect_v*` migrations, live API routes, `/connect` pages, Realtime chat, Vercel crons) but was originally scoped as the v1.2 MVP and parts of the "full vision" remain aspirational. Sessions are **text chat** today (consultants may register interest in audio/video, but the billed session is text). Available on **all consumer tiers** — the only tier difference is session-history retention.
 

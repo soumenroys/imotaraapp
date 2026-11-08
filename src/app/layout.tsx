@@ -55,11 +55,17 @@ export const viewport: Viewport = {
 const SHARE_DESCRIPTION =
   "A private place to say how you actually feel - in 22 languages. No ads, no feed. Not therapy, and we say so.";
 
+// 🔑 ONE BRAND TITLE for the tab, the search result and the share card (owner, 8 Nov 2026:
+// "An Immortal Friend…" ⇒ "A Private Place for How You Really Feel", matching the homepage
+// hero, the store listings and the social posts). The FAQ keeps "immortal friend" only as
+// the story of the NAME. One constant so the four places cannot drift apart.
+const BRAND_TITLE = "Imotara — A Private Place for How You Really Feel";
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   // ⬇️ Title template so child pages can just set "About", "History", etc.
   title: {
-    default: "Imotara — An Immortal Friend for Your Emotions",
+    default: BRAND_TITLE,
     template: "%s · Imotara",
   },
   description:
@@ -94,28 +100,28 @@ export const metadata: Metadata = {
     type: "website",
     url: siteUrl,
     siteName: "Imotara",
-    title: "Imotara — An Immortal Friend for Your Emotions",
+    title: BRAND_TITLE,
     // 🔑 THE SHARE CARD IS A SOCIAL SURFACE. This is what renders when anyone
     // posts an imotara.com link to X, Facebook or LinkedIn — so it must say
     // what the five profiles say. On 2026-10-17 it did not: OG and Twitter
     // carried two DIFFERENT descriptions, neither mentioning the 22 languages,
     // and both ended "quietly, ethically, and forever" — a promise no software
     // can keep, on a product whose own consent gate is about honesty.
-    // ⛔ The TITLE is the brand line and stays; it is on the homepage hero too.
+    // ⛔ The TITLE is the brand line (BRAND_TITLE); it matches the homepage hero.
     description: SHARE_DESCRIPTION,
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Imotara — An Immortal Friend for Your Emotions",
+        alt: BRAND_TITLE,
       },
     ],
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Imotara — An Immortal Friend for Your Emotions",
+    title: BRAND_TITLE,
     // Same sentence as openGraph, deliberately. Two descriptions for one page
     // is how they drifted apart in the first place.
     description: SHARE_DESCRIPTION,

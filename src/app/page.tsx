@@ -139,10 +139,10 @@ export default function Home() {
           </div>
 
           <h1 className="mt-4 text-left text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
-            An Immortal Friend
+            A Private Place
             <br />
             <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-200 bg-clip-text text-transparent">
-              for Your Emotions
+              for How You Really Feel
             </span>
           </h1>
 

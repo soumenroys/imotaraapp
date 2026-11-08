@@ -467,6 +467,12 @@ The check deliberately **fails open**: a timeout, a SERVFAIL or any ambiguous an
 
 ⚠️ **It will not fix a high bounce rate on its own.** Measured against the 33 real hard bounces of 15 October, it would have caught **none of them** — every one of those domains was live and only the mailbox was dead. Catching that needs a paid verification service, or not mailing the list.
 
+### 16.0.2 Outreach mail is re-checked every time it is sent (added 2026-11-08)
+
+The automatic outreach mails (5 audiences × 4 mails, sent from the Call Directory sheet every 10 minutes) are checked when they are written **and again just before each send**. If an approved mail no longer passes today's checks, for example a wrong sign-off, a promotional word or a false claim about what stays on the phone, it is **not sent**. It goes back to **needs review** with the reasons, and appears on the **To do** page under *Outreach mail*. Fix the text and approve it again; sending resumes on the next run.
+
+Why: on 5 November the sign-off rule changed to "— The Imotara team", but the 20 mails approved before that still ended with a former team member's name and kept being sent. An approval judges the text against the rules of that day; the send-time check holds it to today's.
+
 ---
 
 ### 16.1 Who a broadcast is sent as

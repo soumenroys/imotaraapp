@@ -22,7 +22,7 @@ import { isUnsubscribeConfigured } from "@/lib/broadcast/unsubscribe";
 import { AUDIENCES, AUDIENCE_OF, MAIL, STEPS, emailOf, selectMail, afterSent, type Audience, type StepId } from "@/lib/outreach/sequence";
 import { draftKey, readOutreach, sendableDraft, updateOutreach } from "@/lib/outreach/store";
 import { sendOutreach, senderIdentity, suppressedEmails } from "@/lib/outreach/send";
-import { writeMailDraft } from "@/lib/outreach/writer";
+import { checkDraft, writeMailDraft } from "@/lib/outreach/writer";
 import { createVersion, outreachHistory, recordSend } from "@/lib/outreach/record";
 
 /** At most this many sends per pass, so one run stays well inside its time limit. */
@@ -36,6 +36,8 @@ export type RunReport = {
   sent: { email: string; step: StepId }[];
   failed: { email: string; error: string }[];
   waitingForApproval: string[];
+  /** Approved drafts that FAIL today's checks — sent back for review, never sent ⇒ recheckBeforeSending. */
+  failedChecks: { draft: string; findings: string[] }[];
   draftsWritten: string[];
   limit: number;
 };
@@ -71,7 +73,7 @@ export async function writeMissingDrafts(supabase: SupabaseClient, now = new Dat
 const startOfUtcDay = (now: Date) => { const d = new Date(now); d.setUTCHours(0, 0, 0, 0); return d.getTime(); };
 
 export async function runOutreach(supabase: SupabaseClient, now = new Date()): Promise<RunReport> {
-  const report: RunReport = { ok: true, sent: [], failed: [], waitingForApproval: [], draftsWritten: [], limit: 0 };
+  const report: RunReport = { ok: true, sent: [], failed: [], waitingForApproval: [], failedChecks: [], draftsWritten: [], limit: 0 };
   // 1. Write missing drafts first — even while switched off (nothing is sent by writing).
   const drafts = await writeMissingDrafts(supabase, now);
   report.draftsWritten.push(...drafts.written);
@@ -108,6 +110,22 @@ export async function runOutreach(supabase: SupabaseClient, now = new Date()): P
     const k = draftKey(AUDIENCE_OF[contact.tab], step);
     const draft = sendableDraft(state, AUDIENCE_OF[contact.tab], step);
     if (!draft) { if (!report.waitingForApproval.includes(k)) report.waitingForApproval.push(k); continue; }
+    // ⛔ RE-CHECKED AT SEND TIME, not only when written. 8 Nov 2026: the sign-off rule
+    // changed on 5 Nov (`df1b931`) but all 20 drafts approved BEFORE it kept
+    // "— Suchismita Sen, Imotara" and went on being sent after she left. Approval is
+    // a judgement of the text against the rules of THAT day; a draft that fails
+    // today's rules goes back to "needs review" (it shows on To do) and is not sent.
+    const findings = checkDraft(draft.subject, draft.body);
+    if (findings.length) {
+      if (!report.failedChecks.some((f) => f.draft === k)) {
+        report.failedChecks.push({ draft: k, findings });
+        console.error(`[outreach] ${k} no longer passes the checks — sent back for review:`, findings.join(" | "));
+        state = await updateOutreach(supabase, (s) => {
+          if (s.drafts[k]) { s.drafts[k].status = "needs_review"; s.drafts[k].findings = findings; }
+        });
+      }
+      continue;
+    }
     const email = emailOf(contact);
     // 🔑 Every version sent is a broadcast on the Broadcast screens ⇒ outreach/record.
     if (!draft.broadcastId) {

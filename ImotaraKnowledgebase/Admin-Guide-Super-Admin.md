@@ -433,6 +433,8 @@ Behavior (`POST .../members` with `action: "resend_password_link"`, super-admin 
 
 **Backend:** `GET /api/admin/crisis-events`, table `crisis_events` (`docs/sql/crisis_events_v1.sql`), written by `/api/chat-reply` whenever `CRISIS_HINT_REGEX` fires (see the AI & TTS doc for detection details).
 
+**What the card showed (added 8 Nov 2026, #105):** each row also says what the person actually SAW — `card_shown`, the card's language (`card_lang`), `tier` (1 or 2), the country whose helplines were offered (`resources_country`; `ZZ` = the international list) and the exact lines (`resource_ids`). The card reports it itself through `POST /api/safety/crisis-shown` (web: live 8 Nov; phone: from app 1.6.7), once per card, never message text. The report finds the episode chat-reply logged by identifying the person the same way the chat does (sign-in cookie, the phone's Bearer token, or a web guest's own `x-imotara-guest-token`), so detection and display stay ONE row. **Use it to check the one thing this screen is for: was the right country's helpline offered?** Rows from before 8 Nov have these fields empty.
+
 ---
 
 ## 16. Broadcast email (added 2026-09-03/04) — **owner only**

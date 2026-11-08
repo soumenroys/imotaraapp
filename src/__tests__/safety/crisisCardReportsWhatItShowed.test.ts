@@ -52,17 +52,35 @@ describe("the crisis card reports what it showed", () => {
         vi.stubGlobal("fetch", fetchMock);
         const r = buildCrisisShownReport({ tier: 2, cardLang: "hi", resources: getCrisisResourcesForCountry("IN"), anonId: "anon-12345678" })!;
         expect(() => sendCrisisShownReport(r)).not.toThrow();
-        await Promise.resolve();
-        expect(fetchMock).toHaveBeenCalledTimes(1);
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
         const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
         expect(url).toBe("/api/safety/crisis-shown");
         expect(init.method).toBe("POST");
         expect(JSON.parse(String(init.body))).toMatchObject({ cardLang: "hi", tier: 2, resourcesCountry: "IN" });
     });
 
+    it("a signed-out visitor's report carries their guest token in its own header — never Authorization", async () => {
+        const fetchMock = vi.fn(async () => new Response("{}"));
+        vi.stubGlobal("fetch", fetchMock);
+        const r = buildCrisisShownReport({ tier: 1, cardLang: "en", resources: getCrisisResourcesForCountry("GB"), anonId: "anon-12345678" })!;
+        sendCrisisShownReport(r, async () => "guest-jwt");
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+        const headers = (fetchMock.mock.calls[0] as unknown as [string, RequestInit])[1].headers as Record<string, string>;
+        expect(headers["x-imotara-guest-token"]).toBe("guest-jwt");
+        expect(headers.Authorization).toBeUndefined();
+    });
+
+    it("a failing guest-token lookup still sends the report", async () => {
+        const fetchMock = vi.fn(async () => new Response("{}"));
+        vi.stubGlobal("fetch", fetchMock);
+        const r = buildCrisisShownReport({ tier: 1, cardLang: "en", resources: getCrisisResourcesForCountry("GB"), anonId: "anon-12345678" })!;
+        sendCrisisShownReport(r, async () => { throw new Error("no auth"); });
+        await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    });
+
     it("the chat page sends it, from the same language the card renders", () => {
         const src = readFileSync(join(process.cwd(), "src/app/chat/page.tsx"), "utf8");
-        expect(src).toMatch(/sendCrisisShownReport\(report\)/);
+        expect(src).toMatch(/sendCrisisShownReport\(report, guestChatToken\)/);
         expect(src).toMatch(/cardLang:\s*crisisCard\.lang/);
         expect(src).toMatch(/const bannerLang = crisisCard\.lang;/);
         // the card is gated on the same value

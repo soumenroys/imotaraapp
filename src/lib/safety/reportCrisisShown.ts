@@ -51,16 +51,27 @@ export function crisisShownKey(threadId: string | null, r: CrisisShownReport): s
     return [threadId ?? "-", r.tier, r.cardLang, r.resourcesCountry].join("|");
 }
 
-/** Fire-and-forget. A logging failure must never touch the person's screen. */
-export function sendCrisisShownReport(r: CrisisShownReport): void {
-    try {
-        void fetch("/api/safety/crisis-shown", {
+/**
+ * Fire-and-forget. A logging failure must never touch the person's screen.
+ * 🔑 A signed-out visitor's chat is logged under their guest identity, so the
+ * report carries the same guest token (own header, never Authorization) — or the
+ * server cannot find that episode and writes a second, unlinked row.
+ */
+export function sendCrisisShownReport(
+    r: CrisisShownReport,
+    getGuestToken: () => Promise<string | null> = async () => null,
+): void {
+    void (async () => {
+        let guestToken: string | null = null;
+        try { guestToken = await getGuestToken(); } catch { guestToken = null; }
+        await fetch("/api/safety/crisis-shown", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+                "Content-Type": "application/json",
+                ...(guestToken ? { "x-imotara-guest-token": guestToken } : {}),
+            },
             body: JSON.stringify(r),
             keepalive: true,
-        }).catch(() => { /* never surface */ });
-    } catch {
-        /* never surface */
-    }
+        });
+    })().catch(() => { /* never surface */ });
 }

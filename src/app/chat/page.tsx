@@ -127,6 +127,7 @@ import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
 import { buildCrisisShownReport, crisisShownKey, sendCrisisShownReport } from "@/lib/safety/reportCrisisShown";
 import { getOrCreateAnonId } from "@/lib/legal/anonId";
+import { guestChatToken } from "@/lib/imotara/guestChatIdentity";
 import { hapticTap, hapticEmotion } from "@/lib/imotara/haptic";
 
 type Role = "user" | "assistant" | "system";
@@ -2016,7 +2017,7 @@ export default function ChatPage() {
     const key = crisisShownKey(activeId, report);
     if (crisisReportedRef.current.has(key)) return;
     crisisReportedRef.current.add(key);
-    sendCrisisShownReport(report);
+    sendCrisisShownReport(report, guestChatToken);
   }, [crisisCard, crisisTier, crisisCountryResources, activeId]);
 
   // Close open capsule menu on click-away

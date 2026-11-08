@@ -59,11 +59,28 @@ export async function POST(req: NextRequest) {
 
     const platform = body.platform === "mobile" ? "mobile" : "web";
 
+    // 🔑 8 Nov 2026 (#105): identify the person EXACTLY as chat-reply does, or the
+    // card cannot find the episode chat-reply logged and writes a second, unlinked
+    // row. Cookie-only missed every phone (Bearer) and every web guest (their own
+    // x-imotara-guest-token header, accepted only when really anonymous).
     let userId: string | null = null;
     try {
-        const userClient = await supabaseUserServer();
-        const { data } = await userClient.auth.getUser();
-        userId = data?.user?.id ?? null;
+        const authHeader = req.headers.get("Authorization") ?? "";
+        const bearer = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+        if (bearer) {
+            const { data } = await getSupabaseAdmin().auth.getUser(bearer);
+            userId = data?.user?.id ?? null;
+        }
+        if (!userId) {
+            const userClient = await supabaseUserServer();
+            const { data } = await userClient.auth.getUser();
+            userId = data?.user?.id ?? null;
+        }
+        const guestToken = (req.headers.get("x-imotara-guest-token") ?? "").trim();
+        if (!userId && guestToken) {
+            const { data } = await getSupabaseAdmin().auth.getUser(guestToken);
+            if (data?.user?.id && data.user.is_anonymous) userId = data.user.id;
+        }
     } catch {
         userId = null;
     }

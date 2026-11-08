@@ -15,7 +15,7 @@ import { gaMeasurementId, isUntrackedPath } from "@/lib/analytics/ga";
 
 type GtagWindow = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
 
-export function gaEvent(name: "sign_up" | "login" | "first_message" | "home_mood", params: Record<string, string> = {}): void {
+export function gaEvent(name: "sign_up" | "login" | "first_message" | "home_mood", params: Record<string, unknown> = {}): void {
   if (typeof window === "undefined") return;
   const id = gaMeasurementId();
   if (!id || isUntrackedPath(window.location.pathname)) return;
@@ -50,4 +50,36 @@ export function noteFirstMessageForGa(): void {
 export function signInKind(createdAt: string | undefined, now = Date.now()): "sign_up" | "login" {
   const t = createdAt ? Date.parse(createdAt) : NaN;
   return Number.isFinite(t) && now - t < 10 * 60_000 ? "sign_up" : "login";
+}
+
+/**
+ * Send an event and resolve once GA says it went — or after `timeoutMs`,
+ * whichever is first. For events fired right before the page is left.
+ *
+ * 🔴 8 Nov 2026 (#76): the sign-in callback fired sign_up/login and then set
+ * window.location.href on the very next line. The event sat in dataLayer
+ * (gtag.js often not even loaded yet on that page) and died with the page:
+ * GA showed NO sign_up and NO login since the events went live on 6 Nov.
+ * ⇒ `event_callback` + beacon transport, and the caller waits for this.
+ * ⛔ Never waits longer than `timeoutMs`: a sign-in must not hang on analytics.
+ */
+export function gaEventBeforeLeaving(
+  name: "sign_up" | "login",
+  params: Record<string, string> = {},
+  timeoutMs = 1000,
+): Promise<void> {
+  return new Promise<void>((resolve) => {
+    let done = false;
+    const finish = () => { if (!done) { done = true; resolve(); } };
+    setTimeout(finish, timeoutMs);
+    try {
+      if (typeof window === "undefined" || !gaMeasurementId() || isUntrackedPath(window.location.pathname)) {
+        finish();
+        return;
+      }
+      gaEvent(name, { ...params, transport_type: "beacon", event_callback: finish });
+    } catch {
+      finish();
+    }
+  });
 }

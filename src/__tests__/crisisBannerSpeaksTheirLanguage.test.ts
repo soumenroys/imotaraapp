@@ -164,8 +164,11 @@ describe("⚖️ the honest limits, stated rather than hidden", () => {
 describe("⚠️ the banner really uses it", () => {
     const SRC = fs.readFileSync(path.join(process.cwd(), "src/app/chat/page.tsx"), "utf8");
 
+    // 8 Nov 2026 (#105): the language is resolved ONCE in `crisisCard` and the
+    // render reads crisisCard.lang, so the crisis-shown report and the card agree.
     it("the render calls crisisBannerLangFor, not preferredLang", () => {
-        expect(SRC).toMatch(/const bannerLang = crisisBannerLangFor\(/);
+        expect(SRC).toMatch(/const lang = crisisBannerLangFor\(/);
+        expect(SRC).toMatch(/const bannerLang = crisisCard\.lang;/);
         expect(SRC).toMatch(/CRISIS_BANNER_BY_LANG\[bannerLang\] \?\? CRISIS_BANNER_BY_LANG\.en/);
     });
 
@@ -174,7 +177,8 @@ describe("⚠️ the banner really uses it", () => {
     });
 
     it("…and it is fed the USER's recent messages", () => {
-        const i = SRC.indexOf("const bannerLang = crisisBannerLangFor(");
+        const i = SRC.indexOf("const lang = crisisBannerLangFor(");
+        expect(i).toBeGreaterThan(-1);
         const block = SRC.slice(i, i + 400);
         expect(block).toMatch(/m\.role === "user"/);
         expect(block).toMatch(/activeThread\?\.messages/);

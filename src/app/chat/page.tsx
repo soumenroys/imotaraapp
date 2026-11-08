@@ -125,6 +125,8 @@ import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
 import { CRISIS_BANNER_BY_LANG } from "@/lib/safety/crisisCopy";
 import { detectCountryCode } from "@/lib/safety/detectCountry";
 import { getCrisisResourcesForCountry } from "@/lib/safety/crisisResources";
+import { buildCrisisShownReport, crisisShownKey, sendCrisisShownReport } from "@/lib/safety/reportCrisisShown";
+import { getOrCreateAnonId } from "@/lib/legal/anonId";
 import { hapticTap, hapticEmotion } from "@/lib/imotara/haptic";
 
 type Role = "user" | "assistant" | "system";
@@ -1977,6 +1979,45 @@ export default function ChatPage() {
     const code = (override && override !== "auto") ? override : (edgeCountry ?? detectCountryCode());
     return getCrisisResourcesForCountry(code);
   }, [edgeCountry]);
+
+  // #4/#105: whether the crisis card shows, and in which language. ONE value
+  // used by both the render and the report below — so the record says exactly
+  // what was on screen, never a second guess at it.
+  // 🔴 NOT `preferredLang` on its own — that rendered the card in ENGLISH for
+  // 12 of 12 languages measured. See crisisBannerLangFor.
+  const crisisCard = useMemo((): { lang: string } | null => {
+    const setting = typeof localStorage !== "undefined" ? (localStorage.getItem("imotara.crisis.threshold.v1") ?? "standard") : "standard";
+    const minTier = setting === "conservative" ? 2 : 1;
+    if (crisisTier < minTier) return null;
+    const lang = crisisBannerLangFor(
+      preferredLang,
+      (activeThread?.messages ?? [])
+        .filter(isAppMessage)
+        .filter((m) => m.role === "user")
+        .slice(-4)
+        .map((m) => m.content ?? ""),
+      (l) => Boolean(CRISIS_BANNER_BY_LANG[l]),
+    );
+    return { lang };
+  }, [crisisTier, preferredLang, activeThread?.messages]);
+
+  // #105: report what the card showed (language, tier, country, line ids) —
+  // once per conversation per tier/language/country. ⛔ Never message text.
+  const crisisReportedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!crisisCard) return;
+    const report = buildCrisisShownReport({
+      tier: crisisTier,
+      cardLang: crisisCard.lang,
+      resources: crisisCountryResources,
+      anonId: getOrCreateAnonId(),
+    });
+    if (!report) return;
+    const key = crisisShownKey(activeId, report);
+    if (crisisReportedRef.current.has(key)) return;
+    crisisReportedRef.current.add(key);
+    sendCrisisShownReport(report);
+  }, [crisisCard, crisisTier, crisisCountryResources, activeId]);
 
   // Close open capsule menu on click-away
   useEffect(() => {
@@ -4545,23 +4586,9 @@ export default function ChatPage() {
           )}
 
           {/* #4: Crisis intervention banner — localized + geo-aware */}
-          {(() => {
-            const crisisThresholdSetting = typeof localStorage !== "undefined" ? (localStorage.getItem("imotara.crisis.threshold.v1") ?? "standard") : "standard";
-            const crisisMinTier: number = crisisThresholdSetting === "sensitive" ? 1 : crisisThresholdSetting === "conservative" ? 2 : 1;
-            return crisisTier >= crisisMinTier;
-          })() && (() => {
-            // 🔴 NOT `preferredLang` on its own — that rendered this banner in
-            // ENGLISH for 12 of 12 languages measured, including ones whose
-            // script is unambiguous. See crisisBannerLangFor.
-            const bannerLang = crisisBannerLangFor(
-              preferredLang,
-              (activeThread?.messages ?? [])
-                .filter(isAppMessage)
-                .filter((m) => m.role === "user")
-                .slice(-4)
-                .map((m) => m.content ?? ""),
-              (l) => Boolean(CRISIS_BANNER_BY_LANG[l]),
-            );
+          {crisisCard && (() => {
+            // Language resolved once in `crisisCard` (shared with the #105 report).
+            const bannerLang = crisisCard.lang;
             const txt = CRISIS_BANNER_BY_LANG[bannerLang] ?? CRISIS_BANNER_BY_LANG.en;
             // ⚠️ getCrisisResourcesForCountry never returns null and never
             // returns an empty `primary`, so this line always exists. That is

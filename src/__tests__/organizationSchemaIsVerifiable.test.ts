@@ -367,9 +367,9 @@ describe("the share card speaks with the same voice as the profiles", () => {
      * no software can make, on a product whose whole claim is that it does not
      * oversell itself.
      *
-     * ⛔ THE TITLE IS NOT A DEFECT. "An Immortal Friend for Your Emotions" is
-     * the brand line and also the homepage hero. Positioning is the owner's;
-     * only the drift and the unkeepable promise were fixed.
+     * ⛔ THE TITLE IS THE OWNER'S POSITIONING. Since 8 Nov 2026 it is
+     * "A Private Place for How You Really Feel" (BRAND_TITLE, one constant for
+     * tab, search and share card), the same words as the homepage hero.
      */
     const layout = read("src/app/layout.tsx");
 

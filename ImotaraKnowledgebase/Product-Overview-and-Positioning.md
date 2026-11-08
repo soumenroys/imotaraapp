@@ -6,7 +6,7 @@
 
 Imotara is a private, emotion-aware AI companion that helps people understand their feelings, track their mood over time, and grow emotionally — **without ads, without paywalls during conversations, and without data tracking**. It is available as a web app (www.imotara.com), an iOS app, and an Android app.
 
-The name "Imotara" is a coined word combining *emotion* and *-ara* (a suffix suggesting movement, arrival, presence). The site tagline positions it as **"An Immortal Friend for Your Emotions."**
+The name "Imotara" is a coined word combining *emotion* and *-ara* (a suffix suggesting movement, arrival, presence). The site tagline positions it as **"A Private Place for How You Really Feel"** (since 8 Nov 2026; until then "An Immortal Friend for Your Emotions", which the FAQ still uses to explain the name).
 
 Three things Imotara explicitly is **not**:
 - **Not a therapy replacement.** It is a wellness companion for self-reflection and emotional awareness — designed to complement, not replace, professional mental health care.

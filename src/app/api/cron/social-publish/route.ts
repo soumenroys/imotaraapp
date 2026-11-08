@@ -30,7 +30,7 @@ import { platformSpec } from "@/lib/social/platforms";
 import { mediaPlan } from "@/lib/social/mediaPlan";
 import { markCronFired } from "@/lib/cron/heartbeat";
 import { withTrackedLink } from "@/lib/social/brandMarks";
-import { firstCommentActive, firstCommentText } from "@/lib/social/firstComment";
+import { commentTargetId, firstCommentActive, firstCommentText } from "@/lib/social/firstComment";
 import { commentOnPost } from "@/lib/social/comments/graph";
 
 export const maxDuration = 300;
@@ -698,7 +698,7 @@ export async function GET(req: NextRequest) {
         try {
           const page = await pageAccessToken({ token: cred.token, pageId: cred.externalId });
           if (page.ok) {
-            const cid = await commentOnPost(result.postId, firstCommentText(), page.token);
+            const cid = await commentOnPost(commentTargetId(result.postId, cred.externalId), firstCommentText(), page.token);
             console.log("[social-publish] first comment posted", { postId: result.postId, commentId: cid });
           } else {
             console.warn("[social-publish] first comment skipped — no Page token:", page.message);

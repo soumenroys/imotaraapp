@@ -143,7 +143,7 @@ Five: Facebook, LinkedIn, Instagram, X, YouTube. ⚠️ *Updated 7 Nov 2026:* "n
 
 Post text carries no links by design (reach), which is why social sent ~7 visits in 28 days. Two exceptions, both tagged so Google Analytics can tell them apart (`trackedSiteUrl` / `withTrackedLink` in `src/lib/social/brandMarks.ts`):
 - **YouTube:** every description carries a tracked imotara.com link (an existing imotara.com link is tagged in place).
-- **Facebook first-comment TRIAL, 7–22 Nov 2026:** after a post publishes, the Page adds one comment with a tracked link (`utm_campaign=first_comment`, `src/lib/social/firstComment.ts`). It switches itself off on 22 Nov. The comment auto-reply system ignores the Page's own comment. 🔴 Review reach and visits against the baseline on 22 Nov (board #96) before keeping or dropping it.
+- **Facebook first-comment TRIAL, 7–22 Nov 2026:** after a post publishes, the Page adds one comment with a tracked link (`utm_campaign=first_comment`, `src/lib/social/firstComment.ts`). It switches itself off on 22 Nov. The comment auto-reply system ignores the Page's own comment. 🔴 Review reach and visits against the baseline on 22 Nov (board #96) before keeping or dropping it. ⚠️ **Until 8 Nov evening, VIDEO posts got no comment**: Facebook returns a video post's id bare (no `{pageId}_` prefix) and refuses a comment on it ("(#12) singular statuses API is deprecated"); the post itself is fine. `commentTargetId()` now qualifies the id. ⇒ In the 22 Nov review, count only posts that actually carried the comment.
 
 ## 8. Things that have already gone wrong here
 

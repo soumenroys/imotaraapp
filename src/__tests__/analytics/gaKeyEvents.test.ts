@@ -59,6 +59,46 @@ describe("GA key events", () => {
 
   it("the chat page and the sign-in callback actually send them", () => {
     expect(readFileSync("src/app/chat/page.tsx", "utf8")).toMatch(/noteMessageSent\(\);\n\s+noteFirstMessageForGa\(\);/);
-    expect(readFileSync("src/app/auth/callback/page.tsx", "utf8")).toMatch(/gaEvent\(signInKind\(session\.user\?\.created_at\)/);
+    expect(readFileSync("src/app/auth/callback/page.tsx", "utf8")).toMatch(/gaEventBeforeLeaving\(signInKind\(session\.user\?\.created_at\)/);
+  });
+});
+
+describe("🔴 8 Nov: sign_up/login must survive the redirect that follows them", () => {
+  it("the callback navigates only AFTER the event resolves", () => {
+    const src = readFileSync("src/app/auth/callback/page.tsx", "utf8");
+    expect(src).toMatch(/gaEventBeforeLeaving\([\s\S]{0,200}\)\s*\.then\(\(\) => navigate\(redirectTo\)\)/);
+  });
+
+  it("resolves when GA confirms (event_callback), sent by beacon", async () => {
+    const { gaEventBeforeLeaving } = await import("@/lib/analytics/gaEvent");
+    let resolved = false;
+    const p = gaEventBeforeLeaving("sign_up", { method: "google" }, 5000).then(() => { resolved = true; });
+    const call = calls.find((c) => c[1] === "sign_up")!;
+    const params = call[2] as Record<string, unknown>;
+    expect(params.transport_type).toBe("beacon");
+    expect(params.method).toBe("google");
+    expect(resolved).toBe(false);
+    (params.event_callback as () => void)();
+    await p;
+    expect(resolved).toBe(true);
+  });
+
+  it("⛔ never hangs a sign-in: resolves on the timeout if GA never answers", async () => {
+    vi.useFakeTimers();
+    const { gaEventBeforeLeaving } = await import("@/lib/analytics/gaEvent");
+    let resolved = false;
+    const p = gaEventBeforeLeaving("login", {}, 1000).then(() => { resolved = true; });
+    await vi.advanceTimersByTimeAsync(999);
+    expect(resolved).toBe(false);
+    await vi.advanceTimersByTimeAsync(2);
+    await p;
+    expect(resolved).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("no GA configured ⇒ resolves at once (nothing to wait for)", async () => {
+    vi.stubEnv("NEXT_PUBLIC_GA_MEASUREMENT_ID", "");
+    const { gaEventBeforeLeaving } = await import("@/lib/analytics/gaEvent");
+    await expect(gaEventBeforeLeaving("login", {}, 60_000)).resolves.toBeUndefined();
   });
 });

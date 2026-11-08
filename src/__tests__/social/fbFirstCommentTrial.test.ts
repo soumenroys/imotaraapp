@@ -4,7 +4,7 @@
 // forgotten. ⛔ So the trial ends by itself: forgetting can only stop it.
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { TRIAL_START, TRIAL_UNTIL, firstCommentActive, firstCommentText, isOurFirstComment } from "@/lib/social/firstComment";
+import { TRIAL_START, TRIAL_UNTIL, commentTargetId, firstCommentActive, firstCommentText, isOurFirstComment } from "@/lib/social/firstComment";
 import { facebookComments } from "@/lib/social/comments/graph";
 
 describe("the trial switches itself off", () => {
@@ -50,7 +50,23 @@ describe("⛔ our own comment is never read back as a visitor's", () => {
   });
 });
 
+describe("🔴 8 Nov: the comment goes on the Page post, whatever kind of post it was", () => {
+  // Real ids from our own posts: a video comes back bare, a photo page-qualified.
+  it("a VIDEO post's bare number is qualified with the Page — Facebook refused the bare one (#12)", () => {
+    expect(commentTargetId("122139749793392789", "1222416224285686")).toBe("1222416224285686_122139749793392789");
+  });
+  it("a PHOTO post's id is already qualified and is left alone", () => {
+    expect(commentTargetId("1222416224285686_122139318603392789", "1222416224285686")).toBe("1222416224285686_122139318603392789");
+  });
+  it("no Page id ⇒ the id as given (never a leading underscore)", () => {
+    expect(commentTargetId("123", "")).toBe("123");
+  });
+});
+
 describe("wiring", () => {
+  it("the route comments on the Page-qualified id", () => {
+    expect(readFileSync("src/app/api/cron/social-publish/route.ts", "utf8")).toMatch(/commentOnPost\(commentTargetId\(result\.postId, cred\.externalId\)/);
+  });
   const route = readFileSync("src/app/api/cron/social-publish/route.ts", "utf8");
   it("Facebook only, after the post exists, only while the trial is on", () => {
     expect(route).toMatch(/if \(platform === "facebook" && result\.postId && firstCommentActive\(\)\) \{/);

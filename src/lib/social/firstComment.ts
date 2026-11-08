@@ -38,3 +38,17 @@ export function firstCommentText(): string {
 export function isOurFirstComment(text: string): boolean {
   return text.includes(`utm_campaign=${FIRST_COMMENT_CAMPAIGN}`);
 }
+
+/**
+ * The id a Page post must be commented on: `{pageId}_{postId}`.
+ * 🔴 8 Nov 2026: a VIDEO post comes back from Facebook as the bare post number
+ * (e.g. 122139749793392789), a photo post as `{pageId}_{postId}`. Commenting on
+ * the bare number is refused — "(#12) singular statuses API is deprecated" — so
+ * every video post in the trial went out with no link comment, while the posts
+ * themselves were fine. ⇒ qualify the id with the Page before commenting.
+ */
+export function commentTargetId(postId: string, pageId: string): string {
+  const id = postId.trim();
+  if (id.includes("_") || !pageId.trim()) return id;
+  return `${pageId.trim()}_${id}`;
+}

@@ -22,7 +22,7 @@ type Preview = {
   approval?: { state: "approved" | "changed" | "none"; approvedBy?: string; approvedAt?: string };
   counts: {
     total: number; queued: number; skipped: number;
-    skippedByReason: { unsubscribed: number; hard_bounce: number; complaint: number };
+    skippedByReason: { unsubscribed: number; hard_bounce: number; complaint: number; recently_mailed?: number };
   };
   budget: { week: number; cap: number; sentToday: number; remaining: number };
   exceedsTodaysBudget: boolean;
@@ -35,6 +35,7 @@ const REASON_LABEL: Record<string, string> = {
   unsubscribed: "unsubscribed",
   hard_bounce: "address does not exist",
   complaint: "marked us as spam",
+  recently_mailed: "already had a mail from us in the last 7 days",
 };
 
 export default function BroadcastReview({

@@ -154,6 +154,20 @@ The web/mobile client calls two endpoints:
 - No purpose note → checks in order: is it a **Connect recharge** (marks `connect_recharges` completed), a **wallet top-up** (`imotara_wallet_orders` → `credit_imotara_wallet` RPC), else logs it as a **donation**.
 - Also handles `payment.failed` (recharge→failed) and `refund.processed` (recharge→refunded).
 
+### 4.1a Donations — amounts by country (all three platforms)
+
+Donations never grant anything (the webhook only logs them). The **amount asked** depends on the donor's country band, decided on the server from Vercel's `x-vercel-ip-country` header — never from the browser:
+
+| Band | Countries | Presets (₹, charged in INR) |
+|---|---|---|
+| 3 | India + 8 (Pakistan, Bangladesh, Sri Lanka, Indonesia, Philippines, Vietnam, Nigeria, Egypt) | 49 · 99 · 199 · 499 · 999 |
+| 2 | 8 markets (Brazil, Mexico, Poland, Türkiye, South Africa, Malaysia, Thailand, China) | 99 · 199 · 399 · 999 · 1,999 |
+| 1 | everywhere else | 199 · 399 · 799 · 1,999 · 3,999 |
+
+- **Web:** `/donate` + `POST /api/payments/donation-intent` (server-authoritative amount, `lib/imotara/pricingBands.ts`), live since 3 Oct 2026. Still INR — a foreign card pays rupees and the donor's bank converts. ⛔ Do not add multi-currency.
+- **Android:** both entry points (Settings and the Plan & support quick panel) show `GET /api/payments/donation-presets` for the donor's country and open `/donate`. The quick panel kept India's fixed amounts until **1.6.8** (8 Nov 2026 fix).
+- **iOS:** Apple's tip jar (`donation_49 … donation_999`), banded across 175 storefronts in App Store Connect (3 Oct 2026). iOS never reaches Razorpay.
+
 ### 4.2 Stripe (international) — subscriptions, token packs, corporate
 
 - **`POST /api/payments/stripe/checkout`** — two modes:

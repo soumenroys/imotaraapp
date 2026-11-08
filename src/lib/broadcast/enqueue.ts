@@ -13,7 +13,37 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 // list of thousands is never silently truncated to the first page.
 const PAGE = 1000;
 
-export type SkipReason = "unsubscribed" | "hard_bounce" | "complaint";
+export type SkipReason = "unsubscribed" | "hard_bounce" | "complaint" | "recently_mailed";
+
+/**
+ * 🔑 ONE MAIL PER PERSON PER 7 DAYS, across every list and the outreach mailer
+ * (owner, 8 Nov 2026). The same address sits on several lists; each broadcast
+ * used to treat its list alone, so one person could get three mails in a week.
+ * Skipped WITH a reason, like a suppression, so the review screen still adds up.
+ * ⚠️ Needs docs/sql/broadcast_weekly_cap.sql on the live database (new skip_reason).
+ */
+export const RECENT_DAYS = 7;
+
+/** Addresses that were SENT any broadcast or outreach mail in the last RECENT_DAYS days (excluding this broadcast). */
+async function recentlyMailed(
+  supabase: SupabaseClient,
+  emails: string[],
+  excludeBroadcastId: string | null,
+  now: Date,
+): Promise<Set<string>> {
+  if (emails.length === 0) return new Set();
+  const since = new Date(now.getTime() - RECENT_DAYS * 86_400_000).toISOString();
+  let q = supabase
+    .from("broadcast_sends")
+    .select("email")
+    .in("email", emails)
+    .eq("status", "sent")
+    .gte("sent_at", since);
+  if (excludeBroadcastId) q = q.neq("broadcast_id", excludeBroadcastId);
+  const { data, error } = await q;
+  if (error) throw new Error(`recent-mail lookup failed — ${error.message}`);
+  return new Set((data ?? []).map((r) => r.email as string));
+}
 
 export type EnqueueResult = {
   total: number;                                  // recipients on the list
@@ -34,10 +64,11 @@ export async function enqueueBroadcast(
   supabase: SupabaseClient,
   broadcastId: string,
   listId: string,
+  now: Date = new Date(),
 ): Promise<EnqueueResult> {
   const result: EnqueueResult = {
     total: 0, queued: 0, skipped: 0,
-    skippedByReason: { unsubscribed: 0, hard_bounce: 0, complaint: 0 },
+    skippedByReason: { unsubscribed: 0, hard_bounce: 0, complaint: 0, recently_mailed: 0 },
   };
 
   for (let from = 0; ; from += PAGE) {
@@ -67,8 +98,10 @@ export async function enqueueBroadcast(
       (sup ?? []).map((s) => [s.email as string, s.reason as SkipReason]),
     );
 
+    const recent = await recentlyMailed(supabase, emails, broadcastId, now);
+
     const rows = emails.map((email) => {
-      const reason = suppressed.get(email);
+      const reason: SkipReason | undefined = suppressed.get(email) ?? (recent.has(email) ? "recently_mailed" : undefined);
       if (reason) {
         result.skipped++;
         result.skippedByReason[reason] = (result.skippedByReason[reason] ?? 0) + 1;
@@ -102,10 +135,11 @@ export async function enqueueBroadcast(
 export async function previewEnqueue(
   supabase: SupabaseClient,
   listId: string,
+  now: Date = new Date(),
 ): Promise<Omit<EnqueueResult, "total"> & { total: number }> {
   const result = {
     total: 0, queued: 0, skipped: 0,
-    skippedByReason: { unsubscribed: 0, hard_bounce: 0, complaint: 0 } as Record<SkipReason, number>,
+    skippedByReason: { unsubscribed: 0, hard_bounce: 0, complaint: 0, recently_mailed: 0 } as Record<SkipReason, number>,
   };
 
   for (let from = 0; ; from += PAGE) {
@@ -127,14 +161,20 @@ export async function previewEnqueue(
 
     if (sErr) throw new Error(`preview: suppression lookup failed — ${sErr.message}`);
 
+    const supSet = new Set<string>();
     for (const s of sup ?? []) {
       const reason = s.reason as SkipReason;
+      supSet.add(s.email as string);
       result.skipped++;
       result.skippedByReason[reason] = (result.skippedByReason[reason] ?? 0) + 1;
     }
+    // Same rule as enqueue: a suppression wins, then the 7-day cap.
+    const recent = await recentlyMailed(supabase, emails.filter((e) => !supSet.has(e)), null, now);
+    result.skipped += recent.size;
+    result.skippedByReason.recently_mailed += recent.size;
 
     result.total += recipients.length;
-    result.queued += recipients.length - (sup?.length ?? 0);
+    result.queued += recipients.length - supSet.size - recent.size;
     if (recipients.length < PAGE) break;
   }
 

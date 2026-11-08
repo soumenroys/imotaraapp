@@ -467,6 +467,12 @@ The check deliberately **fails open**: a timeout, a SERVFAIL or any ambiguous an
 
 ⚠️ **It will not fix a high bounce rate on its own.** Measured against the 33 real hard bounces of 15 October, it would have caught **none of them** — every one of those domains was live and only the mailbox was dead. Catching that needs a paid verification service, or not mailing the list.
 
+### 16.0.1b One mail per person per 7 days (added 2026-11-08)
+
+The same address can sit on several lists. A broadcast now **skips anyone who was sent any Imotara mail in the last 7 days**, whether from another broadcast or from the outreach mailer. They are recorded as skipped with the reason *"already had a mail from us in the last 7 days"*, so the review screen still adds up (on the list = will receive + skipped). They are not queued later; they simply miss that one broadcast.
+
+Requires `docs/sql/broadcast_weekly_cap.sql` on the live database (it adds the new skip reason). The outreach mailer keeps its own spacing between its four mails and does not look at broadcasts.
+
 ### 16.0.2 Outreach mail is re-checked every time it is sent (added 2026-11-08)
 
 The automatic outreach mails (5 audiences × 4 mails, sent from the Call Directory sheet every 10 minutes) are checked when they are written **and again just before each send**. If an approved mail no longer passes today's checks, for example a wrong sign-off, a promotional word or a false claim about what stays on the phone, it is **not sent**. It goes back to **needs review** with the reasons, and appears on the **To do** page under *Outreach mail*. Fix the text and approve it again; sending resumes on the next run.

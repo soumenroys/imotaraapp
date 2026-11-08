@@ -35,7 +35,7 @@ function makeSupabase(queues: Record<string, Resp[]>, captured: Upsert[]) {
     from(table: string) {
       const builder: Record<string, unknown> = {};
       const chain = () => builder;
-      for (const m of ["select", "eq", "in", "order", "range", "limit", "not"]) {
+      for (const m of ["select", "eq", "in", "order", "range", "limit", "not", "gte", "neq"]) {
         builder[m] = chain;
       }
       builder.upsert = (rows: Record<string, unknown>[], opts: Record<string, unknown>) => {
@@ -225,5 +225,77 @@ describe("previewEnqueue", () => {
     // A preview that wrote rows would leave a half-built queue behind if the
     // admin changed their mind on the review screen.
     expect(captured).toHaveLength(0);
+  });
+});
+
+describe("one mail per person per 7 days (owner, 8 Nov 2026)", () => {
+  it("someone SENT a mail in the last 7 days is skipped with the reason, never omitted", async () => {
+    const captured: Upsert[] = [];
+    const supabase = makeSupabase(
+      {
+        broadcast_recipients: [{ data: [{ email: "fresh@example.com" }, { email: "mailed@example.com" }], error: null }],
+        broadcast_suppressions: [{ data: [], error: null }],
+        // what the 7-day lookup returns: mailed@ had a mail this week
+        broadcast_sends: [{ data: [{ email: "mailed@example.com" }], error: null }],
+      },
+      captured,
+    );
+    const { enqueueBroadcast } = await importEnqueue();
+    const r = await enqueueBroadcast(supabase as never, BCAST, LIST, new Date("2026-11-08T05:00:00Z"));
+    expect(r.queued).toBe(1);
+    expect(r.skippedByReason.recently_mailed).toBe(1);
+    expect(r.queued + r.skipped).toBe(r.total);
+    const byEmail = Object.fromEntries(captured.flatMap((c) => c.rows).map((x) => [x.email, x]));
+    expect(byEmail["mailed@example.com"]).toMatchObject({ status: "skipped", skip_reason: "recently_mailed" });
+    expect(byEmail["fresh@example.com"]).toMatchObject({ status: "queued", skip_reason: null });
+  });
+
+  it("✅ control: nobody mailed this week ⇒ everyone queued", async () => {
+    const captured: Upsert[] = [];
+    const supabase = makeSupabase(
+      {
+        broadcast_recipients: [{ data: [{ email: "a@example.com" }, { email: "b@example.com" }], error: null }],
+        broadcast_suppressions: [{ data: [], error: null }],
+        broadcast_sends: [{ data: [], error: null }],
+      },
+      captured,
+    );
+    const { enqueueBroadcast } = await importEnqueue();
+    const r = await enqueueBroadcast(supabase as never, BCAST, LIST);
+    expect(r.queued).toBe(2);
+    expect(r.skippedByReason.recently_mailed).toBe(0);
+  });
+
+  it("a suppression wins over the 7-day reason (one reason per person)", async () => {
+    const captured: Upsert[] = [];
+    const supabase = makeSupabase(
+      {
+        broadcast_recipients: [{ data: [{ email: "gone@example.com" }], error: null }],
+        broadcast_suppressions: [{ data: [{ email: "gone@example.com", reason: "hard_bounce" }], error: null }],
+        broadcast_sends: [{ data: [{ email: "gone@example.com" }], error: null }],
+      },
+      captured,
+    );
+    const { enqueueBroadcast } = await importEnqueue();
+    const r = await enqueueBroadcast(supabase as never, BCAST, LIST);
+    expect(r.skippedByReason.hard_bounce).toBe(1);
+    expect(r.skippedByReason.recently_mailed).toBe(0);
+  });
+
+  it("the preview counts the same people the send will skip", async () => {
+    const supabase = makeSupabase(
+      {
+        broadcast_recipients: [{ data: [{ email: "fresh@example.com" }, { email: "mailed@example.com" }, { email: "gone@example.com" }], error: null }],
+        broadcast_suppressions: [{ data: [{ email: "gone@example.com", reason: "unsubscribed" }], error: null }],
+        broadcast_sends: [{ data: [{ email: "mailed@example.com" }], error: null }],
+      },
+      [],
+    );
+    const { previewEnqueue } = await importEnqueue();
+    const p = await previewEnqueue(supabase as never, LIST);
+    expect(p.total).toBe(3);
+    expect(p.queued).toBe(1);
+    expect(p.skippedByReason.recently_mailed).toBe(1);
+    expect(p.skippedByReason.unsubscribed).toBe(1);
   });
 });

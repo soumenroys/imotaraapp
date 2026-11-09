@@ -19,6 +19,13 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
     "Your words stay with your device — no cloud, no copies elsewhere.",
     "Your chats stay on your phone.",
     "What you write stays on your device.",
+    // #112 (9 Nov 2026): this one PASSED and was queued for YouTube 23 Nov
+    "You can say what you need with no message sent, no cloud backup, and nothing waiting for a reply.",
+    "No data is sent anywhere.",
+    "Nothing gets uploaded.",
+    "No messages are sent to any server.",
+    "Your words are never sent.",
+    "What you type is never uploaded.",
   ])("refused: %s", (post) => {
     const r = checkVoice(post, "en");
     expect(r.ok).toBe(false);
@@ -35,6 +42,11 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
     "Your chat history stays on your phone. To reply, your messages go to our secure servers.",
     "Your history stays on your device unless you choose to sync.",
     "It is kept on your phone by default, with no cloud backup unless you go looking for it in the settings.",
+    // true: other PEOPLE never get your words
+    "Nothing is shared with your contacts.",
+    "No message is sent to your friends or family.",
+    "Nothing to send, nothing to sign up for — just open it and talk.",
+    "No ads, no tracking, no data selling.",
   ])("allowed: %s", (post) => {
     expect(checkVoice(post, "en").findings.filter((f) => f.list === "privacy")).toEqual([]);
   });

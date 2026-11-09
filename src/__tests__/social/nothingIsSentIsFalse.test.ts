@@ -26,6 +26,11 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
     "No messages are sent to any server.",
     "Your words are never sent.",
     "What you type is never uploaded.",
+    // #113 (9 Nov 2026): queued for Instagram 12 Nov and X 15 Nov, both PASSED
+    "What you say to Imotara isn’t sent anywhere unless you say so. Your conversations stay with you, not in a cloud or inbox. #privacyfirst #ondeviceonly",
+    "When you speak, your voice is turned into text on a server—so only audio leaves your phone for a moment.",
+    "Your messages are not sent anywhere.",
+    "Your words stay with you, not on a server.",
   ])("refused: %s", (post) => {
     const r = checkVoice(post, "en");
     expect(r.ok).toBe(false);
@@ -47,6 +52,10 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
     "No message is sent to your friends or family.",
     "Nothing to send, nothing to sign up for — just open it and talk.",
     "No ads, no tracking, no data selling.",
+    // #113: ordinary language that must stay allowed
+    "Some words stay with you for years.",
+    "A kind sentence can stay with you all day.",
+    "Your voice is turned into text on our servers so Imotara can reply.",
   ])("allowed: %s", (post) => {
     expect(checkVoice(post, "en").findings.filter((f) => f.list === "privacy")).toEqual([]);
   });

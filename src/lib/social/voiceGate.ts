@@ -423,8 +423,11 @@ function firstClaim(lower: string, occurrences: Occurrence[]): Occurrence | null
 // #112 (9 Nov 2026): 'with no message sent' PASSED and was queued for YouTube ⇒ also refuse
 // 'no message/data/words … sent', 'nothing … uploaded', '… never sent'. ⚠️ 'not sent to your
 // contacts/friends/…' stays allowed: that one is true.
+// #113 (9 Nov 2026): a queued Instagram post said 'isn't sent anywhere … stay with you, not in a
+// cloud … #ondeviceonly' and an X post 'only audio leaves your phone' — both PASSED ⇒ refused too.
+// ⚠️ 'stays with you' alone is allowed ("some words stay with you for years"); only 'stay with you, not in/on' is a claim.
 export const NOTHING_SENT =
-  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b|\b(conversations?|chats?(?!\s+history)|messages?|words|what you (write|say|share))\b[^.?!\n]{0,25}\bstays?\b[^.?!\n]{0,12}\b(on|with(in)?)\b[^.?!\n]{0,12}\b(device|phone)\b|\bno cloud\b(?![\s-]+(backup|sync|copy))|\b(nothing|no (messages?|data|words?|texts?|chats?|conversations?))\b[^.?!\n]{0,20}\b(sent|uploaded)\b(?![^.?!\n]{0,25}\bto\s+(your\s+)?(contacts|friends|family|anyone else|other people|others)\b)|\bnever\s+(gets?\s+|be\s+)?(sent|uploaded)\b/;
+  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b|\b(conversations?|chats?(?!\s+history)|messages?|words|what you (write|say|share))\b[^.?!\n]{0,25}\bstays?\b[^.?!\n]{0,12}\b(on|with(in)?)\b[^.?!\n]{0,12}\b(device|phone)\b|\bno cloud\b(?![\s-]+(backup|sync|copy))|\b(nothing|no (messages?|data|words?|texts?|chats?|conversations?))\b[^.?!\n]{0,20}\b(sent|uploaded)\b(?![^.?!\n]{0,25}\bto\s+(your\s+)?(contacts|friends|family|anyone else|other people|others)\b)|\bnever\s+(gets?\s+|be\s+)?(sent|uploaded)\b|\b(is ?n['’]?t|is not|are ?n['’]?t|are not)\s+(sent|uploaded|shared)\s+anywhere\b|\bstays?\s+with you,?\s+not\s+(in|on)\b|#ondeviceonly\b|\bonly\s+(the\s+|your\s+)?(audio|voice|sound)\b[^.?!\n]{0,25}\bleaves?\b/;
 
 export function checkVoice(text: string, language: string, overlay?: GateOverlay): GateResult {
   if (!isSupportedLanguage(language)) {

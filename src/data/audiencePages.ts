@@ -191,7 +191,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A free, private companion for the days that are a lot — in whatever language you actually think in.",
     metaTitle: "Someone to talk to at 11 p.m. — Imotara for young people",
     metaDescription:
-      "A free, private companion for the days that are a lot. Exam nerves, a fight with a friend, feeling left out. Your chats stay on your phone. 22 languages.",
+      "A free, private companion for the days that are a lot. Exam nerves, a fight with a friend, feeling left out. Your chat history stays on your phone. 22 languages.",
     keywords: [
       "someone to talk to at night", "app for teenagers mental health", "exam stress app",
       "private chat for students", "free wellbeing app for teens India", "talk about feelings teenager",
@@ -202,7 +202,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "What it’s like",
     cards: [
-      { title: "It’s private. Actually private.", body: "Your chats stay on your phone. No ads, no selling your data. Nobody reads your conversations — not us, not your school, not anyone." },
+      { title: "It’s private. Actually private.", body: "Your chat history stays on your phone. No ads, no selling your data. Nobody reads your conversations — not us, not your school, not anyone." },
       { title: "It gets the small stuff", body: "Exam nerves, a fight with a friend, feeling left out, not knowing what you want to do with your life. You don’t need a “real problem” to open it." },
       { title: "It’s yours", body: "Give your companion a name and a personality — calm older sibling, chill friend, coach. Change it whenever you like. It works offline too, so hostel Wi-Fi can’t take it away." },
       { title: "It knows when to bring in a human", body: "If things ever feel really heavy, Imotara will gently share a helpline number and encourage you to talk to someone you trust. It’s a companion, not a replacement for real people — and it will tell you so." },
@@ -244,7 +244,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "Why people keep it on their phone",
     cards: [
-      { title: "Private in a way social media never is", body: "Conversations stay on your device by default. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
+      { title: "Private in a way social media never is", body: "Your chat history stays on your device by default. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
       { title: "Built for the in-between", body: "Not a breakdown, not a breakthrough — just a Wednesday when work was brutal and there’s no one to tell. You don’t need a “real problem” to open it." },
       { title: "Yours to shape", body: "Name your companion and give it a personality — a calm older sibling, a straight-talking friend, a coach — and change it as your life changes. Works offline on flights, in metro tunnels, in your parents’ village." },
       { title: "Knows its limits", body: SHARED_LIMITS },

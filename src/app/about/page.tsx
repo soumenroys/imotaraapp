@@ -115,8 +115,9 @@ export default function AboutPage() {
                   for you to delete, export, or move anywhere.
                 </li>
                 <li>
-                  Local-first architecture: everything stays on your device
-                  unless you explicitly say otherwise.
+                  Local-first architecture: your history stays on your device
+                  unless you turn on backup. To reply, your messages go to our
+                  secure servers — or choose on-device replies in Settings.
                 </li>
               </ul>
             </div>

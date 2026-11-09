@@ -277,7 +277,7 @@ function JsonLd() {
       "Private companion chat for emotional support",
       "Mood history timeline and trend analysis",
       "22 languages supported",
-      "Local-first — data stays on your device by default",
+      "Local-first — your chat history stays on your device by default",
       "Optional cloud sync with explicit consent",
       "Voice input",
       "No ads, no social feed, no public profiles",

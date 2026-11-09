@@ -58,7 +58,7 @@ const STEPS = [
     bg: "bg-emerald-500/10",
     icon: "🔒",
     title: "Your data, your control",
-    body: "Everything you share stays on your device unless you choose to sync. Nothing is sold. You can export or delete your history anytime from Settings.",
+    body: "Your history stays on your device unless you choose to sync. To reply, your messages go to our secure servers — or switch to on-device replies in Settings. Nothing is sold. You can export or delete your history anytime from Settings.",
   },
 ];
 

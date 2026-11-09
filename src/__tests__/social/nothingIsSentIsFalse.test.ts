@@ -14,6 +14,11 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
     "If you never switch on cloud sync, nothing from your conversations leaves your phone. It stays right where you said it, even if the signal drops or you forget your login.",
     "Your words never leave your device.",
     "It doesn’t send anything off your phone.",
+    // #112 (9 Nov 2026): these passed the gate and went out
+    "Privacy: conversations stay on the user's device by default.",
+    "Your words stay with your device — no cloud, no copies elsewhere.",
+    "Your chats stay on your phone.",
+    "What you write stays on your device.",
   ])("refused: %s", (post) => {
     const r = checkVoice(post, "en");
     expect(r.ok).toBe(false);
@@ -26,6 +31,10 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
     "You can leave a thought unfinished and pick it up days later — Imotara will still remember what you meant. Your conversations are stored on your phone unless you switch on cloud backup.",
     "If you never switch on cloud backup, your conversations are stored only on your phone. They stay right where you left them, even if the signal drops.",
     "Nothing to set up, no account needed to start.",
+    // #112: the true sentence — HISTORY is stored on the device
+    "Your chat history stays on your phone. To reply, your messages go to our secure servers.",
+    "Your history stays on your device unless you choose to sync.",
+    "It is kept on your phone by default, with no cloud backup unless you go looking for it in the settings.",
   ])("allowed: %s", (post) => {
     expect(checkVoice(post, "en").findings.filter((f) => f.list === "privacy")).toEqual([]);
   });

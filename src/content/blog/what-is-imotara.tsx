@@ -81,9 +81,10 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
 
       <p>
         Privacy isn't a feature toggle here. It's a design principle. Your
-        messages stay on your device unless you choose to sync them to the
-        cloud. Your language preference is never sent to our servers. You can
-        delete everything with one tap.
+        history stays on your device unless you choose to sync it to the
+        cloud. To reply, your messages go to our secure servers — or you can
+        switch to on-device replies in Settings. You can delete everything
+        with one tap.
       </p>
 
       <p>

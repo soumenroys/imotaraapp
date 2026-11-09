@@ -50,7 +50,7 @@ The Link Key is a private phrase that lets devices share the same chat history �
 
 ## What's stored where
 
-- **Not signed in:** everything stays on your device. Nothing is backed up — if you uninstall the app or clear your browser data, that data is gone. (Sign in if you want a backup.)
+- **Not signed in:** your history stays on your device (to reply, messages still go to our secure servers unless you choose Local replies). Nothing is backed up — if you uninstall the app or clear your browser data, that data is gone. (Sign in if you want a backup.)
 - **Signed in, sync on:** your history and profile are backed up to Imotara's secure cloud so they follow you across devices. Only your account can access your records.
 - **Your companion and tone preferences** are stored locally and only shape how Imotara talks to you — they aren't shared.
 

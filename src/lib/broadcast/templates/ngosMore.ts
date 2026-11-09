@@ -527,7 +527,7 @@ ${SIGN}`),
 
 For programmes working with women, privacy is not an abstraction. Something on a shared phone in a shared house needs to be discreet in practice, not only in policy.
 
-Imotara requires no account to begin, keeps anonymous use on the device, and shows nothing in a notification beyond the day someone last wrote. The reminder never quotes anyone's words, deliberately — a lock screen is read by whoever picks the phone up.
+Imotara requires no account to begin, keeps an anonymous person's history on their own device, and shows nothing in a notification beyond the day someone last wrote. The reminder never quotes anyone's words, deliberately — a lock screen is read by whoever picks the phone up.
 
 More: ${SITE}
 

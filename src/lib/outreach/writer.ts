@@ -53,12 +53,12 @@ const STEP_BRIEF: Record<StepId, string> = {
 export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avoid: string }> = {
   individuals: {
     cares: "a private place to say how they really feel, in their own words and language, at any hour, without being judged or tracked",
-    lead: "privacy (stays on their own phone by default) · 22 languages incl. 11 Indian · type or speak · typing works even offline (speaking needs a connection) · remembers what mattered last time · no feed, streaks or badges · free to start",
+    lead: "privacy (chat history stays on their own phone by default; replies come from our secure servers) · 22 languages incl. 11 Indian · type or speak · typing works even offline (speaking needs a connection) · remembers what mattered last time · no feed, streaks or badges · free to start",
     avoid: "Do not lecture about mental health. Write to one person.",
   },
   ngos: {
     cares: "field staff, volunteers and the people they serve — often across languages and with patchy signal — and nothing extra for an already stretched team to run",
-    lead: "11 Indian languages, replies in the language they write in · typing works even with patchy signal (speaking needs a connection) · private: conversations stay on the device, so nothing reaches a supervisor · asks no training or admin effort · Imotara Connect human peer companions (not counsellors)",
+    lead: "11 Indian languages, replies in the language they write in · typing works even with patchy signal (speaking needs a connection) · private: chat history stays on their own phone, so nothing reaches a supervisor · asks no training or admin effort",
     avoid: "Do not claim it replaces counselling or any programme they run.",
   },
   education: {
@@ -73,7 +73,7 @@ export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avo
   },
   corporates: {
     cares: "employee wellbeing that people will actually use because it is genuinely private, across a workforce that speaks many languages and works all hours",
-    lead: "private — the employer never sees conversations; stays on the device by default · 22 languages · any hour, any shift · no app fatigue: no feed, streaks or badges · complements an EAP, does not replace it",
+    lead: "private — the employer never sees conversations; chat history stays on the employee's phone by default · 22 languages · any hour, any shift · no app fatigue: no feed, streaks or badges · complements an EAP, does not replace it",
     avoid: "Do not promise productivity or ROI figures.",
   },
 };

@@ -36,7 +36,7 @@ const SLIDES: Slide[] = [
   {
     emoji: "🔒",
     title: "Your privacy",
-    body: "Everything stays on your device by default. Cloud replies use OpenAI but your profile is never sold or tracked. Change this anytime in Settings.",
+    body: "Your history stays on your device by default. To reply, your messages go to our secure servers (cloud replies use OpenAI); your profile is never sold or tracked. Switch to on-device replies anytime in Settings.",
     cta: "View privacy policy →",
     href: "/privacy",
   },

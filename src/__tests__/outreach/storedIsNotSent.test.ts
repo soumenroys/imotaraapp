@@ -22,12 +22,16 @@ const FALSE = [
   "A reply that listens but never leaves your device",
   "If you never switch on cloud sync, nothing from your conversations leaves your phone.",
   "No copy is sent anywhere unless you switch it on yourself.",
+  // #112 (9 Nov 2026, owner): "conversations stay on the device" READS as
+  // "nothing is sent" — it went out in letters and an IG caption ⇒ now refused.
+  "Conversations stay on the device by default, and the employer never sees them.",
+  "Conversations stay on the device unless the user chooses otherwise.",
 ];
 
 // True sentences from the same drafts — the check must leave them alone.
 const TRUE = [
-  "Conversations stay on the device by default, and the employer never sees them.",
-  "Conversations stay on the device unless the user chooses otherwise.",
+  "Chat history stays on the device by default, and the employer never sees conversations.",
+  "Their history stays on the device unless the user chooses otherwise.",
   "Nothing is shared with the institution.",
   "If you speak, the audio is sent securely to be turned into text, so you’ll need a connection for that.",
   "I won’t write again unless you want more.",

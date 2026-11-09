@@ -413,11 +413,15 @@ function firstClaim(lower: string, occurrences: Occurrence[]): Occurrence | null
  */
 /**
  * "Nothing is sent", "nothing leaves your phone", "never leaves the device" —
+ * and (9 Nov 2026, #112) "conversations stay on the device", "stays with your
+ * device", "no cloud": a 21 Oct + 3 Nov IG caption and the outreach letters
+ * passed this gate with exactly those words. HISTORY staying on the device is
+ * true and stays allowed —
  * the privacy claim this product cannot make. Matched on lower-cased text.
  * ⇒ src/__tests__/outreach/storedIsNotSent.test.ts, src/__tests__/social/nothingIsSentIsFalse.test.ts.
  */
 export const NOTHING_SENT =
-  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b/;
+  /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b|\b(conversations?|chats?(?!\s+history)|messages?|words|what you (write|say|share))\b[^.?!\n]{0,25}\bstays?\b[^.?!\n]{0,12}\b(on|with(in)?)\b[^.?!\n]{0,12}\b(device|phone)\b|\bno cloud\b(?![\s-]+(backup|sync|copy))/;
 
 export function checkVoice(text: string, language: string, overlay?: GateOverlay): GateResult {
   if (!isSupportedLanguage(language)) {

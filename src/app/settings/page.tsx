@@ -19,6 +19,7 @@ import {
 } from "@/lib/imotara/licenseStore";
 import SsoIcon from "@/components/imotara/SsoIcon";
 import { normaliseTier, prettyTier } from "@/types/license";
+import { reminderAuthHeaders } from "@/lib/imotara/enableDailyCheckIn";
 
 const CHAT_STORAGE_KEY = "imotara.chat.v1";
 
@@ -1631,11 +1632,11 @@ export default function SettingsPage() {
         // setup-≠-outcome trap recorded for the voice settings.
         const hour = Number.parseInt(String(val).slice(0, 2), 10);
         if (Number.isInteger(hour) && hour >= 0 && hour <= 23) {
-            fetch("/api/profile/sync", {
+            void reminderAuthHeaders().then((who) => fetch("/api/profile/sync", { // #16 A: guests too
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ user: { reminderHour: hour } }),
-            }).catch(() => {}); // best-effort; the local value still stands
+                headers: { "Content-Type": "application/json", ...who },
+            })).catch(() => {}); // best-effort; the local value still stands
         }
     }
 
@@ -1667,7 +1668,7 @@ export default function SettingsPage() {
 
             const pushRes = await fetch("/api/push/subscribe", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", ...(await reminderAuthHeaders()) },
                 // ⚠️ timeZone rides along with the subscription so the server
                 // knows what hour it is where this person actually is. Without
                 // it the daily check-in falls back to 20:00 UTC — 01:30 in
@@ -1696,7 +1697,7 @@ export default function SettingsPage() {
                 const sub = await reg.pushManager.getSubscription();
                 if (sub) await sub.unsubscribe();
             }
-            await fetch("/api/push/subscribe", { method: "DELETE" });
+            await fetch("/api/push/subscribe", { method: "DELETE", headers: await reminderAuthHeaders() });
             setNotifSubscribed(false);
         } catch (e) {
             console.error("[push] unsubscribe failed:", e);

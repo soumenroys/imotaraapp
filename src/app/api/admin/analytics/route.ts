@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuthorized } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import type { ClientPlatform } from "@/lib/imotara/clientPlatform";
+import { teamUserIds } from "@/lib/admin/teamAccounts";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,13 @@ export async function GET(req: NextRequest) {
       );
     }
   }
+
+  // ── Team and test accounts are not usage (#76, owner 10 Nov 2026) ──────
+  // The list lives in app_settings "team_accounts" (never in this public repo).
+  const team = await teamUserIds(getSupabaseAdmin());
+  const beforeTeam = rows.length;
+  if (team.size > 0) rows = rows.filter((r) => !team.has(r.user_id));
+  const teamExcluded = { accounts: team.size, events: beforeTeam - rows.length };
 
   // ── Daily series ────────────────────────────────────────────────────────
   const daily = new Map<string, { events: number; users: Set<string>; byPlatform: Record<string, number> }>();
@@ -238,6 +246,7 @@ export async function GET(req: NextRequest) {
     meta: {
       platformReady,
       truncated,
+      teamExcluded,
       note: platformReady
         ? "Events before the platform migration report as 'unknown'."
         : "Run docs/sql/usage_events_platform.sql to split web from app.",

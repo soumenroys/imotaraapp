@@ -10,6 +10,7 @@
 
 "use server";
 
+import { alertKindForOpenAIError } from "./openaiAlertKind";
 import { aiKeyFor, type AIFeature } from "@/lib/imotara/aiKeys";
 
 import nodemailer from "nodemailer";
@@ -142,13 +143,16 @@ const GEMINI_MIN_OUTPUT_TOKENS = 1200;
 // "total outage" alert inside the same 5-minute window — so the one state
 // worth waking up for (no working engine, users receiving canned templates)
 // was the state least likely to ever be reported.
-type AlertKind = "openai_down" | "total_outage" | "gemini_model_retired";
+type AlertKind = "openai_down" | "openai_slow" | "total_outage" | "gemini_model_retired";
 
 const _lastAlertAt: Record<AlertKind, number> = {
   openai_down: 0,
+  openai_slow: 0,
   total_outage: 0,
   gemini_model_retired: 0,
 };
+
+// #117: an abort/timeout is "slow", not "down" ⇒ ./openaiAlertKind.ts
 const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 
 // ─── Timeout budget (P2-23, code_review_audit_2026_08_14) ────────────────────
@@ -615,7 +619,7 @@ async function callImotaraAIPrimary(
     }
     const reason = err?.message || "Unknown network or runtime error";
     console.error("[imotara][aiClient] fetch exception:", reason);
-    void sendOutageAlert(reason);
+    void sendOutageAlert(reason, alertKindForOpenAIError(err));
     if (!plan.fallbackEnabled || options.noFallback) {
       console.warn(
         "[imotara][aiClient] fallback skipped — " +
@@ -884,8 +888,10 @@ async function callGeminiAI(
  * Requires ALERT_GMAIL_USER and ALERT_GMAIL_APP_PASSWORD env vars.
  * Enforces a 5-minute cooldown per alert kind per server instance.
  *
- * `kind` distinguishes three very different situations:
+ * `kind` distinguishes four very different situations:
  *   · "openai_down"          — degraded, still serving real AI replies via Gemini.
+ *   · "openai_slow"          — ONE reply hit our own time limit (abort/timeout);
+ *                              the Gemini backup answered. Not an outage (#117).
  *   · "gemini_model_retired" — the pinned Gemini model 404'd and the rolling
  *                              alias took over. Replies are fine; update the pin.
  *   · "total_outage"         — NO working engine. Users are receiving hard-coded
@@ -905,7 +911,9 @@ async function sendOutageAlert(
       ? `[imotara][alert] TOTAL OUTAGE — no working AI engine (OpenAI and Gemini both failed). Users are getting template replies. Reason: ${reason}`
       : kind === "gemini_model_retired"
         ? `[imotara][alert] Gemini model retired — rolling alias took over. Update GEMINI_MODEL. Reason: ${reason}`
-        : `[imotara][alert] OpenAI unavailable — Gemini fallback active. Reason: ${reason}`;
+        : kind === "openai_slow"
+          ? `[imotara][alert] OpenAI reply slow — our time limit cut it off, Gemini backup answered. Not an outage. Reason: ${reason}`
+          : `[imotara][alert] OpenAI unavailable — Gemini fallback active. Reason: ${reason}`;
   console.error(logLine);
 
   const user = process.env.ALERT_GMAIL_USER;
@@ -944,8 +952,24 @@ async function sendOutageAlert(
         ? "🚨 CRITICAL: No working AI engine — users are getting template replies"
         : kind === "gemini_model_retired"
           ? "🟠 ACTION NEEDED: Gemini model retired — update GEMINI_MODEL"
-          : "🔴 ALERT: OpenAI API unavailable — Gemini fallback active",
-      html: kind === "gemini_model_retired"
+          : kind === "openai_slow"
+            ? "🟡 FYI: a slow reply was answered by the backup — not an outage"
+            : "🔴 ALERT: OpenAI API unavailable — Gemini fallback active",
+      html: kind === "openai_slow"
+        ? `
+        <h2 style="color:#b08900;">🟡 Slow reply — backup used</h2>
+        <p>One OpenAI reply took longer than Imotara's time limit, so Imotara stopped
+           waiting and the <strong>Gemini backup</strong> (${GEMINI_MODEL}) answered instead.</p>
+        <p><strong>This is not an outage.</strong> OpenAI answered with no error; the
+           person still got a real reply. Nothing to do unless these arrive often.</p>
+        <p><strong>Reason:</strong> ${reason.replace(/</g, "&lt;")}</p>
+        <p><strong>Time (UTC):</strong> ${new Date().toISOString()}</p>
+        <hr>
+        <p style="color:#888;font-size:12px;">
+          Alerts are throttled to one per 5 minutes per kind per server instance.
+        </p>
+      `
+        : kind === "gemini_model_retired"
         ? `
         <h2 style="color:#cc7000;">🟠 Gemini model retired</h2>
         <p>The pinned fallback model <strong>${GEMINI_MODEL}</strong> returned
@@ -1452,7 +1476,7 @@ async function* streamImotaraAIPrimary(
     if (stallTimer) clearTimeout(stallTimer);
     if (!yieldedAny) {
       console.error("[imotara][aiClient] stream fetch exception:", err?.message || err);
-      void sendOutageAlert(err?.message || "Streaming network error");
+      void sendOutageAlert(err?.message || "Streaming network error", alertKindForOpenAIError(err));
       if (!plan.fallbackEnabled || options.noFallback) {
         console.warn(
           "[imotara][aiClient] stream fallback skipped — client budget " +

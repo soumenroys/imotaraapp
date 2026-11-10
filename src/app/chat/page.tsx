@@ -996,7 +996,8 @@ export default function ChatPage() {
         state: getInviteState(),
         userMessageCount: userTexts.length,
         crisisInThread,
-        signedIn: signedInCookiePresent(document.cookie),
+        // #16 A: a guest counts too, when their anonymous identity can be found.
+        hasIdentity: signedInCookiePresent(document.cookie) || Boolean(await guestChatToken()),
         pushPossible: pushPossible(),
       });
       if (!offer) return;

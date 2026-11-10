@@ -237,15 +237,27 @@ export function setInviteState(s: Exclude<InviteState, "unseen">): void {
 
 /**
  * ⛔ Never on/after a crisis turn; never once answered; only after a real
- * exchange (3+ messages from the person); only for someone signed in (web
- * reminders are a push to the ACCOUNT), and only where the browser can push.
+ * exchange (2+ messages from the person), and only where the browser can push.
+ *
+ * 🔑 #16 B (owner, 10 Nov 2026): 2 messages, not 3 — 31% of new people (47% on
+ * the web) stop after one reply, so a 3-message gate hid the invite from most of
+ * them. Same number on the phone ⇒ imotara-mobile notifications/checkInInvite.
+ *
+ * 🔑 #16 A (owner, 10 Nov 2026): GUESTS TOO. It used to require a signed-in
+ * account, but ~80% of web chatters are guests, so the invite reached almost
+ * nobody (1 web subscriber ever; web day-1 return 3%). A guest already has an
+ * anonymous identity — the one their chats are logged under — and the push is
+ * saved against that. `hasIdentity` = signed in OR a guest identity was found.
  */
+/** Messages the person must have sent before the invite may appear (#16 B). */
+export const INVITE_MIN_MESSAGES = 2;
+
 export function shouldOfferInvite(args: {
     state: InviteState;
     userMessageCount: number;
     crisisInThread: boolean;
-    signedIn: boolean;
+    hasIdentity: boolean;
     pushPossible: boolean;
 }): boolean {
-    return args.state === "unseen" && !args.crisisInThread && args.userMessageCount >= 3 && args.signedIn && args.pushPossible;
+    return args.state === "unseen" && !args.crisisInThread && args.userMessageCount >= INVITE_MIN_MESSAGES && args.hasIdentity && args.pushPossible;
 }

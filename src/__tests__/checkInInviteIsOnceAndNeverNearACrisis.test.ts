@@ -1,27 +1,41 @@
 /**
  * 🌙 THE CHECK-IN INVITE ON THE WEB (owner, 25 Oct 2026) — once ever, after a
- * real exchange, never near a crisis, signed-in only (web reminders are a push
- * to the account), and the browser's prompt only after a tap.
+ * real exchange, never near a crisis, and the browser's prompt only after a tap.
+ * #16 (owner, 10 Nov 2026): A — guests too (their anonymous identity owns the
+ * reminder); B — after 2 messages, not 3.
  */
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { hasMobileRepo, readMobileFile } from "./helpers/siblingRepo";
 import { join } from "node:path";
-import { INVITE, getInviteStrings, shouldOfferInvite } from "@/lib/imotara/checkInInviteStrings";
+import { INVITE, INVITE_MIN_MESSAGES, getInviteStrings, shouldOfferInvite } from "@/lib/imotara/checkInInviteStrings";
 
 const src = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
-const base = { state: "unseen" as const, userMessageCount: 3, crisisInThread: false, signedIn: true, pushPossible: true };
+const base = { state: "unseen" as const, userMessageCount: 2, crisisInThread: false, hasIdentity: true, pushPossible: true };
 
 describe("when the card may appear", () => {
-  it("after 3 messages from the person", () => {
+  it("after 2 messages from the person (#16 B), not before", () => {
+    expect(INVITE_MIN_MESSAGES).toBe(2);
     expect(shouldOfferInvite(base)).toBe(true);
-    expect(shouldOfferInvite({ ...base, userMessageCount: 2 })).toBe(false);
+    expect(shouldOfferInvite({ ...base, userMessageCount: 1 })).toBe(false);
   });
-  it("⛔ never near a crisis, never twice, never for a guest, never where push cannot work", () => {
+  it("#16 A: a guest with an identity is invited; nobody without one", () => {
+    const page = src("src/app/chat/page.tsx");
+    expect(page).toMatch(/hasIdentity: signedInCookiePresent\(document\.cookie\) \|\| Boolean\(await guestChatToken\(\)\)/);
+    expect(shouldOfferInvite({ ...base, hasIdentity: false })).toBe(false);
+  });
+  it("#16 A: a guest's reminder is saved, re-timed and removed under THEIR identity", () => {
+    const lib = src("src/lib/imotara/enableDailyCheckIn.ts");
+    expect(lib).toMatch(/Authorization: `Bearer \$\{token\}`/);
+    expect(lib).toMatch(/fetch\("\/api\/push\/subscribe", \{\s*method: "POST",\s*headers: \{ "Content-Type": "application\/json", \.\.\.who \}/);
+    const settings = src("src/app/settings/page.tsx");
+    expect(settings).toMatch(/method: "DELETE", headers: await reminderAuthHeaders\(\)/);
+    expect(settings.match(/reminderAuthHeaders\(\)/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+  it("⛔ never near a crisis, never twice, never where push cannot work", () => {
     expect(shouldOfferInvite({ ...base, crisisInThread: true })).toBe(false);
     expect(shouldOfferInvite({ ...base, state: "declined" })).toBe(false);
     expect(shouldOfferInvite({ ...base, state: "accepted" })).toBe(false);
-    expect(shouldOfferInvite({ ...base, signedIn: false })).toBe(false);
     expect(shouldOfferInvite({ ...base, pushPossible: false })).toBe(false);
   });
   it("the chat checks distress across the WHOLE conversation", () =>

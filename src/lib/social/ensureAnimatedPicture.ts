@@ -39,6 +39,22 @@ export const ANIMATED_PLATFORMS: Record<string, AnimationAspect> = {
 
 export const animationPath = (postId: string) => `${postId}/animation.mp4`;
 
+/**
+ * 💰 OWNER, 10 Nov 2026 (#116): "make them once in two weeks". The animated
+ * clips were ₹2,333 of the ₹3,923 Google AI bill over 90 days, made on every
+ * approved video post. Now ONE new clip per 14 days across all channels; every
+ * other video post gets the still-picture video (our own camera move, no
+ * generated motion), exactly as when the model fails.
+ *
+ * 🔑 The date of the last clip lives in `app_settings` (key/value, already
+ * used live by the IndexNow cron) — ⛔ NOT as a file in the card bucket: that
+ * bucket accepts only gif/jpeg/mp4, so a JSON marker would be refused and the
+ * limit would silently never apply. ⚠️ A clip already kept beside a post is
+ * still reused on a re-render — the limit is on MAKING clips, not on using them.
+ */
+export const ANIMATION_EVERY_MS = 14 * 24 * 60 * 60 * 1000;
+export const LAST_ANIMATION_KEY = "social_last_animation";
+
 export async function ensureAnimatedPicture(postId: string, platform: string): Promise<Uint8Array | undefined> {
   const aspect = ANIMATED_PLATFORMS[platform];
   if (!aspect) return undefined;
@@ -46,6 +62,14 @@ export async function ensureAnimatedPicture(postId: string, platform: string): P
   const db = getSupabaseAdmin();
   const kept = await db.storage.from(CARD_BUCKET).download(animationPath(postId));
   if (kept.data && kept.data.size > 0) return new Uint8Array(await kept.data.arrayBuffer());
+
+  const { data: last } = await db.from("app_settings").select("value").eq("key", LAST_ANIMATION_KEY).maybeSingle();
+  const lastAt = (last?.value as { at?: unknown } | null | undefined)?.at;
+  const madeAt = typeof lastAt === "string" ? Date.parse(lastAt) : NaN;
+  if (Number.isFinite(madeAt) && Date.now() - madeAt < ANIMATION_EVERY_MS) {
+    console.log("[ensureAnimatedPicture] still picture — last clip was made under 14 days ago", { postId, lastClipAt: lastAt });
+    return undefined;
+  }
 
   const picture = await getIllustration(postId);
   if (!picture) return undefined;
@@ -60,5 +84,12 @@ export async function ensureAnimatedPicture(postId: string, platform: string): P
     .from(CARD_BUCKET)
     .upload(animationPath(postId), made.mp4, { contentType: "video/mp4", upsert: true });
   if (error) console.error("[ensureAnimatedPicture] the clip could not be kept", { postId, error: error.message });
+
+  // ⚠️ Written after a clip was PAID FOR, kept or not — the money is spent either way.
+  const now = new Date().toISOString();
+  const { error: markError } = await db
+    .from("app_settings")
+    .upsert({ key: LAST_ANIMATION_KEY, value: { at: now, postId }, updated_at: now }, { onConflict: "key" });
+  if (markError) console.error("[ensureAnimatedPicture] the clip date could not be kept", { postId, error: markError.message });
   return made.mp4;
 }

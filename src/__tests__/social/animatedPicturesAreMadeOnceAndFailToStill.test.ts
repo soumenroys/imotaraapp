@@ -12,11 +12,22 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const storage = { kept: null as Blob | null, uploads: [] as string[] };
+const settings = { value: null as unknown, upserts: [] as { key: string; value: unknown }[] };
 const animate = vi.fn();
 const picture = vi.fn();
 
 vi.mock("@/lib/supabaseServer", () => ({
   getSupabaseAdmin: () => ({
+    from: (table: string) => {
+      if (table !== "app_settings") throw new Error(`unexpected table ${table}`);
+      return {
+        select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: settings.value ? { value: settings.value } : null, error: null }) }) }),
+        upsert: async (row: { key: string; value: unknown }) => {
+          settings.upserts.push(row);
+          return { error: null };
+        },
+      };
+    },
     storage: {
       from: () => ({
         download: async () => (storage.kept ? { data: storage.kept, error: null } : { data: null, error: { message: "nf" } }),
@@ -31,11 +42,13 @@ vi.mock("@/lib/supabaseServer", () => ({
 vi.mock("@/lib/social/cardStore", () => ({ CARD_BUCKET: "social-cards", getIllustration: (id: string) => picture(id) }));
 vi.mock("@/lib/social/animatePicture", () => ({ animatePicture: (...a: unknown[]) => animate(...a) }));
 
-import { ensureAnimatedPicture, ANIMATED_PLATFORMS } from "@/lib/social/ensureAnimatedPicture";
+import { ensureAnimatedPicture, ANIMATED_PLATFORMS, ANIMATION_EVERY_MS } from "@/lib/social/ensureAnimatedPicture";
 
 beforeEach(() => {
   storage.kept = null;
   storage.uploads = [];
+  settings.value = null;
+  settings.upserts = [];
   animate.mockReset();
   picture.mockReset();
   picture.mockResolvedValue(new Uint8Array([1, 2, 3]));
@@ -66,6 +79,43 @@ describe("made once, kept", () => {
     const r = await ensureAnimatedPicture("p", "youtube");
     expect(r).toEqual(new Uint8Array([7]));
     expect(storage.uploads).toEqual(["p/animation.mp4"]);
+    expect(settings.upserts.map((u) => u.key)).toEqual(["social_last_animation"]);
+  });
+});
+
+describe("💰 owner 10 Nov (#116): one new clip per two weeks", () => {
+  const markerAt = (msAgo: number) => ({ at: new Date(Date.now() - msAgo).toISOString(), postId: "earlier" });
+
+  it("is 14 days", () => {
+    expect(ANIMATION_EVERY_MS).toBe(14 * 24 * 60 * 60 * 1000);
+  });
+
+  it("a clip made 3 days ago ⇒ this post gets the still picture, nothing is paid", async () => {
+    settings.value = markerAt(3 * 24 * 60 * 60 * 1000);
+    expect(await ensureAnimatedPicture("p", "youtube")).toBeUndefined();
+    expect(animate).not.toHaveBeenCalled();
+    expect(storage.uploads).toEqual([]);
+    expect(settings.upserts).toEqual([]);
+  });
+
+  it("the last clip is 15 days old ⇒ a new one is made and the date moves on", async () => {
+    settings.value = markerAt(15 * 24 * 60 * 60 * 1000);
+    animate.mockResolvedValue({ ok: true, mp4: new Uint8Array([7]), ms: 1 });
+    expect(await ensureAnimatedPicture("p", "youtube")).toEqual(new Uint8Array([7]));
+    expect(settings.upserts[0]).toMatchObject({ key: "social_last_animation", value: { postId: "p" } });
+  });
+
+  it("⚠️ a clip already kept beside THIS post is still reused inside the two weeks", async () => {
+    settings.value = markerAt(1000);
+    storage.kept = new Blob([new Uint8Array([9])]);
+    expect(await ensureAnimatedPicture("p", "youtube")).toEqual(new Uint8Array([9]));
+    expect(animate).not.toHaveBeenCalled();
+  });
+
+  it("an unreadable date never blocks the clip", async () => {
+    settings.value = { at: "not a date" };
+    animate.mockResolvedValue({ ok: true, mp4: new Uint8Array([7]), ms: 1 });
+    expect(await ensureAnimatedPicture("p", "youtube")).toEqual(new Uint8Array([7]));
   });
 });
 

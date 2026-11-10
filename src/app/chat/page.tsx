@@ -75,6 +75,7 @@ import { getChatToneCopy } from "@/lib/imotara/chatTone";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { isWithinLaunchOffer } from "@/lib/imotara/license";
 import CheckInInviteCard from "@/components/imotara/CheckInInviteCard";
+import { shouldShowWelcomeBack, welcomeBackText, isSessionTopic, type LastSession, type SessionTopic } from "@/lib/imotara/welcomeBackTopic";
 import { getInviteState, setInviteState, shouldOfferInvite } from "@/lib/imotara/checkInInviteStrings";
 import { alreadySubscribed, pushPossible } from "@/lib/imotara/enableDailyCheckIn";
 import { signedInCookiePresent } from "@/lib/imotara/guestChatIdentity";
@@ -898,6 +899,26 @@ async function logAssistantMessageToHistory(
 const VOICE_QUOTA_NUDGE =
   "Daily limit for the natural voice reached — using your device voice. Sign in for unlimited voice.";
 
+// 🌿 #16 C — what the device keeps about the last conversation (a topic key, never words).
+const WELCOME_BACK_LAST_KEY = "imotara.welcomeBack.last.v1";
+const WELCOME_BACK_DISMISSED_KEY = "imotara.welcomeBack.dismissed.v1";
+function readLastSession(): LastSession | null {
+  try {
+    const raw = localStorage.getItem(WELCOME_BACK_LAST_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<LastSession>;
+    if (typeof v.threadId !== "string" || typeof v.at !== "number") return null;
+    return {
+      threadId: v.threadId, at: v.at, crisis: Boolean(v.crisis),
+      userMessages: typeof v.userMessages === "number" ? v.userMessages : 0,
+      topic: isSessionTopic(v.topic) ? v.topic : null,
+    };
+  } catch { return null; }
+}
+function writeLastSession(s: LastSession) {
+  try { localStorage.setItem(WELCOME_BACK_LAST_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+}
+
 export default function ChatPage() {
   const searchParams = useSearchParams();
   const urlSessionId = (searchParams?.get("sessionId") ?? "").trim();
@@ -978,6 +999,19 @@ export default function ChatPage() {
   const [quotaCardShown, setQuotaCardShown] = useState(false);
   // 🌙 The one-time check-in invite ⇒ lib/imotara/checkInInviteStrings. Its language when shown.
   const [inviteLang, setInviteLang] = useState<string | null>(null);
+  // 🌿 #16 C: the "Welcome back" card for this visit (decided once, on arrival).
+  const [welcomeBack, setWelcomeBack] = useState<LastSession | null>(null);
+  useEffect(() => {
+    try {
+      const last = readLastSession();
+      const dismissed = localStorage.getItem(WELCOME_BACK_DISMISSED_KEY);
+      if (shouldShowWelcomeBack(last, Date.now(), dismissed)) setWelcomeBack(last);
+    } catch { /* storage unavailable ⇒ no card */ }
+  }, []);
+  function dismissWelcomeBack(s: LastSession) {
+    try { localStorage.setItem(WELCOME_BACK_DISMISSED_KEY, `${s.threadId}:${s.at}`); } catch { /* ignore */ }
+    setWelcomeBack(null);
+  }
   const inviteOfferedRef = useRef(false);
 
   /**
@@ -986,6 +1020,37 @@ export default function ChatPage() {
    * distress signal, only for someone signed in whose browser can push.
    * ⛔ A card under the reply; the reply itself is untouched.
    */
+  /**
+   * #16 C (owner, 10 Nov 2026): remember WHAT the last conversation was about —
+   * one topic key from a closed list, never any words — for the "Welcome back"
+   * card on the next visit ⇒ lib/imotara/welcomeBackTopic. ⛔ Separate from the
+   * reply; a crisis signal anywhere in the conversation ⇒ no card, ever.
+   */
+  function noteSessionForWelcomeBack(threadId: string, msgs: Message[]) {
+    try {
+      setWelcomeBack(null); // they are talking again — the card has done its job
+      const userTexts = msgs.filter((m) => m.role === "user").map((m) => m.content ?? "");
+      const crisis = userTexts.some((t) =>
+        isCrisisTier2(t) || CRISIS_TIER1_RE.test(t) || CRISIS_INDIC_TIER1_RE.test(t) || CRISIS_ROMAN_INDIC_TIER1_RE.test(t));
+      const prev = readLastSession();
+      const keepTopic = prev && prev.threadId === threadId && !crisis ? prev.topic : null;
+      const saved: LastSession = { threadId, topic: keepTopic, at: Date.now(), userMessages: userTexts.length, crisis };
+      writeLastSession(saved);
+      const n = userTexts.length;
+      if (crisis || n < 2 || !(n === 2 || n % 4 === 2)) return;
+      void fetch("/api/session-topic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: userTexts.slice(-6) }),
+      }).then((r) => r.json()).then((j: { topic?: unknown }) => {
+        const now = readLastSession();
+        if (now && now.threadId === threadId && !now.crisis) {
+          writeLastSession({ ...now, topic: isSessionTopic(j?.topic) ? (j.topic as SessionTopic) : now.topic });
+        }
+      }).catch(() => { /* never let this touch the conversation */ });
+    } catch { /* storage unavailable — no card, nothing else changes */ }
+  }
+
   async function maybeOfferInvite(msgs: Message[], quotaHit: boolean) {
     if (quotaHit || inviteOfferedRef.current) return;
     try {
@@ -2768,6 +2833,7 @@ export default function ChatPage() {
           ),
         );
         void maybeOfferInvite(msgsForAnalysis, false);
+        noteSessionForWelcomeBack(threadId, msgsForAnalysis);
 
         void pushChatMessageToRemote({
           id: assistantMsg.id,
@@ -2941,6 +3007,7 @@ export default function ChatPage() {
         });
       }
       void maybeOfferInvite(msgsForAnalysis, cloudQuotaHit);
+      noteSessionForWelcomeBack(threadId, msgsForAnalysis);
       setThreads((prev) =>
         prev.map((t) =>
           t.id === threadId
@@ -4775,6 +4842,27 @@ export default function ChatPage() {
                 </button>
               </div>
             )}
+
+            {/* 🌿 #16 C: "Welcome back. Last time we talked about: <topic>." — a card, never part of a reply */}
+            {welcomeBack && (() => {
+              const w = welcomeBackText(preferredLang, welcomeBack.topic);
+              const wb = welcomeBack;
+              return (
+                <div className="mx-auto mb-3 max-w-3xl rounded-2xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm text-zinc-100" role="status">
+                  {w.lines.map((l, i) => <p key={i} className={i === 0 ? "font-semibold" : "mt-0.5 text-zinc-200"}>{l}</p>)}
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500"
+                      onClick={() => { if (threads.some((t) => t.id === wb.threadId)) setActiveId(wb.threadId); dismissWelcomeBack(wb); }}>
+                      {w.pick}
+                    </button>
+                    <button type="button" className="rounded-xl border border-violet-400/40 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-white/5"
+                      onClick={() => { newThread(); dismissWelcomeBack(wb); }}>
+                      {w.fresh}
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* "Your last payment didn't go through" — only while a store subscription is in grace (6 Nov 2026) */}
             <BillingIssueBanner />

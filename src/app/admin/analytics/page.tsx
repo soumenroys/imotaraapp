@@ -34,7 +34,7 @@ type Data = {
   byPlatform:  Bucket[];
   emotions:    { emotion: string; count: number }[];
   retention:   Cohort[];
-  meta: { platformReady: boolean; truncated: boolean; note: string };
+  meta: { platformReady: boolean; truncated: boolean; note: string; teamExcluded?: { accounts: number; events: number } };
 };
 
 const PLATFORM_LABEL: Record<string, string> = {
@@ -179,6 +179,13 @@ export default function AdminAnalyticsPage() {
             <Tile label="Active 30 days"   value={data.rolling.mau} tone="emerald" />
             <Tile label="Events"           value={data.totals.events.toLocaleString()} sub={`over ${data.range.days} days`} />
           </section>
+          {data.meta.teamExcluded && data.meta.teamExcluded.accounts > 0 && (
+            <p className="-mt-5 text-xs text-zinc-500">
+              Team and test accounts are left out: {data.meta.teamExcluded.accounts} account
+              {data.meta.teamExcluded.accounts === 1 ? "" : "s"}, {data.meta.teamExcluded.events.toLocaleString()} event
+              {data.meta.teamExcluded.events === 1 ? "" : "s"} in this window.
+            </p>
+          )}
 
           <Card title="New and returning" hint="Everyone active in this window, split by whether we had seen them before.">
             <SplitBar

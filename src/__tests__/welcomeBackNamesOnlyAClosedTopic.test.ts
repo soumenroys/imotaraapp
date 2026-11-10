@@ -9,6 +9,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { hasMobileRepo, readMobileFile } from "./helpers/siblingRepo";
 import {
     SESSION_TOPICS, TOPIC_LABELS, WELCOME, welcomeBackText, shouldShowWelcomeBack,
     WELCOME_BACK_AFTER_MS, isSessionTopic, type LastSession,
@@ -105,5 +106,13 @@ describe("/api/session-topic", () => {
         const { topicPrompt } = await import("@/lib/imotara/sessionTopicPrompt");
         for (const k of SESSION_TOPICS) expect(topicPrompt()).toContain(k);
         expect(topicPrompt()).toMatch(/Reply with the key only/);
+    });
+});
+
+describe("the phone shows the same card", () => {
+    const mobile = hasMobileRepo() ? readMobileFile("src/lib/welcome/welcomeBackTopic.ts") : null;
+    it.runIf(mobile !== null)("imotara-mobile's copy is identical from the topic list down", () => {
+        const body = (t: string) => t.slice(t.indexOf("export const SESSION_TOPICS"));
+        expect(body(mobile ?? "")).toBe(body(src("src/lib/imotara/welcomeBackTopic.ts")));
     });
 });

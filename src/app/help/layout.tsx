@@ -14,7 +14,7 @@ import { OG_IMAGE } from "@/lib/seo/ogImage";
 export const metadata: Metadata = {
     title: "Help — Ask anything about Imotara",
     description:
-        "Answers about Imotara: how conversations work, which languages are supported, what stays on your device, voice input, mood history, and what to do in a crisis. Ask a question and get a direct answer.",
+        "Answers about Imotara: how conversations work, which languages are supported, where your history is kept, voice input, mood history, and what to do in a crisis. Ask a question and get a direct answer.",
     openGraph: {
         ...OG_IMAGE,
         title: "Imotara Help — Ask anything",

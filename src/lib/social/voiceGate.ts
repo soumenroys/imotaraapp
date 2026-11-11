@@ -429,6 +429,17 @@ function firstClaim(lower: string, occurrences: Occurrence[]): Occurrence | null
 export const NOTHING_SENT =
   /\b(nothing|no copy|no words?)\b[^.?!\n]{0,40}\b(leaves?|is sent|gets sent|goes)\b|\b(never|doesn[’']t|does not|won[’']t|will not)\s+(leaves?|send|sends|be sent|go)\b[^.?!\n]{0,30}\b(phone|device|anywhere)\b|\bnever leaves\b|\b(conversations?|chats?(?!\s+history)|messages?|words|what you (write|say|share))\b[^.?!\n]{0,25}\bstays?\b[^.?!\n]{0,12}\b(on|with(in)?)\b[^.?!\n]{0,12}\b(device|phone)\b|\bno cloud\b(?![\s-]+(backup|sync|copy))|\b(nothing|no (messages?|data|words?|texts?|chats?|conversations?))\b[^.?!\n]{0,20}\b(sent|uploaded)\b(?![^.?!\n]{0,25}\bto\s+(your\s+)?(contacts|friends|family|anyone else|other people|others)\b)|\bnever\s+(gets?\s+|be\s+)?(sent|uploaded)\b|\b(is ?n['’]?t|is not|are ?n['’]?t|are not)\s+(sent|uploaded|shared)\s+anywhere\b|\bstays?\s+with you,?\s+not\s+(in|on)\b|#ondeviceonly\b|\bonly\s+(the\s+|your\s+)?(audio|voice|sound)\b[^.?!\n]{0,25}\bleaves?\b/;
 
+/**
+ * 🔴 11 Nov 2026 (#127): HISTORY STAYING ON THE DEVICE IS ALSO FALSE. Web POSTs every
+ * message to /api/history and the app auto-syncs for everyone, so chat history is saved
+ * in the account (Supabase, Seoul) BY DEFAULT. Refused: history/chats/entries kept on the
+ * device/phone/browser, "only on your device", "local-first", "backup is opt-in / off
+ * unless…", and offline sold next to replies (owner: never promote on-device replies).
+ * ✅ Still allowed: "a copy is also kept on your device", "the copy on your device".
+ */
+export const STORED_ON_DEVICE =
+  /\b(history|conversations?|chats?|messages?|entries|journal|mood log|what you (write|say|share|type)|everything you (write|say|share))\b[^.?!\n]{0,30}\b(stays?|stored|saved|kept|lives?|remains?)\b[^.?!\n]{0,20}\b(on|in)\s+(your|the|this)\s+(device|phone|browser)\b|\bonly on (your|the) (device|phone)\b|\blocal[- ]first\b|\b(cloud\s+)?(backup|sync)\b[^.?!\n]{0,25}\b(is\s+)?(opt-?in|off (by default|unless|until))\b|\b(works?|use (it|imotara))\s+offline\b|\bfull(y)?\s+offline\b|\boffline\s+(support|mode|use)\b|\boffline\b[^.?!\n]{0,30}\b(reply|replies|answer|answers)\b|\b(reply|replies|answers?)\b[^.?!\n]{0,30}\boffline\b|\b(kept|stored|saved)\s+on\s+(your|the)\s+(phone|device)\s+by default\b|\bno\s+(cloud\s+)?(backup|sync)\b[^.?!\n]{0,20}\bunless\b/;
+
 export function checkVoice(text: string, language: string, overlay?: GateOverlay): GateResult {
   if (!isSupportedLanguage(language)) {
     throw new Error(`voiceGate: ${language} is not one of the 22 languages this product speaks.`);
@@ -535,7 +546,16 @@ export function checkVoice(text: string, language: string, overlay?: GateOverlay
         list: "privacy",
         rule: "a claim that nothing leaves the phone",
         matched: m[0],
-        because: "false: every message is sent to an AI service for the reply. Say conversations are STORED on the phone unless cloud backup is switched on.",
+        because: "false: every message is sent to an AI service for the reply, and history is saved in the account by default. Say: conversations are saved securely in your Imotara account; to reply, messages go to our service providers.",
+      });
+    }
+    const d = lower.match(STORED_ON_DEVICE);
+    if (d) {
+      add("privacy:history-on-device", {
+        list: "privacy",
+        rule: "a claim that history stays on the device, or offline sold as a feature",
+        matched: d[0],
+        because: "false: chat history is saved in the account by default (web and app), and on-device replies are never promoted. Say: conversations are saved securely in your Imotara account; you can delete everything in Settings.",
       });
     }
   } else {

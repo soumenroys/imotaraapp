@@ -375,7 +375,7 @@ function BannerPrivacy() {
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Privacy & Safety</p>
         <p className="text-zinc-200 text-sm leading-relaxed">Full control over your data — choose what&apos;s analysed, what&apos;s synced, what&apos;s exported, and what&apos;s deleted. No data is ever sold.</p>
         <div className="mt-3 space-y-1">
-          {["🔒 History stays on your device", "☁ Account backup is opt-in", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
+          {["🔒 Saved securely in your account", "🚫 No ads, nothing sold", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
             <p key={f} className="text-[11px] text-zinc-400">{f}</p>
           ))}
         </div>
@@ -673,7 +673,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Web: Visit imotara.com in Chrome, Safari, Firefox, or Edge.",
         "On web, tap 'Add to Home Screen' from your browser menu for a PWA experience.",
       ],
-      tip: "The web app works offline too — your local conversations are always saved in the browser.",
+      tip: "A copy of your conversations is also kept in your browser, so they open quickly — even with a weak connection.",
     },
     {
       icon: "👋",
@@ -714,7 +714,7 @@ const FEATURES: Record<string, Feature[]> = {
         "Complete the OAuth flow in the browser/system sheet.",
         "You're signed in — your history begins syncing to the cloud.",
       ],
-      tip: "Signing out does not delete your local history — everything stays on your device.",
+      tip: "Signing out does not delete the copy of your history on this device.",
     },
     {
       icon: "🆘",
@@ -922,7 +922,7 @@ const FEATURES: Record<string, Feature[]> = {
       icon: "🎤",
       title: "Voice Input (Speech to Text)",
       short: "Tap the microphone to speak your message — Imotara transcribes your words.",
-      long: "Tap the 🎤 microphone icon beside the message input to start recording. Speak naturally in any language. When you stop, the audio is sent to OpenAI Whisper for transcription and the text appears in the input box, ready to send or edit.",
+      long: "Tap the 🎤 microphone icon beside the message input to start recording. Speak naturally in any language. When you stop, the audio is sent securely to be transcribed and the text appears in the input box, ready to send or edit.",
       steps: [
         "Tap the 🎤 icon to the right of the message input box.",
         "Speak your message — there's no time limit (default max: 60 seconds).",

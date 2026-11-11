@@ -50,7 +50,7 @@ The Link Key is a private phrase that lets devices share the same chat history �
 
 ## What's stored where
 
-- **Not signed in:** your history stays on your device (to reply, messages still go to our secure servers unless you choose Local replies). Nothing is backed up — if you uninstall the app or clear your browser data, that data is gone. (Sign in if you want a backup.)
+- **Not signed in:** your history is still saved securely in your Imotara account (an anonymous one), and a copy is kept on the device. To reply, messages go to our service providers. Signing in lets you pick up the same history on another device.
 - **Signed in, sync on:** your history and profile are backed up to Imotara's secure cloud so they follow you across devices. Only your account can access your records.
 - **Your companion and tone preferences** are stored locally and only shape how Imotara talks to you — they aren't shared.
 
@@ -70,7 +70,7 @@ Free accounts get **20 cloud AI replies per day** (the counter resets at midnigh
 
 ## Offline behavior
 
-On mobile, Imotara keeps working with no internet: an on-device reply engine answers you in all 22 languages, and you can read previously loaded history. A few things do need a connection: voice input, read-aloud, and the cloud-generated features (Companion's Letter, Growth Arc, Year in Review). The web app is also installable and works offline for browsing.
+On mobile, Imotara keeps working with no internet: an on-device reply engine gives simpler replies, and you can read previously loaded history. A few things do need a connection: voice input, read-aloud, and the cloud-generated features (Companion's Letter, Growth Arc, Year in Review). The web app is also installable and works offline for browsing.
 
 ## Export your data
 

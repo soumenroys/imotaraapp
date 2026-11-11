@@ -80,8 +80,11 @@ function processorList(): string {
  * processors list — the name a reader would recognise, not the hostname.
  */
 const PROCESSOR_HOSTS: Record<string, string> = {
-    "api.openai.com": "OpenAI",
-    "generativelanguage.googleapis.com": "Google",
+    // 🔄 OWNER 11 Nov 2026: the reply / transcription providers are disclosed by CATEGORY,
+    //    never by name, anywhere a user can read — the policy included ("if possible").
+    //    Privacy law asks for recipients OR categories of recipients, so this still discloses them.
+    "api.openai.com": "a service provider based in the USA",
+    "generativelanguage.googleapis.com": "a second provider as a backup",
     "tts.speech.microsoft.com": "Microsoft Azure Speech",
     "translation.googleapis.com": "Google Cloud Translation",
     "api.mymemory.translated.net": "MyMemory",
@@ -345,7 +348,7 @@ describe("voice is disclosed", () => {
     /** The "Information We Collect" section only. */
     function collectSection(): string {
         const start = POLICY.indexOf("Information We Collect");
-        const end = POLICY.indexOf("Local-First Storage", start);
+        const end = POLICY.indexOf("Where Your Conversations Are Stored", start);
         expect(start).toBeGreaterThan(-1);
         expect(end).toBeGreaterThan(start);
         return POLICY.slice(start, end);
@@ -371,3 +374,11 @@ describe("voice is disclosed", () => {
         expect(s).toMatch(/Voice/);
     });
 });
+
+describe("owner rule (11 Nov 2026): the reply providers are never NAMED to readers", () => {
+    it("the visible policy text names neither OpenAI nor Gemini", () => {
+        const visible = POLICY.replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
+        expect(visible).not.toMatch(/OpenAI|Gemini/);
+    });
+});
+

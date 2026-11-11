@@ -119,9 +119,9 @@ Which do you usually want first — to be heard, or to be helped?
 
 If you haven't opened Imotara yet, it may be because trying something new usually means an account, a password and an email you'll regret giving.
 
-You don't need one. Open it and start typing. Chat, mood check-ins, your history and reflections all work without signing in, and your history stays on your device.
+You don't need one. Open it and start typing. Chat, mood check-ins, your history and reflections all work without signing in, and your history is saved securely so it's there next time.
 
-An account only adds the things that genuinely need one — syncing across your phone and laptop, and backup.
+Signing in adds the one thing that genuinely needs it — picking up the same history on your phone and your laptop.
 
 If you'd like to look without committing anything: ${SITE}
 
@@ -140,9 +140,9 @@ Was there something specific that put you off? That's useful for me to know.
 It's a fair question to ask before telling something personal to an app, so here is the plain answer.
 
 - There are no ads in Imotara, so nothing about you is worth selling
-- Without an account, your history stays on your device
-- With an account, they sync so you can pick up on another device — that's what the account is for
-- You can delete your history, and that means deleted
+- Your conversations are saved securely in your Imotara account — signing in simply lets you pick them up on another device
+- To reply, your messages go to our service providers
+- You can delete your account and everything in it, and that means deleted
 
 What we do keep is deliberately boring: enough to run your account and keep the service working.
 

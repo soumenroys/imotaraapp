@@ -352,8 +352,8 @@ export default function Home() {
                           <IconConsent className="h-4 w-4" />
                         </span>
                         <span>
-                          Privacy-first by design — local-first by default,
-                          remote analysis only with consent.
+                          Privacy-first by design — no ads, nothing sold, and you can
+                          delete everything anytime.
                         </span>
                       </li>
                     </ul>
@@ -440,8 +440,8 @@ export default function Home() {
                             <IconConsent className="h-4 w-4" />
                           </span>
                           <span>
-                            Privacy-first by design — local-first by default,
-                            remote analysis only with consent.
+                            Privacy-first by design — no ads, nothing sold, and you can
+                            delete everything anytime.
                           </span>
                         </li>
                       </ul>
@@ -500,8 +500,8 @@ export default function Home() {
             </div>
 
             <p className="mt-4 text-[11px] text-zinc-400">
-              Tip: You can stay fully local. Turn on remote analysis only if you
-              want deeper companion reflections.
+              Tip: replies come from our service providers by default. In Settings you
+              can choose simpler replies made on your phone instead.
             </p>
           </div>
         </div>
@@ -512,7 +512,7 @@ export default function Home() {
             Get the app
           </p>
           <p className="mt-1.5 text-sm text-zinc-300">
-            Take Imotara with you — voice input, offline support, and mood trends on mobile.
+            Take Imotara with you — voice input, reminders, and mood trends on mobile.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <a
@@ -566,11 +566,11 @@ export default function Home() {
               },
               {
                 q: "Is Imotara free to use?",
-                a: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud AI replies a day and your last 7 days of history; Imotara Plus adds unlimited replies, full history and deeper insights.",
+                a: "Yes. Imotara is free to use and no subscription is required. Free includes 20 full replies a day (simpler replies made on your phone after that) and your last 7 days of history; Imotara Plus adds unlimited replies, full history and deeper insights.",
               },
               {
                 q: "Is my data private?",
-                a: "Yes. All conversations are stored only on your device by default. Cloud sync is optional and only activates with your explicit consent. Imotara has no ads and never sells your data.",
+                a: "Your conversations are saved securely in Imotara's cloud — when you're signed in, they follow you to your other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. Imotara has no ads, no tracking and never sells your data.",
               },
               {
                 q: "What languages does Imotara support?",
@@ -586,7 +586,7 @@ export default function Home() {
               },
               {
                 q: "Can I use Imotara offline?",
-                a: "Yes. The web app works offline as a PWA and both mobile apps support offline use. Your conversations are stored locally on your device by default.",
+                a: "Partly. Without a connection the app can still give simpler replies made on your phone; full replies need the internet.",
               },
             ].map(({ q, a }) => (
               <div key={q}>

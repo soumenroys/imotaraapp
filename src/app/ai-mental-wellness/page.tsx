@@ -54,7 +54,7 @@ const faqs = [
   },
   {
     q: "Is Imotara safe and private?",
-    a: "Yes. Your conversation history and mood entries are saved on your device. Replies come from our secure servers by default — you can switch to on-device only in Settings. Backup across devices is optional and needs your consent. No ads, no data selling.",
+    a: "Your conversations are saved securely in Imotara's cloud — when you're signed in, they follow you to your other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. No ads, no data selling.",
   },
   {
     q: "What languages does Imotara support?",
@@ -169,8 +169,7 @@ export default function AiMentalWellnessPage() {
                   ["Companion reflections", "✓ Private & secure", "Scripted or none"],
                   ["Mood timeline", "✓ Built-in", "Often paywalled"],
                   ["22 languages", "✓ Supported", "Usually English only"],
-                  ["Offline use", "✓ Full offline support", "Rarely"],
-                ].map(([feat, imotara, others]) => (
+                                  ].map(([feat, imotara, others]) => (
                   <tr key={feat as string} className="border-b border-white/5">
                     <td className="py-2.5 pr-4 font-medium text-zinc-300">{feat}</td>
                     <td className="py-2.5 pr-4 text-emerald-300">{imotara}</td>

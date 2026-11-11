@@ -148,7 +148,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A private wellbeing companion for the days when there is something on your mind and no one to tell.",
     metaTitle: "Someone to talk to, in your own language — Imotara",
     metaDescription:
-      "A private wellbeing companion for the days when something is on your mind and there is no one to tell. 22 languages, works offline, no ads, no tracking. Free forever.",
+      "A private wellbeing companion for the days when something is on your mind and there is no one to tell. 22 languages, no ads, no tracking. Free forever.",
     keywords: [
       "someone to talk to", "private wellbeing companion", "emotional support in my language",
       "free companion app India", "talk about feelings privately", "mental wellness app 22 languages",
@@ -161,7 +161,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     cards: [
       { title: "Truly private", body: SHARED_PRIVACY },
       { title: "In your own language", body: "Not translated English — natural replies in the language you actually think in, with stories and wisdom rooted in the culture you grew up with." },
-      { title: "It remembers", body: "Give your companion a name and a personality — a calm friend, an older sibling, a coach — and it will recall last week’s worry and ask how it went. Works offline, too." },
+      { title: "It remembers", body: "Give your companion a name and a personality — a calm friend, an older sibling, a coach — and it will recall last week’s worry and ask how it went." },
       { title: "It knows its limits", body: SHARED_LIMITS },
     ],
     afterCards:
@@ -191,7 +191,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A free, private companion for the days that are a lot — in whatever language you actually think in.",
     metaTitle: "Someone to talk to at 11 p.m. — Imotara for young people",
     metaDescription:
-      "A free, private companion for the days that are a lot. Exam nerves, a fight with a friend, feeling left out. Your chat history stays on your phone. 22 languages.",
+      "A free, private companion for the days that are a lot. Exam nerves, a fight with a friend, feeling left out. No ads, nothing sold. 22 languages.",
     keywords: [
       "someone to talk to at night", "app for teenagers mental health", "exam stress app",
       "private chat for students", "free wellbeing app for teens India", "talk about feelings teenager",
@@ -202,9 +202,9 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "What it’s like",
     cards: [
-      { title: "It’s private. Actually private.", body: "Your chat history stays on your phone. No ads, no selling your data. Nobody reads your conversations — not us, not your school, not anyone." },
+      { title: "It’s private. Actually private.", body: "No ads, no selling your data. Nobody reads your conversations — not us, not your school, not anyone." },
       { title: "It gets the small stuff", body: "Exam nerves, a fight with a friend, feeling left out, not knowing what you want to do with your life. You don’t need a “real problem” to open it." },
-      { title: "It’s yours", body: "Give your companion a name and a personality — calm older sibling, chill friend, coach. Change it whenever you like. It works offline too, so hostel Wi-Fi can’t take it away." },
+      { title: "It’s yours", body: "Give your companion a name and a personality — calm older sibling, chill friend, coach. Change it whenever you like." },
       { title: "It knows when to bring in a human", body: "If things ever feel really heavy, Imotara will gently share a helpline number and encourage you to talk to someone you trust. It’s a companion, not a replacement for real people — and it will tell you so." },
     ],
     afterCards:
@@ -244,9 +244,9 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "Why people keep it on their phone",
     cards: [
-      { title: "Private in a way social media never is", body: "Your chat history stays on your device by default. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
+      { title: "Private in a way social media never is", body: "Your conversations are saved securely in your own account. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
       { title: "Built for the in-between", body: "Not a breakdown, not a breakthrough — just a Wednesday when work was brutal and there’s no one to tell. You don’t need a “real problem” to open it." },
-      { title: "Yours to shape", body: "Name your companion and give it a personality — a calm older sibling, a straight-talking friend, a coach — and change it as your life changes. Works offline on flights, in metro tunnels, in your parents’ village." },
+      { title: "Yours to shape", body: "Name your companion and give it a personality — a calm older sibling, a straight-talking friend, a coach — and change it as your life changes." },
       { title: "Knows its limits", body: SHARED_LIMITS },
     ],
     afterCards:
@@ -319,7 +319,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "You have listened to everyone for a lifetime. Here is a gentle, patient companion that speaks your language.",
     metaTitle: "Let someone listen to you — Imotara for seniors",
     metaDescription:
-      "A gentle, patient companion for elders. Speak instead of typing and hear replies in Bengali, Hindi, Tamil and 19 more languages. Private, free, works offline.",
+      "A gentle, patient companion for elders. Speak instead of typing and hear replies in Bengali, Hindi, Tamil and 19 more languages. Private and free.",
     keywords: [
       "companion app for elderly", "loneliness in old age India", "app for seniors Bengali",
       "someone to talk to elderly parents", "voice companion for elders", "emotional support for senior citizens",
@@ -379,7 +379,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       { title: "Safe by design — and not therapy", body: "If a conversation turns serious, Imotara gently shares a helpline and urges them to reach out to someone they trust. It does not diagnose and does not replace a counsellor or doctor." },
     ],
     afterCards:
-      "Real tools for the ordinary hard days: two-minute breathing before an exam, a mood tracker that helps them see their own patterns, gentle check-ins that notice when they have gone quiet — built on approaches used by psychologists, in everyday language. Works offline, so it is there in the hostel, on the school bus, and when the Wi-Fi is off at night.",
+      "Real tools for the ordinary hard days: two-minute breathing before an exam, a mood tracker that helps them see their own patterns, gentle check-ins that notice when they have gone quiet — built on approaches used by psychologists, in everyday language.",
     momentsHeading: "How to introduce it — without another argument",
     moments: [
       ["Try it yourself first,", "so you know what it is and what it is not before you mention it."],
@@ -405,7 +405,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "Private, multilingual emotional support — available 24/7, on the phones your beneficiaries already own.",
     metaTitle: "A gentle companion for the people you serve — Imotara for NGOs",
     metaDescription:
-      "Private, multilingual emotional support for the communities you serve. 22 languages, works offline, anonymised trends for your team — never anyone's private words.",
+      "Private, multilingual emotional support for the communities you serve. 22 languages, anonymised trends for your team — never anyone's private words.",
     keywords: [
       "wellbeing companion for NGOs", "mental health support for beneficiaries",
       "NGO emotional wellbeing programme India", "multilingual mental health NGO", "field staff burnout support",
@@ -451,7 +451,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "Private, multilingual emotional support for students and staff — available 24/7, on the phones they already own.",
     metaTitle: "A gentle companion for every student — Imotara for schools and colleges",
     metaDescription:
-      "Private, multilingual wellbeing support for students and staff. Cohorts by class or hostel, anonymised trends for counsellors, 22 languages, works offline.",
+      "Private, multilingual wellbeing support for students and staff. Cohorts by class or hostel, anonymised trends for counsellors, 22 languages.",
     keywords: [
       "student mental health app India", "school counselling support software",
       "college wellbeing programme", "exam stress support students", "campus mental health 24/7",
@@ -465,7 +465,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       { title: "Made for young people", body: "Imotara adapts its tone for teenagers — extra-sensitive, patient, never preachy — and speaks naturally to young adults facing exams, placements and life away from home." },
       { title: "Student privacy comes first", body: "Conversations stay on the student’s own phone by default. No ads, no data selling, no tracking — and no one, not even your admin, can read an individual student’s conversations." },
       { title: "Classroom-ready cohorts", body: "Group students by class, hostel or batch and set a companion tone for each — mentor for final-years, calm companion for exam season. Anonymised trends per cohort guide your counsellors." },
-      { title: "Safe, in every language", body: "22 languages including every major Indian language. In a moment of crisis, Imotara gently surfaces local helplines — with care, not alarm. Works offline when the hostel Wi-Fi doesn’t." },
+      { title: "Safe, in every language", body: "22 languages including every major Indian language. In a moment of crisis, Imotara gently surfaces local helplines — with care, not alarm." },
     ],
     afterCards:
       "Grounded in evidence-backed approaches such as CBT, DBT, ACT and mindfulness — exam-stress breathing, mood tracking and gentle daily check-ins.",
@@ -556,7 +556,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     cards: [
       { title: "Patient and unhurried", body: "Imotara adapts its tone for seniors — slow, warm, never rushed, never condescending. It remembers a resident’s late husband’s name, their village, their grandchildren." },
       { title: "A voice, not just a screen", body: "Residents can speak instead of type and hear replies read aloud in Bengali, Hindi, Tamil, Telugu, Marathi and 17 more languages — a real comfort for tired eyes and unsteady hands." },
-      { title: "Comfort from familiar roots", body: "Stories, wisdom, mythology and gentle practices drawn from the traditions your residents grew up with — not imported self-help. Works offline when the internet doesn’t." },
+      { title: "Comfort from familiar roots", body: "Stories, wisdom, mythology and gentle practices drawn from the traditions your residents grew up with — not imported self-help." },
       { title: "Safe, private, simple to run", body: "No ads, no data selling, no tracking. A dashboard lets a small team invite residents and staff and see anonymised wellbeing trends across the home — never anyone’s private words." },
     ],
     afterCards:

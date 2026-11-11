@@ -39,7 +39,7 @@ You go straight into the conversation — there is no setup to fill in first.
 You don't need to sign up to start. Here's how:
 
 1. Open the app — on web, go to **www.imotara.com**; on mobile, open the Imotara app.
-2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work without signing in — your history is stored on your device. Replies come from our secure servers by default; you can switch to on-device only in Settings.
+2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work without signing in — your history is saved securely in your Imotara account. Replies come from our service providers by default.
 3. Keep in mind what anonymous use *can't* do: cross-device sync, cloud backup, and unlimited voice aren't available. Read-aloud has a small daily cap (about 15 per day) and voice transcription about 20 per day when you're not signed in.
 4. Cloud-generated features (Companion's Letter, Growth Arc, Year in Review) need an account and an internet connection.
 5. If you reach the free daily limit of 20 cloud replies, Imotara quietly switches to on-device replies — the conversation is never blocked.

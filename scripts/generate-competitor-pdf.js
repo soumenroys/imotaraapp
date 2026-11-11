@@ -612,14 +612,14 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
           <td><span class="chk">✓</span></td>
         </tr>
         <tr>
-          <td>India-based / local data storage</td>
+          <td>India-based / local data storage</td>  <!-- 12 Nov 2026: checked — Imotara's database is in AWS ap-northeast-2 (Seoul); chat history itself stays on the phone -->
           <td><span class="lim">Partial</span></td>
           <td><span class="chk">✓</span></td>
           <td><span class="chk">✓</span></td>
           <td><span class="crs">✗ US</span></td>
           <td><span class="crs">✗ US</span></td>
           <td><span class="crs">✗ US</span></td>
-          <td><span class="chk">✓ Local</span></td>
+          <td><span class="crs">✗ Seoul, S. Korea</span></td>
         </tr>
         <tr class="cat-row"><td colspan="8">Wellness Tools &amp; Platform</td></tr>
         <tr>

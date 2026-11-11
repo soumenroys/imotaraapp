@@ -279,7 +279,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
             <div class="comp-w-title">Weaknesses vs Imotara</div>
             <ul class="comp-w-list">
               <li>English only — zero Indian languages</li>
-              <li>No offline AI capability</li>
+              <li>No offline mode</li>
               <li>Feels clinical, not companionate</li>
             </ul>
           </div>
@@ -356,7 +356,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
             </ul>
           </div>
         </div>
-        <div class="comp-footer">Imotara opening: Conversational AI + regional languages vs rigid program structure</div>
+        <div class="comp-footer">Imotara opening: warm conversation + regional languages vs rigid program structure</div>
       </div>
 
       <!-- REPLIKA -->
@@ -464,7 +464,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
             </ul>
           </div>
         </div>
-        <div class="comp-footer">Imotara opening: Conversational AI + Indian pricing + Indian languages vs content library</div>
+        <div class="comp-footer">Imotara opening: warm conversation + Indian pricing + Indian languages vs content library</div>
       </div>
 
     </div>
@@ -520,7 +520,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
           <td><span class="win">11 ★</span></td>
         </tr>
         <tr>
-          <td>Offline AI (no internet needed)</td>
+          <td>Basic replies without internet (on the phone)</td>
           <td><span class="crs">✗</span></td>
           <td><span class="crs">✗</span></td>
           <td><span class="crs">✗</span></td>
@@ -592,7 +592,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
         </tr>
         <tr class="cat-row"><td colspan="8">Privacy &amp; Data</td></tr>
         <tr>
-          <td>Local-first storage (data on device)</td>
+          <td>Chat history kept on the phone (backup only if turned on)</td>
           <td><span class="crs">✗</span></td>
           <td><span class="crs">✗</span></td>
           <td><span class="crs">✗</span></td>
@@ -746,9 +746,9 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
             <div class="battle-us">₹149/month</div>
           </div>
           <div class="battle-row">
-            <div class="battle-dimension">Offline AI</div>
+            <div class="battle-dimension">Without internet</div>
             <div class="battle-them">No</div>
-            <div class="battle-us">Yes — all 22 langs</div>
+            <div class="battle-us">Basic replies on the phone</div>
           </div>
           <div class="battle-row">
             <div class="battle-dimension">Tone</div>
@@ -804,7 +804,7 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
           <div class="battle-row">
             <div class="battle-dimension">Privacy</div>
             <div class="battle-them">US server storage</div>
-            <div class="battle-us">Local-first, India</div>
+            <div class="battle-us">History on your phone; backup is your choice</div>
           </div>
           <div class="battle-row">
             <div class="battle-dimension">Monthly letter</div>
@@ -941,12 +941,12 @@ html,body{width:210mm;font-family:'Inter','Helvetica Neue',Arial,sans-serif;
       <div class="moat-icon">🏰</div>
       <div style="flex:1;">
         <div class="moat-title">Imotara's competitive moat — impossible to replicate fast</div>
-        <div class="moat-body">Building an emotional AI that genuinely understands 11 Indian languages — including gender-aware grammar, cultural idioms, and regional expressions — took months of engineering. A competitor can launch a Hindi button in a sprint. They cannot replicate culturally nuanced, grammatically correct, emotionally warm AI responses in Odia, Konkani, or Urdu in under a year. This is the moat.</div>
+        <div class="moat-body">Building a companion that genuinely understands 11 Indian languages — including gender-aware grammar, cultural idioms, and regional expressions — took months of engineering. A competitor can launch a Hindi button in a sprint. They cannot replicate culturally nuanced, grammatically correct, emotionally warm replies in Odia, Konkani, or Urdu in under a year. This is the moat.</div>
       </div>
       <div class="moat-div"></div>
       <div class="moat-stats">
         <div class="moat-stat"><div class="moat-stat-num">11</div><div class="moat-stat-lbl">Indian languages — no competitor matches</div></div>
-        <div class="moat-stat"><div class="moat-stat-num">71</div><div class="moat-stat-lbl">Psychological tools — clinical depth</div></div>
+        <div class="moat-stat"><div class="moat-stat-num">71</div><div class="moat-stat-lbl">Wellbeing tools built in</div></div>
         <div class="moat-stat"><div class="moat-stat-num">₹149</div><div class="moat-stat-lbl">vs avg ₹549 across all competitors</div></div>
       </div>
     </div>

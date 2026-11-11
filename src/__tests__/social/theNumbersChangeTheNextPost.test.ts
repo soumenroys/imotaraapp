@@ -20,6 +20,7 @@
 import { describe, it, expect } from "vitest";
 import {
   engagementRate,
+  SIGNAL_WEIGHTS,
   angleScores,
   turnsFor,
   weightedCycle,
@@ -48,27 +49,28 @@ const post = (over: Partial<PostOutcome> = {}): PostOutcome => ({
 const many = (n: number, over: Partial<PostOutcome>) => Array.from({ length: n }, () => post(over));
 
 describe("which number a channel is judged on", () => {
-  it("Instagram on saves, Facebook on shares — not likes everywhere", () => {
+  it("deliberate responses weigh more than likes — a save or share counts 3×, a like 1× (#131)", () => {
     /**
-     * 🔑 A like is the cheapest possible response and the one least related
-     * to whether a post was worth making ⇒ social_platform_rules_reviewed.
+     * 🔑 A like is the cheapest possible response ⇒ social_platform_rules_reviewed.
+     * 🔄 11 Nov 2026: weighted, not saves-only — saves were ~0 everywhere, so one save decided all.
      */
+    expect(SIGNAL_WEIGHTS).toEqual({ saves: 3, shares: 3, comments: 2, reactions: 1 });
+    const saved = engagementRate(post({ saves: 1, reactions: 0, reach: 100 }))!;
+    const liked = engagementRate(post({ saves: 0, reactions: 1, reach: 100 }))!;
+    expect(saved).toBeGreaterThan(liked);
     expect(CHANNEL_METRIC.instagram.primary).toBe("saves");
-    expect(CHANNEL_METRIC.facebook.primary).toBe("shares");
-    expect(CHANNEL_METRIC.instagram.primary).not.toBe("reactions");
   });
 
-  it("falls back only when the metric is MISSING, never when it is zero", () => {
+  it("a measured zero is a zero; a missing number is skipped, never invented", () => {
     /**
      * 🔴 Zero saves is a measurement; a null is a missing one. Treating them
      * alike is how an absent metric quietly becomes a bad score — or, worse,
      * how a zero gets replaced by a flattering number of likes.
      */
-    const measuredZero = engagementRate(post({ saves: 0, reactions: 50, reach: 100 }));
-    expect(measuredZero).toBe(0);
-
-    const missing = engagementRate(post({ saves: null, reactions: 50, reach: 100 }));
-    expect(missing).toBe(0.5);
+    // 🔄 #131: zero saves no longer zeroes the post — the 50 likes still count, once each.
+    expect(engagementRate(post({ saves: 0, reactions: 50, reach: 100 }))).toBe(0.5);
+    expect(engagementRate(post({ saves: null, reactions: 50, reach: 100 }))).toBe(0.5);
+    expect(engagementRate(post({ saves: 0, reactions: 0, comments: 0, shares: 0, reach: 100 }))).toBe(0);
   });
 });
 
@@ -85,8 +87,8 @@ describe("a rate, not a count", () => {
   });
 
   it("uses reach — people — before impressions, which counts one twice", () => {
-    expect(engagementRate(post({ saves: 10, reach: 100, impressions: 1000 }))).toBe(0.1);
-    expect(engagementRate(post({ saves: 10, reach: null, impressions: 1000 }))).toBe(0.01);
+    expect(engagementRate(post({ saves: 10, reach: 100, impressions: 1000 }))).toBe(0.3);
+    expect(engagementRate(post({ saves: 10, reach: null, impressions: 1000 }))).toBe(0.03);
   });
 
   it("⛔ an unmeasured post is null, never zero", () => {
@@ -193,6 +195,6 @@ describe("once there is evidence, it tilts — and only tilts", () => {
     const fb = turnsFor(POOLS, s, "facebook");
     expect(fb.get("the-unsaid")!).toBeGreaterThan(fb.get("privacy")!);
     // ...while Instagram's view of `privacy` is untouched by Facebook's.
-    expect(s.find((x) => x.platform === "instagram" && x.pool === "privacy")!.rate).toBeCloseTo(0.12);
+    expect(s.find((x) => x.platform === "instagram" && x.pool === "privacy")!.rate).toBeCloseTo(0.36); // #131: 12 saves × 3 ÷ 100
   });
 });

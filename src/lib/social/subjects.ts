@@ -104,6 +104,14 @@ export function judgeSubject(subject: string, recent: string[]): SubjectVerdict 
   if (trimmed.length < 8) {
     return { ok: false, reason: "too short to be a subject", clashesWith: "" };
   }
+  /**
+   * 🔄 11 Nov 2026 (#131, audit): 7 of 27 queued titles began "A reply …" — product statements,
+   * not moments a reader recognises, and the angle that did best ("the-unsaid") never does it.
+   * ⛔ Refuse the opener so the writer finds the moment instead.
+   */
+  if (/^a\s+reply\b/i.test(trimmed)) {
+    return { ok: false, reason: 'titles starting "A reply…" are worn out — name the moment, not the product', clashesWith: "" };
+  }
 
   const hash = subjectHash(trimmed);
   for (const r of recent) {

@@ -139,13 +139,28 @@ export const CHANNEL_METRIC: Record<string, { primary: keyof PostOutcome; fallba
  * recorded" and "nobody responded" are different facts and must not average
  * together.
  */
-export function engagementRate(o: PostOutcome): number | null {
-  const metric = CHANNEL_METRIC[o.platform];
-  if (!metric) return null;
+/**
+ * 🔄 11 Nov 2026 (#131, audit): saves (IG) and shares (FB) were ~0 on almost every post, so ONE
+ * stray save decided the ranking and the weakest angle got the most turns. ⇒ The rate now counts
+ * every DELIBERATE response, weighted so saves and shares still lead:
+ *     (saves×3 + shares×3 + comments×2 + reactions×1) ÷ reach
+ * ⚠️ Null rules unchanged: a null component is "not measured" and is skipped; if NONE is measured
+ * the post is null (not zero); no audience ⇒ null.
+ */
+export const SIGNAL_WEIGHTS = { saves: 3, shares: 3, comments: 2, reactions: 1 } as const;
 
-  const primary = o[metric.primary] as number | null;
-  const signal = primary === null || primary === undefined ? (o[metric.fallback] as number | null) : primary;
-  if (signal === null || signal === undefined) return null;
+export function engagementRate(o: PostOutcome): number | null {
+  if (!CHANNEL_METRIC[o.platform]) return null;
+
+  let signal = 0;
+  let measured = false;
+  for (const [k, w] of Object.entries(SIGNAL_WEIGHTS) as [keyof typeof SIGNAL_WEIGHTS, number][]) {
+    const v = o[k];
+    if (v === null || v === undefined) continue;
+    measured = true;
+    signal += v * w;
+  }
+  if (!measured) return null;
 
   // ⚠️ Reach before impressions: reach is PEOPLE, impressions counts the same
   // person twice. ⛔ A post with 0 reach has not been measured, not failed.

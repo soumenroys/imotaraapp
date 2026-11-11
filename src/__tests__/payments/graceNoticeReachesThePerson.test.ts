@@ -156,6 +156,6 @@ describe("wiring", () => {
   });
   it("the daily job emails, and the chat page shows the banner", () => {
     expect(readFileSync("src/app/api/cron/store-renewals/route.ts", "utf8")).toMatch(/notifyGraceOnce\(/);
-    expect(readFileSync("src/app/chat/page.tsx", "utf8")).toMatch(/<BillingIssueBanner \/>/);
+    expect(readFileSync("src/app/chat/page.tsx", "utf8")).toMatch(/<BillingIssueBanner lang={preferredLang} \/>/);
   });
 });

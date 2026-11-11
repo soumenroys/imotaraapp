@@ -45,6 +45,9 @@ export async function GET(req: NextRequest) {
   const notified = isResendConfigured()
     ? await notifyGraceOnce(db, {
         emailOf: async (userId) => (await db.auth.admin.getUserById(userId)).data.user?.email ?? null,
+        // #85: the email goes out in the language the person chose (profile sync ⇒ user_memory).
+        langOf: async (userId) =>
+          ((await db.from("user_memory").select("value").eq("user_id", userId).eq("type", "identity").eq("key", "preferred_lang").maybeSingle()).data?.value as string | undefined) ?? null,
         send: async (m) => (await sendOne({ from: fromAddress("Imotara"), replyTo: "social@imotara.com", ...m })).ok,
       })
     : { sent: 0, errors: ["Resend not configured — grace emails not sent"] };

@@ -4865,7 +4865,7 @@ export default function ChatPage() {
             })()}
 
             {/* "Your last payment didn't go through" — only while a store subscription is in grace (6 Nov 2026) */}
-            <BillingIssueBanner />
+            <BillingIssueBanner lang={preferredLang} />
 
             {/* Breathing widget — shown above composer when toggled */}
             {showBreathing && (

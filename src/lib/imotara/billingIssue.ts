@@ -18,6 +18,7 @@
 // run, every write here fails soft and logs — the renewal sweep is unaffected.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { graceBanner, graceEmailLines, graceLang } from "@/lib/imotara/graceNoticeText";
 
 export type BillingStore = "apple" | "google_play";
 export type BillingIssue = { kind: "grace"; until: string; store: BillingStore };
@@ -29,9 +30,6 @@ export const MANAGE_URL: Record<BillingStore, string> = {
 };
 
 const STORE_NAME: Record<BillingStore, string> = { apple: "App Store", google_play: "Google Play" };
-/** English takes "in the App Store" but "on Google Play". */
-const ON_STORE: Record<BillingStore, string> = { apple: "in the App Store", google_play: "on Google Play" };
-const THE_STORE: Record<BillingStore, string> = { apple: "the App Store", google_play: "Google Play" };
 
 /** The licence row ⇒ the issue to show, or null. A grace date already past is no longer an issue. */
 export function billingIssueFromRow(
@@ -73,37 +71,28 @@ export function humanDate(iso: string): string {
 }
 
 /**
- * The one email. ⚠️ Written like a person (house style): no images, no button,
- * one link, no "AI". English first — the owner reviews the words before the
- * 22-language versions are made.
+ * The one email, in the person's language (#85, 11 Nov 2026) ⇒ graceNoticeText.ts.
+ * ⚠️ Written like a person (house style): no images, no button, one link, no
+ * "AI". English is the owner-approved text of 6 Nov, word for word.
  */
-export function graceEmail(issue: BillingIssue): { subject: string; text: string; html: string } {
-  const when = humanDate(issue.until);
+export function graceEmail(issue: BillingIssue, lang?: string | null): { subject: string; text: string; html: string } {
   const url = MANAGE_URL[issue.store];
   const where = STORE_NAME[issue.store];
-  const subject = "Your Imotara Plus payment didn't go through";
-  const lines = [
-    "Hi,",
-    "",
-    `Your last payment for Imotara Plus didn't go through ${ON_STORE[issue.store]}. Nothing is lost: Plus stays on until ${when} while ${THE_STORE[issue.store]} tries again.`,
-    "",
-    `To keep it, please check the card or payment method in your ${where} subscriptions:`,
-    url,
-    "",
-    "If you meant to stop Plus, you don't need to do anything — Imotara stays free to use.",
-    "",
-    "— The Imotara team",
-  ];
+  const { subject, lines } = graceEmailLines(issue.store, issue.until, url, lang);
+  const linkText = graceLang(lang) === "en" ? `Open my ${where} subscriptions` : graceBanner(issue.store, issue.until, lang).button;
   const text = lines.join("\n");
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const rtl = ["ar", "ur", "he"].includes(graceLang(lang));
   const html = lines
-    .map((l) => (l === url ? `<a href="${url}">${esc(`Open my ${where} subscriptions`)}</a>` : esc(l)))
+    .map((l) => (l === url ? `<a href="${url}">${esc(linkText)}</a>` : esc(l)))
     .join("<br>");
-  return { subject, text, html: `<div style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5">${html}</div>` };
+  return { subject, text, html: `<div${rtl ? ' dir="rtl"' : ""} style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5">${html}</div>` };
 }
 
 export type NotifyDeps = {
   emailOf: (userId: string) => Promise<string | null>;
+  /** The person's chosen language (user_memory preferred_lang); missing ⇒ English. */
+  langOf?: (userId: string) => Promise<string | null>;
   send: (m: { to: string; subject: string; text: string; html: string }) => Promise<boolean>;
   now?: number;
 };
@@ -124,7 +113,8 @@ export async function notifyGraceOnce(admin: SupabaseClient, deps: NotifyDeps) {
     if (!issue) continue;
     const to = await deps.emailOf(row.user_id as string);
     if (!to) continue; // a guest or a deleted address: the banner still tells them
-    const ok = await deps.send({ to, ...graceEmail(issue) });
+    const lang = deps.langOf ? await deps.langOf(row.user_id as string).catch(() => null) : null;
+    const ok = await deps.send({ to, ...graceEmail(issue, lang) });
     if (!ok) { errors.push(`send failed for ${row.user_id}`); continue; }
     const { error: stampErr } = await admin
       .from("licenses")

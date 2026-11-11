@@ -204,6 +204,15 @@ Both Razorpay (`/api/payments/razorpay/corporate`) and Stripe (corporate mode) c
 
 ---
 
+### 4.6 Payment failed — the grace-period notice (web, Android, iOS)
+
+When an App Store or Google Play renewal fails, the store keeps Plus on for a **grace period** while it retries. The daily `/api/cron/store-renewals` job asks each store, writes `billing_issue = grace` + the date on the licence, and clears it once the store is paid.
+
+- **What the person sees:** a calm one-line banner above the chat box — "Your last payment for Imotara Plus didn't go through on Google Play. Plus stays on until 22 November — update your payment method to keep it." — with one button to the store's own subscription page (only the store can fix a card). Plus is **not** removed early; this only tells them.
+- **One email**, sent once (`billing_issue_notified_at` stamps it), from Imotara with reply-to social@imotara.com.
+- **Language (since 11 Nov 2026, #85):** banner, button and email are in the person's chosen language — all 22 (`preferred_lang`; English if unknown). Dates are written in that language ("22 नवंबर", "22. November", "11月22日"); Arabic, Urdu and Hebrew read right to left. Store names stay "App Store" / "Google Play". Words live in `src/lib/imotara/graceNoticeText.ts`, mirrored byte-for-byte in the app at `src/licensing/graceNoticeText.ts` (a test on each side keeps them identical). Web: live on deploy. App: from the next app release.
+- **Support answer:** "Your card payment failed at the store, but nothing is lost yet. Plus stays on until the date shown. Update the card in your App Store / Google Play subscriptions and it carries on. If you meant to stop Plus, you don't need to do anything — Imotara stays free."
+
 ## 5. Granting / seeding a license manually
 
 ### 5.1 Auto-seed on sign-in — `POST /api/license/seed`

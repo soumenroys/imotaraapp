@@ -11,31 +11,34 @@
 import { useSyncExternalStore } from "react";
 import { getLicenseServerSnapshot, getLicenseSnapshot, subscribeLicenseStore } from "@/lib/imotara/licenseStore";
 
-const MANAGE: Record<"apple" | "google_play", { url: string; label: string; store: string }> = {
-  apple: { url: "https://apps.apple.com/account/subscriptions", label: "Update payment in the App Store", store: "in the App Store" },
-  google_play: { url: "https://play.google.com/store/account/subscriptions?package=com.imotara.imotara", label: "Update payment in Google Play", store: "on Google Play" },
+import { graceBanner, graceLang } from "@/lib/imotara/graceNoticeText";
+
+const MANAGE_URL: Record<"apple" | "google_play", string> = {
+  apple: "https://apps.apple.com/account/subscriptions",
+  google_play: "https://play.google.com/store/account/subscriptions?package=com.imotara.imotara",
 };
 
-export function billingBannerText(store: "apple" | "google_play", until: string): string {
-  const when = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(until));
-  return `Your last payment for Imotara Plus didn't go through ${MANAGE[store].store}. Plus stays on until ${when} — update your payment method to keep it.`;
+/** The banner sentence in the person's language (#85) — English is the owner-approved text of 6 Nov. */
+export function billingBannerText(store: "apple" | "google_play", until: string, lang?: string | null): string {
+  return graceBanner(store, until, lang).text;
 }
 
-export default function BillingIssueBanner() {
+export default function BillingIssueBanner({ lang }: { lang?: string | null } = {}) {
   const snap = useSyncExternalStore(subscribeLicenseStore, getLicenseSnapshot, getLicenseServerSnapshot);
   const issue = snap.data?.billingIssue;
   if (!issue || issue.kind !== "grace" || Date.parse(issue.until) <= Date.now()) return null;
-  const m = MANAGE[issue.store];
+  const g = graceBanner(issue.store, issue.until, lang);
+  const rtl = ["ar", "ur", "he"].includes(graceLang(lang));
   return (
-    <div role="status" className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
-      <span className="flex-1 min-w-[12rem]">{billingBannerText(issue.store, issue.until)}</span>
+    <div role="status" dir={rtl ? "rtl" : undefined} className="mx-auto mb-3 flex max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+      <span className="flex-1 min-w-[12rem]">{g.text}</span>
       <a
-        href={m.url}
+        href={MANAGE_URL[issue.store]}
         target="_blank"
         rel="noopener noreferrer"
         className="shrink-0 rounded-lg border border-amber-400/30 px-2.5 py-1 font-medium text-amber-100 hover:bg-amber-400/10"
       >
-        {m.label}
+        {g.button}
       </a>
     </div>
   );

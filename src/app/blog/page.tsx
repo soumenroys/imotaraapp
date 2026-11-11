@@ -5,6 +5,7 @@ import BlogListClient from "@/components/blog/BlogListClient";
 import { OG_IMAGE } from "@/lib/seo/ogImage";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "https://www.imotara.com/blog" },
   title: "Blog",
   description:
     "Thoughts on emotional wellness, mindfulness, AI, and building a kinder inner world — from the Imotara team.",

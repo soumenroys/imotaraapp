@@ -5,6 +5,7 @@ import { INDIA_CRISIS_RESOURCES } from "@/lib/safety/crisisResources";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
+  alternates: { canonical: "https://www.imotara.com/contact" },
   title: brandTitle("Contact Us — Imotara"),
   description:
     "How to reach Imotara — support email, phone, and our registered business address. Not a crisis service.",

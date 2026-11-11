@@ -28,7 +28,7 @@ import { describe, it, expect } from "vitest";
 const ROOT = path.join(__dirname, "..");
 const FILES = [
     "app/layout.tsx",
-    "app/page.tsx",
+    "app/HomeClient.tsx",
     // ⚠️ ADDED 2026-10-16, WHEN THE FAQ SCHEMA MOVED. It used to live in
     // layout.tsx; it now lives here, because the root layout was emitting
     // FAQPage on every url including /privacy. The guards below must follow

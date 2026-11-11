@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 
-const home = readFileSync("src/app/page.tsx", "utf8");
+const home = readFileSync("src/app/HomeClient.tsx", "utf8");
 const notice = readFileSync("src/components/imotara/LocalDataNotice.tsx", "utf8");
 const chat = readFileSync("src/app/chat/page.tsx", "utf8");
 const banner = readFileSync("src/components/imotara/FirstVisitBanner.tsx", "utf8");

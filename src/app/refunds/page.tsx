@@ -4,6 +4,7 @@ import { BUSINESS } from "@/lib/imotara/businessIdentity";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
+  alternates: { canonical: "https://www.imotara.com/refunds" },
   title: brandTitle("Refund & Cancellation Policy — Imotara"),
   description:
     "How to cancel an Imotara plan and how refunds work — on the web, on iOS and on Android.",

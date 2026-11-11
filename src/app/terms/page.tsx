@@ -3,6 +3,7 @@ import PageShell from "@/components/imotara/PageShell";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
+  alternates: { canonical: "https://www.imotara.com/terms" },
   title: brandTitle("Terms of Service — Imotara"),
   description:
     "The terms that govern your use of Imotara — responsibilities, disclaimers, and legal basics.",

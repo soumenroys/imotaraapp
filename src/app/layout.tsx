@@ -138,15 +138,11 @@ export const metadata: Metadata = {
     shortcut: "/favicon-32.png",
     apple: "/apple-touch-icon.png",
   },
+  // 🔴 #128 (11 Nov 2026): NO canonical / language links here. Every page that did not set
+  //    its own inherited "canonical = the homepage" — /blog, /privacy, /terms, /contact,
+  //    /refunds, /donate, /help, /pricing/corporate all told search engines "I am the homepage".
+  //    Each page declares its own (the homepage in app/page.tsx). Test: canonicalsPointToThemselves.
   alternates: {
-    canonical: siteUrl,
-    languages: {
-      en: siteUrl,
-      hi: `${siteUrl}/hi`,
-      bn: `${siteUrl}/bn`,
-      ta: `${siteUrl}/ta`,
-      "x-default": siteUrl,
-    },
     types: { "application/rss+xml": `${siteUrl}/rss.xml` },
   },
   verification: {

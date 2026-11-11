@@ -31,6 +31,9 @@ export const FUNNEL_STEPS = {
     purchase_ok: 10,
     purchase_cancel: 11,
     quota_hit: 12,
+    // #130 D (11 Nov 2026): typed on a landing page and pressed send · that text then sent in the chat
+    landing_send: 13,
+    landing_sent: 14,
 } as const;
 export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];

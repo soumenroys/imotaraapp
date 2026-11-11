@@ -4,8 +4,8 @@ How cross-device sync works, what Imotara stores (and pointedly does not collect
 
 ## Our privacy promise, in short
 
-- By default, your conversations live **locally on your own device**.
-- Cloud sync and cloud analysis only happen **with your consent** — you choose the mode.
+- By default, your conversations are **saved securely in your Imotara account**, with a copy on your device, and replies come from our secure servers.
+- You can switch to **on-device only (Local)** at any time — then nothing is sent and nothing is backed up.
 - **No ads. No third-party tracking. No analytics on your emotional content. Your data is never sold.** There are no public profiles and no social feed.
 - Cloud data is encrypted in transit and at rest, and only you can access your own records.
 - You can export or delete your data at any time, on **every plan** — including Free.
@@ -122,4 +122,4 @@ It takes effect immediately, including for any message already queued to go out.
 
 ## A note on guest data
 
-If you use Imotara without signing in, your data exists only on that device. Reinstalling the app or clearing browser storage removes it permanently — there is no way for us to recover it, because we never had it. If your history matters to you, sign in so it's backed up.
+If you use Imotara without signing in, your history is still saved securely with us, under an anonymous id that belongs to that device or browser — no name, no email. Reinstalling the app or clearing browser storage loses that id, and without it we cannot connect you to that history again. If your history matters to you, sign in so it follows you to any device.

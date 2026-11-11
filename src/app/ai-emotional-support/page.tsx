@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import MoodStartRow from "@/components/imotara/MoodStartRow";
+import FirstMessageBox from "@/components/imotara/FirstMessageBox";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 const SITE_URL = "https://www.imotara.com";
@@ -87,6 +88,8 @@ export default function AiEmotionalSupportPage() {
             and without selling your data. Talk about anything on your mind and receive gentle, thoughtful reflections
             in your language, at your pace.
           </p>
+          {/* #130 D: say the first thing right here ⇒ components/imotara/FirstMessageBox.tsx */}
+          <FirstMessageBox from="ai-emotional-support" />
           {/* #77f: one tap from "how I feel" to a written opener in the chat */}
           <MoodStartRow from="ai-emotional-support" />
           <div className="mt-6 flex flex-wrap gap-3">

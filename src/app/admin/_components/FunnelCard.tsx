@@ -10,6 +10,7 @@ const LABEL: Record<string, string> = {
   welcome_shown: "Welcome-back shown", welcome_pick: "Welcome-back → Pick up", welcome_fresh: "Welcome-back → Start fresh",
   checkin_opened: "Check-in reminder opened", upgrade_view: "Upgrade page viewed", checkout_start: "Checkout started",
   purchase_ok: "Payment done", purchase_cancel: "Checkout closed / failed", quota_hit: "Daily free limit reached",
+  landing_send: "Landing box → Send pressed", landing_sent: "Landing message sent in chat",
 };
 const rate = (v: number | null) => (v === null ? "—" : `${v}%`);
 
@@ -30,6 +31,7 @@ export default function FunnelCard({ days }: { days: number }) {
       {d && (
         <>
           <div className="mb-3 grid grid-cols-2 gap-2 text-xs text-zinc-300 md:grid-cols-4">
+            <div>Landing box → sent in chat: <b>{rate(d.rates.landingCarried)}</b></div>
             <div>Invite accepted: <b>{rate(d.rates.inviteAccepted)}</b></div>
             <div>Welcome-back picked: <b>{rate(d.rates.welcomePicked)}</b></div>
             <div>Upgrade → checkout: <b>{rate(d.rates.viewToCheckout)}</b></div>

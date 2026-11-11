@@ -16,7 +16,7 @@ describe("the tally accepts only real funnel steps", () => {
   });
   it("valid steps pass; anything else is dropped", () => {
     expect(parseTallyEvents({ events: [{ kind: "funnel", bucket: 1, delta: 1 }, { kind: "funnel", bucket: 12, delta: 1 }] })).toHaveLength(2);
-    expect(parseTallyEvents({ events: [{ kind: "funnel", bucket: 13, delta: 1 }, { kind: "funnel", bucket: 0, delta: 1 }, { kind: "funnel", bucket: 2, delta: 5 }] })).toHaveLength(0);
+    expect(parseTallyEvents({ events: [{ kind: "funnel", bucket: 15, delta: 1 }, { kind: "funnel", bucket: 0, delta: 1 }, { kind: "funnel", bucket: 2, delta: 5 }] })).toHaveLength(0);
   });
   it("the database change exists and only widens the kind check", () => {
     const sql = read("docs/sql/visit_tallies_funnel.sql");
@@ -63,7 +63,7 @@ describe("the admin summary", () => {
       { platform: "web", bucket: 99, hits: 7 },
     ]);
     expect(s.steps.find((x) => x.step === "invite_shown")).toMatchObject({ web: 10, android: 10, total: 20 });
-    expect(s.rates).toEqual({ inviteAccepted: 25, welcomePicked: null, viewToCheckout: 50, checkoutToPaid: 50 });
+    expect(s.rates).toEqual({ landingCarried: null, inviteAccepted: 25, welcomePicked: null, viewToCheckout: 50, checkoutToPaid: 50 });
   });
   it("the admin endpoint is admin-only", () => {
     expect(read("src/app/api/admin/funnel/route.ts")).toMatch(/if \(!\(await adminAuthorized\(req\)\)\) return NextResponse\.json\(\{ error: "unauthorized" \}, \{ status: 401 \}\)/);

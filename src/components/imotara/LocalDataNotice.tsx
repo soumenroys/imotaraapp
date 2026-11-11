@@ -80,9 +80,10 @@ export default function LocalDataNotice() {
                     </p>
 
                     <p className="leading-snug text-zinc-300">
-                        Your chat history is kept <b>on this device</b>. To reply, your
-                        messages are sent to our secure servers. You can switch to
-                        on-device only replies in Settings.
+                        {/* #127 (11 Nov 2026): history is saved with us by default — never say "on this device" only. */}
+                        Your chat history is <b>saved securely with us</b>, with a copy in this
+                        browser. To reply, your messages are sent to our secure servers. You can
+                        switch to on-device only in Settings.
                     </p>
                 </div>
 

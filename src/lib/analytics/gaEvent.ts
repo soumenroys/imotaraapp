@@ -15,7 +15,7 @@ import { gaMeasurementId, isUntrackedPath } from "@/lib/analytics/ga";
 
 type GtagWindow = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void };
 
-export function gaEvent(name: "sign_up" | "login" | "first_message" | "home_mood", params: Record<string, unknown> = {}): void {
+export function gaEvent(name: "sign_up" | "login" | "first_message" | "home_mood" | "landing_first_message", params: Record<string, unknown> = {}): void {
   if (typeof window === "undefined") return;
   const id = gaMeasurementId();
   if (!id || isUntrackedPath(window.location.pathname)) return;

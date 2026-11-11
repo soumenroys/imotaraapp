@@ -120,6 +120,7 @@ import {
 import { returningFeeling, returningLangOf, returningLine, type FeelingDetectors } from "@/lib/imotara/returningLine";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent, tallyFunnel } from "@/lib/analytics/visitTallyClient";
+import { takeLandingDraft } from "@/lib/imotara/landingDraft";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
 import { moodStarter } from "@/lib/imotara/homeMoods";
 import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
@@ -1835,6 +1836,23 @@ export default function ChatPage() {
     composerRef.current?.focus();
   }, [mounted, urlMood, activeIsEmpty, preferredLang, draft]);
 
+  // #130 D (11 Nov 2026): the first thing typed on a landing page arrives in the box —
+  // from sessionStorage, read ONCE (never from the URL). Only into an EMPTY box, never sent
+  // for them — they see it and press send themselves.
+  // ⇒ lib/imotara/landingDraft.ts
+  const landingDraftRef = useRef<string | null>(null);
+  const landingTakenRef = useRef(false);
+  useEffect(() => {
+    if (!mounted || landingTakenRef.current) return;
+    landingTakenRef.current = true;
+    const t = takeLandingDraft();
+    if (!t || draft.trim() !== "") return; // their own words: fine in an ongoing conversation too
+    landingDraftRef.current = t;
+    setDraft(t);
+    composerRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted]);
+
   // Emotion-reactive ambient glow — derived from latest non-neutral emotion in current thread
   const latestEmotion = useMemo(() => {
     if (!activeThread?.messages?.length) return null;
@@ -3098,6 +3116,7 @@ export default function ChatPage() {
     // ⇒ lib/analytics/visitTallyClient.ts (owner, 31 Oct 2026).
     noteMessageSent();
     noteFirstMessageForGa(); // GA key event, once per device ⇒ lib/analytics/gaEvent.ts
+    if (landingDraftRef.current !== null) { landingDraftRef.current = null; tallyFunnel("landing_sent"); } // #130 D count only
 
     let targetId = activeId;
     let createdNewThread = false;
@@ -4045,9 +4064,9 @@ export default function ChatPage() {
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-300/90">
                           {remoteAllowed
-                            ? "Your history is kept on this device, and you can switch to on-device only in Settings. You can "
+                            ? "Your history is saved securely with us, with a copy in this browser, and you can switch to on-device only in Settings. You can "
                             : "Your words stay on-device unless you explicitly allow remote. You can "}
-                          <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete what&apos;s stored on this device</Link>{" "}
+                          <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete your data</Link>{" "}
                           anytime.
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-400">

@@ -301,7 +301,8 @@ export async function GET(req: Request) {
       const result = await sendPushNotification(sub, {
         ...nudge,
         icon: "/android-chrome-192.png",
-        url: "/chat",
+        // #129: ?src=checkin lets the chat page count "reminder opened" (anonymous tally).
+        url: "/chat?src=checkin",
       });
 
       if (result.ok) {

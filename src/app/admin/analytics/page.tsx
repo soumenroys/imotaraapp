@@ -18,6 +18,7 @@ import { AdminShell, Card, Tile, useAdminRole } from "@/app/admin/_components/ui
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { Insights } from "@/app/admin/_components/Insights";
+import FunnelCard from "@/app/admin/_components/FunnelCard";
 import { LineChart, Donut, SplitBar, RetentionCurve } from "@/app/admin/_components/charts";
 import { insightsFor, pooledRetention } from "@/lib/admin/insights";
 
@@ -195,6 +196,8 @@ export default function AdminAnalyticsPage() {
               ]}
             />
           </Card>
+
+          <FunnelCard days={days} />
 
           <Card title="Daily activity" hint="Events against the number of people who caused them. The gap between the two lines is how much each person is doing.">
             <LineChart

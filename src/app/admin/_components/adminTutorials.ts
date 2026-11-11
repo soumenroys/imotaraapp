@@ -148,6 +148,10 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
         do: "“Do they come back?” is the question that matters most.",
         then: "Each row is the people who first appeared on that day. A dash means that group is not old enough to answer yet.",
       },
+      {
+        do: "The Funnel card: did the invite, the welcome-back card and the upgrade page do anything?",
+        then: "Each step counts devices once per day — anonymous, no names. Read the four rates at the top (invite accepted, welcome-back picked, upgrade → checkout, checkout → paid). Web from 11 Nov 2026; the apps from their next release.",
+      },
     ],
     footnote:
       "⚠️ usage_events records costly things — a cloud reply, a spoken reply, a transcription. It is not a clickstream: it cannot tell you where somebody came from or what they tapped.",

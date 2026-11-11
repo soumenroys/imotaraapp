@@ -119,7 +119,7 @@ import {
 } from "@/lib/emotion/keywordMaps";
 import { returningFeeling, returningLangOf, returningLine, type FeelingDetectors } from "@/lib/imotara/returningLine";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
-import { noteMessageSent } from "@/lib/analytics/visitTallyClient";
+import { noteMessageSent, tallyFunnel } from "@/lib/analytics/visitTallyClient";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
 import { moodStarter } from "@/lib/imotara/homeMoods";
 import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
@@ -1001,6 +1001,10 @@ export default function ChatPage() {
   const [inviteLang, setInviteLang] = useState<string | null>(null);
   // 🌿 #16 C: the "Welcome back" card for this visit (decided once, on arrival).
   const [welcomeBack, setWelcomeBack] = useState<LastSession | null>(null);
+  // #129: a check-in reminder was tapped — the service worker opens /chat?src=checkin.
+  useEffect(() => { try { if (new URLSearchParams(window.location.search).get("src") === "checkin") tallyFunnel("checkin_opened"); } catch { /* ignore */ } }, []);
+  // #129: anonymous funnel count — the card was shown (once per device per day).
+  useEffect(() => { if (welcomeBack) tallyFunnel("welcome_shown"); }, [welcomeBack]);
   useEffect(() => {
     try {
       const last = readLastSession();
@@ -2776,6 +2780,7 @@ export default function ChatPage() {
             aiMetaFrom = "openai";
           } else if ((resp as any)?.meta?.from === "quota_exceeded") {
             cloudQuotaHit = true;
+            tallyFunnel("quota_hit"); // #129 anonymous funnel count
           }
         } catch (err) {
           setStreamingReply("");
@@ -4852,11 +4857,11 @@ export default function ChatPage() {
                   {w.lines.map((l, i) => <p key={i} className={i === 0 ? "font-semibold" : "mt-0.5 text-zinc-200"}>{l}</p>)}
                   <div className="mt-2 flex flex-wrap gap-2">
                     <button type="button" className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-500"
-                      onClick={() => { if (threads.some((t) => t.id === wb.threadId)) setActiveId(wb.threadId); dismissWelcomeBack(wb); }}>
+                      onClick={() => { tallyFunnel("welcome_pick"); if (threads.some((t) => t.id === wb.threadId)) setActiveId(wb.threadId); dismissWelcomeBack(wb); }}>
                       {w.pick}
                     </button>
                     <button type="button" className="rounded-xl border border-violet-400/40 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-white/5"
-                      onClick={() => { newThread(); dismissWelcomeBack(wb); }}>
+                      onClick={() => { tallyFunnel("welcome_fresh"); newThread(); dismissWelcomeBack(wb); }}>
                       {w.fresh}
                     </button>
                   </div>

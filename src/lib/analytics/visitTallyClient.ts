@@ -12,6 +12,8 @@
 // so each visit is counted once at its final size.
 
 import {
+    FUNNEL_STEPS,
+    type FunnelStep,
     ageBucket,
     messagesBucket,
     minutesBucket,
@@ -110,3 +112,25 @@ export function reportVisit(now = Date.now()) {
     v.sent = sent;
     save(s);
 }
+
+/**
+ * #129 (11 Nov 2026): count one funnel step — anonymously, at most ONCE per device per day per
+ * step, so a rate (accepted ÷ shown) means "share of devices", not "share of re-renders".
+ * ⛔ Never throws, never blocks: a lost count is not worth a broken screen.
+ */
+const FUNNEL_KEY = "imotara.funnelTally.v1";
+export function funnelOncePerDay(seen: Record<string, string>, step: FunnelStep, today: string): boolean {
+    return seen[step] !== today;
+}
+export function tallyFunnel(step: FunnelStep, now: number = Date.now()): void {
+    try {
+        const today = localDay(now);
+        let seen: Record<string, string> = {};
+        try { seen = JSON.parse(localStorage.getItem(FUNNEL_KEY) ?? "{}") as Record<string, string>; } catch { seen = {}; }
+        if (!funnelOncePerDay(seen, step, today)) return;
+        seen[step] = today;
+        try { localStorage.setItem(FUNNEL_KEY, JSON.stringify(seen)); } catch { /* private mode */ }
+        send([{ kind: "funnel", bucket: FUNNEL_STEPS[step], delta: 1 }]);
+    } catch { /* never in the way */ }
+}
+

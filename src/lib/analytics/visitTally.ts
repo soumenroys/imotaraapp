@@ -11,7 +11,28 @@
 // Shared by the route (validation) and the web client (bucketing), so both
 // sides agree on exactly the same buckets.
 
-export const TALLY_KINDS = ["visit_age", "session_messages", "session_minutes"] as const;
+export const TALLY_KINDS = ["visit_age", "session_messages", "session_minutes", "funnel"] as const;
+
+/**
+ * #129 (11 Nov 2026): anonymous FUNNEL steps — a daily count per step, nothing about who.
+ * ⛔ The numbers are stored; never renumber a step (old rows would change meaning). Add at the end.
+ * ⇒ docs/sql/visit_tallies_funnel.sql widens the table's kind check to allow 'funnel'.
+ */
+export const FUNNEL_STEPS = {
+    invite_shown: 1,
+    invite_accepted: 2,
+    invite_declined: 3,
+    welcome_shown: 4,
+    welcome_pick: 5,
+    welcome_fresh: 6,
+    checkin_opened: 7,
+    upgrade_view: 8,
+    checkout_start: 9,
+    purchase_ok: 10,
+    purchase_cancel: 11,
+    quota_hit: 12,
+} as const;
+export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];
 export type TallyEvent = { kind: TallyKind; bucket: number; delta: 1 | -1 };
 
@@ -43,6 +64,7 @@ const ALLOWED: Record<TallyKind, ReadonlySet<number>> = {
     visit_age: new Set([...Array.from({ length: 31 }, (_, i) => i), 31, 91]),
     session_messages: new Set([0, 1, 2, 3, 4, 5, 6, 11]),
     session_minutes: new Set([0, 1, 2, 3, 6, 11, 21]),
+    funnel: new Set(Object.values(FUNNEL_STEPS)),
 };
 
 /** At most this many events in one request — a visit moving buckets sends 4. */

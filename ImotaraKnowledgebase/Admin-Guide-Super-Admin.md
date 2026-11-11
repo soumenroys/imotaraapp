@@ -664,3 +664,14 @@ There used to be a second way in: a single shared secret sent as `Authorization:
 **If you ever genuinely need break-glass access**, the path is `git revert` of the UI removal, **re-creating `ADMIN_SECRET` in Vercel with a freshly generated value**, setting `ADMIN_SECRET_DISABLED=false`, and redeploying — a deliberate, reviewable act, not an env var someone can quietly flip.
 
 ⛔ **The `ADMIN_SECRET` variable was DELETED from Vercel on 16 Oct 2026** (Production and Preview — it had no Development target) and the project redeployed. The old value is **gone and unrecoverable**, which is the point: break-glass now means minting a new key on purpose, not reusing a secret that had been sitting in the dashboard since 17 May 2026.
+
+## Funnel (anonymous) — Admin → Analytics (added 11 Nov 2026, #129)
+
+A card on Admin → Analytics counts how many devices reached each step, **once per device per day**, with no names or accounts (table `visit_tallies`, kind `funnel`; endpoint `GET /api/admin/funnel?days=30`, admin only).
+
+Steps: check-in invite shown / accepted / declined · welcome-back shown / Pick up / Start fresh · check-in reminder opened (the push opens `/chat?src=checkin`) · upgrade page viewed · checkout started · payment done · checkout closed or failed · daily free limit reached. Rates shown: invite accepted, welcome-back picked, upgrade → checkout, checkout → paid.
+
+- Web counts from 11 Nov 2026; the apps from their next release.
+- Needs `docs/sql/visit_tallies_funnel.sql` run once (widens the kind check). Until then the counts are dropped silently.
+- Step numbers are stored — never renumber; add new steps at the end (`FUNNEL_STEPS` in `src/lib/analytics/visitTally.ts`).
+

@@ -8,6 +8,7 @@ import { Check, X as XIcon } from "lucide-react";
 import { createBrowserClient } from "@supabase/ssr";
 import useLicense, { refreshLicense } from "@/hooks/useLicense";
 import { paiseFor, inr } from "@/lib/imotara/pricing";
+import { tallyFunnel } from "@/lib/analytics/visitTallyClient";
 
 const PENDING_KEY = "imotara_pending_purchase";
 type PendingPurchase = { productId: string; description: string };
@@ -139,7 +140,7 @@ export default function UpgradePage() {
     // checkoutRef lets the auth-state listener always call the latest checkout closure
     const checkoutRef = useRef<(productId: string, description: string) => void>(() => {});
 
-    useEffect(() => { setMounted(true); }, []);
+    useEffect(() => { setMounted(true); tallyFunnel("upgrade_view"); }, []); // #129 anonymous funnel count
 
     useEffect(() => {
         loadRazorpay().then(setRzReady).catch(() => setRzReady(false));
@@ -261,6 +262,7 @@ export default function UpgradePage() {
                     setBusy(null);
                     const paymentId = response?.razorpay_payment_id as string | undefined;
                     if (!paymentId) { setStatus({ type: "error", msg: "Payment ID missing. Contact support." }); return; }
+                    tallyFunnel("purchase_ok"); // #129
                     // Confirm grant on server
                     const confirm = await fetch("/api/license/verify-payment", {
                         method: "POST",
@@ -278,15 +280,17 @@ export default function UpgradePage() {
                         setStatus({ type: "success", msg: "Payment received. Your plan will activate within a minute." });
                     }
                 },
-                modal: { ondismiss: () => { setBusy(null); setStatus({ type: "error", msg: "Checkout closed. No payment was made." }); } },
+                modal: { ondismiss: () => { tallyFunnel("purchase_cancel"); setBusy(null); setStatus({ type: "error", msg: "Checkout closed. No payment was made." }); } },
             };
             const rzp = new (window as any).Razorpay(options);
             rzp.on("payment.failed", (resp: any) => {
+                tallyFunnel("purchase_cancel"); // #129
                 setBusy(null);
                 setStatus({ type: "error", msg: resp?.error?.description || "Payment failed. Please try again." });
             });
             rzp.open();
             modalOpened = true;
+            tallyFunnel("checkout_start"); // #129
         } catch (e: any) {
             setStatus({ type: "error", msg: e?.message || "Something went wrong. Please try again." });
         } finally {

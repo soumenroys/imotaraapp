@@ -3,11 +3,12 @@
 // The one-time "Shall I check in with you tomorrow?" card ⇒ lib/imotara/checkInInviteStrings.
 // Mirrors the phone's card. ⛔ The browser asks for permission only after a time is tapped.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { isRtlLang } from "@/lib/lang/rtlLangs";
 import { formatHour, getInviteStrings, INVITE_HOURS, setInviteState } from "@/lib/imotara/checkInInviteStrings";
 import { enableDailyCheckIn } from "@/lib/imotara/enableDailyCheckIn";
+import { tallyFunnel } from "@/lib/analytics/visitTallyClient";
 
 export default function CheckInInviteCard(props: {
     lang?: string;
@@ -16,6 +17,9 @@ export default function CheckInInviteCard(props: {
     const s = getInviteStrings(props.lang);
     const rtl = isRtlLang(props.lang);
     const [busy, setBusy] = useState(false);
+    // #129: anonymous funnel count — shown / accepted / declined (once per device per day).
+    useEffect(() => { tallyFunnel("invite_shown"); }, []);
+    const decide = (s: "accepted" | "declined") => { setInviteState(s); tallyFunnel(s === "accepted" ? "invite_accepted" : "invite_declined"); };
 
     async function pick(hour: number) {
         if (busy) return;
@@ -23,7 +27,7 @@ export default function CheckInInviteCard(props: {
         const r = await enableDailyCheckIn(hour);
         setBusy(false);
         if (r.ok) {
-            setInviteState("accepted");
+            decide("accepted");
             props.onDone({ message: s.done(formatHour(hour, props.lang)), type: "info" });
         } else if (r.reason === "failed") {
             // 🔴 OUR failure, not theirs (25 Oct: the server refused every subscription).
@@ -31,7 +35,7 @@ export default function CheckInInviteCard(props: {
             props.onDone({ message: "Couldn't save the reminder just now — please try again later.", type: "error" });
         } else {
             // ⛔ Declined or unavailable: retire the card rather than ask again.
-            setInviteState("declined");
+            decide("declined");
             props.onDone({ message: s.blocked, type: "error" });
         }
     }
@@ -54,11 +58,11 @@ export default function CheckInInviteCard(props: {
                         className={`${chip} border border-violet-500/35 text-zinc-800 dark:text-zinc-200 hover:bg-violet-500/10`}>
                         ☀️ {formatHour(INVITE_HOURS.morning, props.lang)}
                     </button>
-                    <Link href="/settings" onClick={() => { setInviteState("declined"); props.onDone(null); }}
+                    <Link href="/settings" onClick={() => { decide("declined"); props.onDone(null); }}
                         className={`${chip} border border-violet-500/35 text-zinc-800 dark:text-zinc-200 hover:bg-violet-500/10`}>
                         {s.choose}
                     </Link>
-                    <button disabled={busy} onClick={() => { setInviteState("declined"); props.onDone(null); }}
+                    <button disabled={busy} onClick={() => { decide("declined"); props.onDone(null); }}
                         className={`${chip} text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300`}>
                         {s.later}
                     </button>

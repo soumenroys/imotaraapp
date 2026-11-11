@@ -40,8 +40,8 @@ describe("the AI-assistant landing pages say the same true thing", () => {
   it.each(pages)("%s: ⛔ no 'on-device by default' / 'local-first' / 'no data sharing' claims", (_s, src) => {
     expect(src).not.toMatch(/stay on your device by default|stored on your device by default|On-device by default|local-first by design|stores data locally by default|without sharing your data|no data sharing|By default all data is stored locally/i);
   });
-  it.each(pages)("%s: says replies use our secure servers and offers the one-tap moods", (_s, src) => {
-    expect(src).toMatch(/secure servers/);
+  it.each(pages)("%s: says replies go to our service providers and offers the one-tap moods", (_s, src) => {
+    expect(src).toMatch(/service providers/);
     expect(src).toMatch(/<MoodStartRow from="/);
   });
 });

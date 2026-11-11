@@ -34,7 +34,7 @@ export const HOME_FAQ_SCHEMA = {
       name: "Is Imotara free to use?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes. Imotara is free to use and no subscription is required. A free account includes 20 cloud AI replies a day, your last 7 days of history, and unlimited on-device replies. Imotara Plus adds unlimited replies, full history and deeper insights.",
+        text: "Yes. Imotara is free to use and no subscription is required. Free includes 20 full replies a day (simpler replies made on your phone after that) and your last 7 days of history; Imotara Plus adds unlimited replies, full history and deeper insights.",
       },
     },
     {
@@ -42,7 +42,7 @@ export const HOME_FAQ_SCHEMA = {
       name: "Is my data private on Imotara?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes. By default, all your conversations are stored only on your device (local-first). Cloud sync is optional and only activates with your explicit consent. Imotara has no ads and does not sell your data.",
+        text: "Your conversations are saved securely in Imotara's cloud — when you're signed in, they follow you to your other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. Imotara has no ads, no tracking and never sells your data.",
       },
     },
     {
@@ -74,7 +74,7 @@ export const HOME_FAQ_SCHEMA = {
       name: "Can I use Imotara offline?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Yes. The web app works offline as a PWA and mobile apps support offline use. Your conversations are stored locally on your device by default.",
+        text: "Partly. Without a connection the app can still give simpler replies made on your phone; full replies need the internet.",
       },
     },
     {
@@ -82,7 +82,7 @@ export const HOME_FAQ_SCHEMA = {
       name: "How does Imotara work?",
       acceptedAnswer: {
         "@type": "Answer",
-        text: "Imotara uses advanced language technology for cloud-based reflections. You can also use the app in fully local mode on your device for complete privacy.",
+        text: "Replies are written by software at our service providers, in the language you use. In Settings you can choose simpler replies made on your phone instead.",
       },
     },
   ],

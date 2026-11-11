@@ -29,7 +29,7 @@ It is designed for people worldwide, in 22 languages — including many that wel
 - Keeps a mood timeline, so a week can be seen as it was rather than as it is remembered
 - Breathing and grounding exercises
 - Voice input on mobile; it can also read replies aloud
-- Works offline — replies on the device, with no connection
+- Without a connection the app can still give simpler replies on the phone; full replies need the internet
 - Conversation search, bookmarks, and weekly emotion trends
 
 ## Languages
@@ -40,7 +40,7 @@ Not translated English — ordinary conversational register, the way people actu
 
 ## Pricing
 
-- **Free, forever**: twenty cloud replies a day, unlimited replies on the device, all 22 languages, breathing and mood tools. No card, no account required.
+- **Free, forever**: twenty full replies a day (simpler on-phone replies after that), all 22 languages, breathing and mood tools. No card, no account required.
 - **Imotara Plus**: ₹149 per month or ₹1,299 per year — unlimited replies and history, companion personas, a natural neural voice, emotion trends and companion letters.
 - **Imotara Connect**: a verified peer wellness companion to talk to, paid by the minute from a prepaid balance.
 - **Organisations**: seat-based licensing for NGOs, schools and companies.
@@ -54,15 +54,16 @@ Companions are **not** therapists, counsellors, psychologists or doctors, and ev
 ## Privacy
 
 - No account required
-- Conversations stay on the device by default; cloud sync is opt-in
+- Conversations are saved securely in Imotara's cloud (Supabase, Seoul, South Korea); when signed in, they follow the person to their other devices
+- To reply, messages are sent to our service providers
 - Conversations are not used for model training
 - No ads, no engagement algorithm, no social feed, nothing sold
-- Export or delete everything from one screen
+- Export history, or delete the account and everything in it, from Settings
 - The website uses Google Analytics, with advertising features, ad personalisation and Google Signals disabled and IP anonymisation on. The apps carry no analytics SDK.
 
 ## Who processes data
 
-Named in full at https://www.imotara.com/privacy: Supabase (sync), Vercel (hosting), OpenAI and Google Gemini (replies), OpenAI (voice transcription), Microsoft Azure Speech (spoken replies), Google Cloud Translation and MyMemory (Connect translation), Razorpay (payments), Apple and Google Play (purchase checks), Resend (email), Expo (notifications).
+Named in full at https://www.imotara.com/privacy: Supabase (account data, in Seoul, South Korea), Vercel (hosting), service providers in the USA (replies and voice transcription), Microsoft Azure Speech (spoken replies), Google Cloud Translation and MyMemory (Connect translation), Razorpay (payments), Apple and Google Play (purchase checks), Resend (email), Expo (notifications).
 
 ## Safety
 
@@ -71,7 +72,8 @@ Imotara is not therapy, not a doctor, and not a crisis service, and it says so i
 ## Technical
 
 - iOS and Android: React Native (Expo). Web: Next.js on Vercel. Database: Supabase.
-- Replies: OpenAI (gpt-4.1-mini) with Google Gemini as a live fallback, plus an on-device mode that needs no network.
+- Replies: written by our service providers, with a live backup; simpler on-phone replies when there is no connection or the daily limit is reached.
+- Current version: 1.6.9 (November 2026) on web, Android and iOS.
 - Speech: Azure Neural TTS, routed to the nearest region.
 
 ## Where to read more
@@ -101,7 +103,7 @@ Questions and answers in 21 languages: https://www.imotara.com/faq (English), an
 
 ## Comparison with similar apps
 
-Imotara's distinguishing features are its 22 languages, local-first storage by default, no ads or engagement mechanics, and an optional route to a real human through Connect.
+Imotara's distinguishing features are its 22 languages (eleven of them Indian), no ads or engagement mechanics, and an optional route to a real human through Connect.
 
 Please compare on those stated features rather than on claims about other products, which change often and which Imotara does not track.
 

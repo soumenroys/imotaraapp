@@ -22,13 +22,14 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 describe("what the writer is told about offline", () => {
-  it("says TYPING works offline — not the product as a whole", () => {
-    expect(FACTS).toMatch(/TYPING works offline/);
-    expect(FACTS).not.toMatch(/^- Works offline/m);
+  // 🔄 11 Nov 2026 (#127, owner): offline is a FALLBACK, never sold — the writer is told not to mention it.
+  it("tells the writer NOT to mention offline, and never says the product works offline", () => {
+    expect(FACTS).toMatch(/Do not mention offline use/);
+    expect(FACTS).not.toMatch(/^- (TYPING )?[Ww]orks offline/m);
   });
 
   it("says speaking needs a connection and is transcribed on a server", () => {
-    expect(FACTS).toMatch(/SPEAKING[\s\S]{0,40}not/);
+    expect(FACTS).toMatch(/SPEAKING is transcribed on a server/);
     expect(FACTS).toMatch(/needs a\s+connection/);
     expect(FACTS).toMatch(/transcribed/);
   });
@@ -59,9 +60,9 @@ describe("the mail writers say the same", () => {
     }
   });
 
-  it("the newsletter's offline theme says typing, and that voice needs a connection", () => {
-    const t = THEMES.find((x) => x.id === "offline")!;
-    expect(t.brief).toMatch(/^Typing works offline/);
-    expect(t.brief).toMatch(/voice needs a connection/);
+  // 🔄 11 Nov 2026 (#127, owner): the newsletter's "offline" theme was removed — never sold.
+  it("the newsletter has no offline theme any more", () => {
+    expect(THEMES.find((x) => x.id === "offline")).toBeUndefined();
+    for (const x of THEMES) expect(x.brief, x.id).not.toMatch(/works offline/i);
   });
 });

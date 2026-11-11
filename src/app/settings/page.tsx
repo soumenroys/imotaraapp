@@ -5332,9 +5332,10 @@ export default function SettingsPage() {
                     <SectionToggleHeader title="Data & privacy" open={dataPrivacyOpen} onToggle={toggleDataPrivacyOpen} />
                     {dataPrivacyOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                        Imotara is designed as a quiet, local-first experiment. Most data is
-                        stored only in this browser unless you explicitly allow remote
-                        analysis or sync.
+                        Your conversations are saved securely in your Imotara account, with a
+                        copy in this browser. To reply, messages go to our service providers.
+                        No ads, nothing sold — and you can delete your account and everything
+                        in it below.
                     </p>
 
 {reportConsentApplicable && (

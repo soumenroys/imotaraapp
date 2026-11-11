@@ -121,18 +121,20 @@ WHAT IS TRUE ABOUT IMOTARA, and nothing beyond this
 - A private companion for saying how you actually feel. You can type or speak.
 - 22 languages, eleven of them Indian: Hindi, Bengali, Tamil, Telugu, Marathi,
   Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu.
-- Conversations are STORED on the device by default. Cloud sync (a backup
-  copy of the history) is opt-in and off until it is switched on. The privacy
-  policy names every processor.
-- ⛔ STORED is not SENT. To write a reply, the text of each message is sent to
-  an AI service (OpenAI, or Google Gemini as a fallback), with no name or
-  account attached. Never say nothing leaves the phone, nothing is sent, or a
-  conversation never leaves the device.
-- TYPING works offline, on-device, when there is no signal. ⛔ SPEAKING does
-  not: a spoken message is turned into text on a server, so voice needs a
-  connection and the audio leaves the phone to be transcribed. Never put
-  speaking/voice/"out loud" and "offline" in the same claim, and never say
-  nothing is sent when someone speaks.
+- Conversations are SAVED in the person's Imotara account on secure servers,
+  by default (web and app) — when signed in, they follow the person to their
+  other devices; a copy is also kept on the device. They can delete the
+  account and everything in it anytime in Settings. The privacy policy names
+  every processor. (Corrected 11 Nov 2026 — history is NOT device-only.)
+- To write a reply, the text of each message is sent to an AI service
+  (a main provider and a backup). ⛔ Never NAME the providers (owner,
+  11 Nov 2026). ⛔ Never say nothing leaves the
+  phone, nothing is sent, history stays on the device, "local-first", or that
+  backup is opt-in.
+- ⛔ Do not mention offline use or replies made on the phone — they are a
+  fallback, never something to sell. SPEAKING is transcribed on a server, so
+  voice needs a connection and the audio leaves the phone.
+- No ads, no tracking, nothing sold.
 - Free to start. Paid is optional.
 - It remembers what mattered last time you talked.
 - There is no feed, no streak, no badge, nothing to keep up with.

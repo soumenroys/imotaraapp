@@ -39,14 +39,10 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
   });
 
   it.each([
-    // the corrected wording that was approved
-    "You can leave a thought unfinished and pick it up days later — Imotara will still remember what you meant. Your conversations are stored on your phone unless you switch on cloud backup.",
-    "If you never switch on cloud backup, your conversations are stored only on your phone. They stay right where you left them, even if the signal drops.",
+    // #127 (11 Nov 2026): the TRUE wording now — history is saved in the account
+    "Your conversations are saved securely in your Imotara account. To reply, messages go to our service providers.",
+    "A copy is also kept on your device so it opens quickly.",
     "Nothing to set up, no account needed to start.",
-    // #112: the true sentence — HISTORY is stored on the device
-    "Your chat history stays on your phone. To reply, your messages go to our secure servers.",
-    "Your history stays on your device unless you choose to sync.",
-    "It is kept on your phone by default, with no cloud backup unless you go looking for it in the settings.",
     // true: other PEOPLE never get your words
     "Nothing is shared with your contacts.",
     "No message is sent to your friends or family.",
@@ -62,7 +58,7 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
 
   it("the reviewer is told what to write instead", () => {
     const f = checkVoice("Nothing is sent anywhere.", "en").findings.find((x) => x.list === "privacy")!;
-    expect(f.because).toMatch(/STORED on the phone/);
+    expect(f.because).toMatch(/saved securely in your Imotara account/);
   });
 
   it("not English ⇒ said to be unchecked, never pretended", () => {
@@ -73,3 +69,25 @@ describe("🔴 the social gate refuses 'nothing leaves your phone'", () => {
 
   it("posts and emails share ONE rule", () => expect(MAIL_RULE).toBe(NOTHING_SENT));
 });
+
+/**
+ * 🔴 #127 (11 Nov 2026): history is saved in the account BY DEFAULT (web POSTs every message;
+ * the app auto-syncs) — so "history stays on the phone" is FALSE, and offline is never sold.
+ * These sentences were "allowed" until today; each must now be refused.
+ */
+describe("🔴 the social gate refuses 'history stays on the device' and selling offline", () => {
+  it.each([
+    "You can leave a thought unfinished and pick it up days later — Imotara will still remember what you meant. Your conversations are stored on your phone unless you switch on cloud backup.",
+    "If you never switch on cloud backup, your conversations are stored only on your phone. They stay right where you left them, even if the signal drops.",
+    "Your chat history stays on your phone. To reply, your messages go to our secure servers.",
+    "Your history stays on your device unless you choose to sync.",
+    "It is kept on your phone by default, with no cloud backup unless you go looking for it in the settings.",
+    "Imotara is local-first.",
+    "Cloud backup is opt-in.",
+    "Type how you feel, even offline — and get a reply.",
+    "Imotara works offline.",
+  ])("refused: %s", (post) => {
+    expect(checkVoice(post, "en").findings.filter((f) => f.list === "privacy").length).toBeGreaterThan(0);
+  });
+});
+

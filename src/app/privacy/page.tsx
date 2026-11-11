@@ -81,12 +81,12 @@ export default function PrivacyPage() {
             <h2 className="text-xl font-medium text-zinc-50">Core Principles</h2>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>
-                <strong>Consent-first</strong>: optional cloud and advanced features use
-                clear opt-ins.
+                <strong>Consent-first</strong>: optional features, such as reminders and
+                marketing email, use clear opt-ins.
               </li>
               <li>
-                <strong>Local-first</strong>: wherever possible, data stays on your
-                device.
+                <strong>Clear about storage</strong>: your conversations are saved in your
+                account on secure servers, with a copy on your device — and we say where.
               </li>
               <li>
                 <strong>Data minimization</strong>: we collect only what’s required to
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
                 </p>
                 <p className="mt-1 text-sm leading-7 text-zinc-300">
                   Imotara may generate or use an anonymous sign-in identifier to keep your data separated
-                  and to support optional cloud sync, without requiring your real name, email, or phone.
+                  and saved to your account, without requiring your real name, email, or phone.
                 </p>
               </div>
 
@@ -173,7 +173,7 @@ export default function PrivacyPage() {
                 <p className="mt-1 text-sm leading-7 text-zinc-300">
                   If you tap the microphone, Imotara records what you say so it can be turned
                   into text. On Android and iOS the recording is sent to our server and on to
-                  OpenAI to be transcribed; it is not stored, by us or by them, once the text
+                  a speech-to-text service provider (based in the USA) to be transcribed; it is not stored, by us or by them, once the text
                   comes back. On the web, speech is handled by your own browser&apos;s built-in
                   speech recognition, which may send the audio to your browser vendor under
                   their privacy policy rather than ours. When Imotara reads a reply aloud, the
@@ -225,29 +225,32 @@ export default function PrivacyPage() {
             </div>
           </section>
 
-          {/* Local-first architecture */}
+          {/* Where your conversations are stored — corrected 11 Nov 2026 (#127): history is saved
+              to the account BY DEFAULT on web and mobile; it is not device-only. */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">
-              Local-First Storage (Default)
+              Where Your Conversations Are Stored
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              Imotara is designed to prioritize local processing. On both web and mobile,
-              chat history, emotion logs, and preferences may be stored locally on your
-              device to provide continuity and a better experience.
+              On both web and mobile, your chat history, emotion logs and preferences are saved
+              in your Imotara account on secure servers (Supabase, in Seoul, South Korea). This
+              applies to every account, including the anonymous account created when you start
+              without signing in. A copy is also kept on your device so it opens quickly.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              If you uninstall the app (mobile) or clear browser storage (web), locally
-              stored data may be removed.
+              If you uninstall the app (mobile) or clear browser storage (web), the copy on your
+              device is removed; the copy in your account stays until you delete your account
+              (Settings → Delete account).
             </p>
           </section>
 
           {/* Cloud sync */}
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
-            <h2 className="text-xl font-medium text-zinc-50">Cloud Sync</h2>
+            <h2 className="text-xl font-medium text-zinc-50">Your Account Copy</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              When cloud sync is enabled, Imotara stores a private copy of selected data on secure
-              servers to support backup and multi-device continuity. Cloud sync is optional and can
-              be turned off at any time.
+              Imotara stores a private copy of your conversations and related data on secure
+              servers so it is backed up and, when you are signed in, available on your other devices.
+              You can delete your account and everything in it at any time from Settings.
             </p>
 
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
@@ -272,12 +275,12 @@ export default function PrivacyPage() {
             </h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Imotara uses artificial intelligence models to generate reflective and supportive
-              responses to the messages you choose to enter. Some processing may occur locally
-              on your device. When cloud mode is enabled, your message text is sent to{" "}
-              <strong>OpenAI (openai.com)</strong> to generate a reply, or to{" "}
-              <strong>Google (Gemini)</strong> if OpenAI is unavailable or too slow to answer.
+              responses to the messages you choose to enter. By default, your message text is sent to{" "}
+              a service provider that generates the reply (based in the USA), or to a second
+              provider if the first is unavailable or too slow to answer.
               Only your message text is sent — your name, account identifier and device
-              information are not attached.
+              information are not attached. If you choose replies made on your phone in Settings,
+              that processing happens on your device instead.
             </p>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Your conversations are not sold and are not used for advertising systems. We use
@@ -302,7 +305,7 @@ export default function PrivacyPage() {
               service, based on user consent (for optional features), performance of the
               service, legitimate interests in security and reliability, and compliance
               with legal obligations where applicable. Marketing email is sent on the basis
-              of <strong>consent</strong> alone. You may withdraw consent for optional cloud
+              of <strong>consent</strong> alone. You may withdraw consent for optional
               features, or for marketing email, at any time.
             </p>
           </section>
@@ -378,8 +381,9 @@ export default function PrivacyPage() {
                 account data (subject to legal/operational limits).
               </li>
               <li>
-                <strong>Opt out</strong>: disable optional cloud features and consent-based
-                processing where available.
+                <strong>Opt out</strong>: turn off optional features (such as reminders or marketing
+                email) and consent-based processing where available. To remove your stored
+                conversations, delete your account in Settings.
               </li>
             </ul>
 
@@ -424,19 +428,19 @@ export default function PrivacyPage() {
                 with this page. */}
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>
-                <strong>Cloud database &amp; sync</strong>: <strong>Supabase</strong> stores optional synced data with per-user access controls.
+                <strong>Cloud database &amp; sync</strong>: <strong>Supabase</strong> stores your account data and conversation history (in Seoul, South Korea) with per-user access controls.
               </li>
               <li>
                 <strong>Hosting</strong>: <strong>Vercel</strong> runs this website and the APIs behind the apps.
               </li>
               <li>
-                <strong>Response generation</strong>: <strong>OpenAI (openai.com)</strong>, or <strong>Google (Gemini)</strong> when OpenAI is unavailable, processes the text of your message to generate a reply when cloud mode is enabled. Only your message text is sent — no account info, name, or device data is attached.
+                <strong>Response generation</strong>: a service provider based in the USA (with a second provider as a backup) processes the text of your message to generate a reply. This is the default; replies made on your phone (chosen in Settings) do not use it. Only your message text is sent — no account info, name, or device data is attached.
               </li>
               <li>
-                <strong>Voice</strong>: <strong>OpenAI</strong> transcribes recordings you choose to make on Android and iOS, and <strong>Microsoft Azure Speech</strong> turns replies into audio when you ask Imotara to read them aloud. Recordings are not kept once the text comes back.
+                <strong>Voice</strong>: a speech-to-text service provider based in the USA transcribes recordings you choose to make on Android and iOS, and <strong>Microsoft Azure Speech</strong> turns replies into audio when you ask Imotara to read them aloud. Recordings are not kept once the text comes back.
               </li>
               <li>
-                <strong>Translation in Connect</strong>: if you turn on automatic translation, the message being translated is sent to <strong>Google Cloud Translation</strong>, or to <strong>OpenAI</strong> or <strong>MyMemory (Translated srl)</strong> when that service does not return a usable result.
+                <strong>Translation in Connect</strong>: if you turn on automatic translation, the message being translated is sent to <strong>Google Cloud Translation</strong>, or to a backup translation provider or <strong>MyMemory (Translated srl)</strong> when that service does not return a usable result.
               </li>
               <li>
                 <strong>Payments</strong>: <strong>Razorpay</strong> handles card and UPI payments for licences and donations, and receives the billing details you enter. We never see or store your full card number.
@@ -498,7 +502,7 @@ export default function PrivacyPage() {
               here and, when appropriate, notify you in-app or via email.
             </p>
             <p className="mt-2 text-xs text-zinc-400">
-              Effective date: Nov 1, 2025 • Last updated: Oct 16, 2026
+              Effective date: Nov 1, 2025 • Last updated: Nov 11, 2026
             </p>
           </section>
 

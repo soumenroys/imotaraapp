@@ -30,16 +30,18 @@ const FALSE = [
 
 // True sentences from the same drafts — the check must leave them alone.
 const TRUE = [
-  "Chat history stays on the device by default, and the employer never sees conversations.",
-  "Their history stays on the device unless the user chooses otherwise.",
+  "Conversations are saved securely in their own Imotara account, and the employer never sees them.",
+  "A copy is also kept on the device so it opens quickly.",
   "Nothing is shared with the institution.",
   "If you speak, the audio is sent securely to be turned into text, so you’ll need a connection for that.",
   "I won’t write again unless you want more.",
 ];
 
 describe("the facts the writers are given", () => {
-  it("say STORED, and that each message is sent for the reply", () => {
-    expect(FACTS).toMatch(/STORED on the device by default/);
+  // 🔄 #127 (11 Nov 2026): history is SAVED in the account by default — not device-only.
+  it("say history is SAVED in the account, and that each message is sent for the reply", () => {
+    expect(FACTS).toMatch(/SAVED in the person's Imotara account/);
+    expect(FACTS).not.toMatch(/STORED on the device by default/);
     expect(FACTS).toMatch(/sent to\s+an AI service/);
     expect(FACTS).not.toMatch(/Conversations stay on the device by default/);
   });
@@ -56,3 +58,14 @@ describe("the mail check", () => {
     expect(NOTHING_SENT.test(s.toLowerCase())).toBe(false);
   });
 });
+
+describe("🔴 #127: the mail check refuses 'history stays on the device'", () => {
+  it.each([
+    "Chat history stays on the device by default, and the employer never sees conversations.",
+    "Their history stays on the device unless the user chooses otherwise.",
+  ])("refused: %s", (s) => {
+    const body = `Hello {{name|there}},\n\n${s}\n\nWhat do you think?\n\n— Suchismita Sen, Imotara`;
+    expect(checkMailStyle("A subject", body).join(" ")).toMatch(/history stays on the phone/);
+  });
+});
+

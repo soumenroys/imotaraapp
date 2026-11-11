@@ -115,9 +115,10 @@ export default function AboutPage() {
                   for you to delete, export, or move anywhere.
                 </li>
                 <li>
-                  Local-first architecture: your history stays on your device
-                  unless you turn on backup. To reply, your messages go to our
-                  secure servers — or choose on-device replies in Settings.
+                  Your history is saved securely in your Imotara account (you can
+                  delete the account and everything in it in Settings). To reply,
+                  your messages go to our service providers — or choose simpler
+                  replies made on your phone in Settings.
                 </li>
               </ul>
             </div>
@@ -139,8 +140,8 @@ export default function AboutPage() {
                   your data remains yours, with clear consent and control.
                 </li>
                 <li>
-                  <span className="font-medium text-zinc-200">Local-first:</span>{" "}
-                  core experiences should work even when you’re offline.
+                  <span className="font-medium text-zinc-200">Steady:</span>{" "}
+                  even without a connection, the app can still give a simpler reply.
                 </li>
                 <li>
                   <span className="font-medium text-zinc-200">Gentle by design:</span>{" "}

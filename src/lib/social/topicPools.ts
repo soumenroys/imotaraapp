@@ -193,11 +193,13 @@ export const TOPIC_POOLS: TopicPool[] = [
   },
   {
     id: "privacy",
-    label: "Privacy, and what stays on the device",
+    label: "Privacy, and where words go",
     eyebrow: "Where words go",
     angle:
       "One specific thing about where a person's words go, or do not go. Concrete, checkable, no reassurance " +
-      "that is not backed by a setting or a policy line somebody could read.",
+      "that is not backed by a setting or a policy line somebody could read. True today (11 Nov 2026): history is " +
+      "saved in the person's own account (not device-only); replies are written by our service providers; no ads, " +
+      "nothing sold; the account and everything in it can be deleted in Settings.",
   },
   {
     id: "voice",

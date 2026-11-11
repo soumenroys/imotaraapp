@@ -113,7 +113,7 @@ export function upcomingAwarenessDays(now: Date, days = 14): TrendNote[] {
 export function judgePrompt(candidates: Candidate[]): string {
   return `
 You choose which of this week's trending topics a mental-wellbeing companion app (Imotara) may post about.
-Imotara: a private companion for saying how you actually feel; 22 languages (11 Indian); typing works offline (voice needs a connection); no feed or streaks; NOT therapy.
+Imotara: a private companion for saying how you actually feel; 22 languages (11 Indian); no ads, nothing sold; no feed or streaks; NOT therapy.
 
 KEEP a topic only if ALL are true:
 - It is a shared, positive or neutral moment: a festival, a holiday, a season, exam or results season, a cultural event, a broad everyday experience.

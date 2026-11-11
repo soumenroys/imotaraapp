@@ -274,7 +274,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             { criterion: "Languages", imotara: "All 22.", other: "All 22." },
             { criterion: "Mood tools", imotara: "Mood check-ins, breathing, history and trends.", other: "Everything in free, plus emotion trends and companion letters." },
             { criterion: "Voice", imotara: "Read-aloud and transcription with a small daily cap when signed out.", other: "Natural neural voice, unlimited." },
-            { criterion: "History", imotara: "Kept on your device.", other: "Unlimited history and cross-device sync." },
+            { criterion: "History", imotara: "Saved securely in your account.", other: "Unlimited history and cross-device sync." },
         ],
         sections: [
             {

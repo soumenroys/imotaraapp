@@ -153,8 +153,8 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
 
       <p>
         Your mood data is deeply personal. Where you store it matters. If you use an app, make sure you
-        understand what happens to your data. Imotara, for example, stores everything locally on your device
-        by default — your mood log never leaves your phone unless you explicitly enable cloud sync.
+        understand what happens to your data. Imotara, for example, saves your history securely in your own
+        account, shows no ads, sells nothing, and lets you delete everything from Settings.
       </p>
 
       <p>

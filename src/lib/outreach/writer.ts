@@ -17,7 +17,7 @@
 
 import { callImotaraAI } from "@/lib/imotara/aiClient";
 import { FACTS } from "@/lib/social/writer";
-import { checkVoice, NOTHING_SENT } from "@/lib/social/voiceGate";
+import { checkVoice, NOTHING_SENT, STORED_ON_DEVICE } from "@/lib/social/voiceGate";
 import { templatesFor } from "@/lib/broadcast/templates";
 import { SITE } from "@/lib/broadcast/templates/types";
 import { AUDIENCE_LABEL, STEP_LABEL, type Audience, type StepId } from "@/lib/outreach/sequence";
@@ -53,12 +53,12 @@ const STEP_BRIEF: Record<StepId, string> = {
 export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avoid: string }> = {
   individuals: {
     cares: "a private place to say how they really feel, in their own words and language, at any hour, without being judged or tracked",
-    lead: "privacy (chat history stays on their own phone by default; replies come from our secure servers) · 22 languages incl. 11 Indian · type or speak · typing works even offline (speaking needs a connection) · remembers what mattered last time · no feed, streaks or badges · free to start",
+    lead: "privacy (no ads, no tracking, nothing sold; history saved securely in their own account, which they can delete anytime) · 22 languages incl. 11 Indian · type or speak · remembers what mattered last time · no feed, streaks or badges · free to start",
     avoid: "Do not lecture about mental health. Write to one person.",
   },
   ngos: {
     cares: "field staff, volunteers and the people they serve — often across languages and with patchy signal — and nothing extra for an already stretched team to run",
-    lead: "11 Indian languages, replies in the language they write in · typing works even with patchy signal (speaking needs a connection) · private: chat history stays on their own phone, so nothing reaches a supervisor · asks no training or admin effort",
+    lead: "11 Indian languages, replies in the language they write in · private: each person's conversations stay in their own account, so nothing reaches a supervisor · asks no training or admin effort",
     avoid: "Do not claim it replaces counselling or any programme they run.",
   },
   education: {
@@ -73,7 +73,7 @@ export const AUDIENCE_FOCUS: Record<Audience, { cares: string; lead: string; avo
   },
   corporates: {
     cares: "employee wellbeing that people will actually use because it is genuinely private, across a workforce that speaks many languages and works all hours",
-    lead: "private — the employer never sees conversations; chat history stays on the employee's phone by default · 22 languages · any hour, any shift · no app fatigue: no feed, streaks or badges · complements an EAP, does not replace it",
+    lead: "private — the employer never sees conversations, only anonymised wellbeing trends · 22 languages · any hour, any shift · no app fatigue: no feed, streaks or badges · complements an EAP, does not replace it",
     avoid: "Do not promise productivity or ROI figures.",
   },
 };
@@ -112,7 +112,9 @@ export function checkMailStyle(subject: string, body: string): string[] {
    * sentence saying nothing leaves the phone is false — the writer drew it
    * from the true one on 28 Oct, in 4 of 20 drafts ⇒ storedIsNotSent.
    */
-  if (NOTHING_SENT.test(hay)) out.push("Says nothing leaves the phone — false: each message is sent to an AI service for the reply. Say it is STORED on the device.");
+  if (NOTHING_SENT.test(hay)) out.push("Says nothing leaves the phone — false: each message is sent to an AI service for the reply. Say conversations are saved securely in their Imotara account.");
+  // 🔴 #127 (11 Nov 2026): history is saved in the account BY DEFAULT ⇒ "stays on the phone", "local-first", "backup is opt-in", "works offline" are false or off-limits.
+  if (STORED_ON_DEVICE.test(hay)) out.push("Says history stays on the phone (or sells offline) — false: chat history is saved in the account by default. Say conversations are saved securely in their Imotara account.");
   const links = body.match(/https?:\/\/\S+/g) ?? [];
   if (links.length > 1) out.push("At most one link.");
   if (links.some((l) => !l.startsWith(SITE))) out.push(`The only link allowed is ${SITE}.`);

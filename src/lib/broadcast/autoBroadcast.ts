@@ -45,9 +45,8 @@ export const DEFAULT_AUTO: AutoSettings = { enabled: false, dayOfMonth: 5, hourI
 
 /** One theme a month, in this order — rotated in code, never left to the model ⇒ trap_a_menu_handed_to_a_model_is_not_a_rotation. */
 export const THEMES: { id: string; brief: string }[] = [
-  { id: "privacy", brief: "Privacy: conversations stay on your own phone by default; cloud sync is off unless you turn it on." },
+  { id: "privacy", brief: "Privacy: no ads, no tracking, nothing sold; conversations are saved securely in your own Imotara account, and you can delete the account and everything in it anytime in Settings." },
   { id: "languages", brief: "Your own language: 22 languages, eleven of them Indian, typed or spoken." },
-  { id: "offline", brief: "Typing works offline, on the device, when there is no signal. Speaking does not: a spoken message is transcribed on a server, so voice needs a connection." },
   { id: "nothing-to-keep-up", brief: "No feed, no streaks, no badges — nothing to keep up with." },
   { id: "remembers", brief: "It remembers what mattered last time, so you need not start again." },
   { id: "honest-limits", brief: "What it is and is not: a private companion, not therapy, and it shows a helpline when needed." },

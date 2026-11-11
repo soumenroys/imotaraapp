@@ -82,7 +82,7 @@ export const FAQ: FaqItem[] = [
         id: "is-it-private",
         section: "Privacy",
         q: "Is Imotara private?",
-        a: "Yes. Without an account your history stays on your device and is not backed up anywhere. To reply, your messages go to our secure servers — or you can switch to on-device replies in Settings. With an account your history syncs so you can continue on another device — that is the only thing an account is for. There are no ads in Imotara, so nothing about you is worth selling.",
+        a: "Yes. Your conversations are saved securely in your Imotara account — signing in simply lets you continue on another device. To reply, your messages go to our service providers. You can delete your account and everything in it anytime in Settings. There are no ads in Imotara, so nothing about you is worth selling.",
     },
     {
         id: "can-anyone-read-it",

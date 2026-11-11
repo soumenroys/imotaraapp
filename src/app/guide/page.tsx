@@ -58,7 +58,7 @@ const STEPS = [
     bg: "bg-emerald-500/10",
     icon: "🔒",
     title: "Your data, your control",
-    body: "Your history stays on your device unless you choose to sync. To reply, your messages go to our secure servers — or switch to on-device replies in Settings. Nothing is sold. You can export or delete your history anytime from Settings.",
+    body: "Your history is saved securely in your Imotara account. To reply, your messages go to our service providers — or choose simpler replies made on your phone in Settings. Nothing is sold. You can export your history, or delete your account and everything in it, anytime from Settings.",
   },
 ];
 

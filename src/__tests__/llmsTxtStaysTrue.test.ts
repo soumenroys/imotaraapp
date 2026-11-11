@@ -58,7 +58,7 @@ describe("llms.txt does not repeat the claims that were wrong", () => {
     });
 
     it("states the real free tier and the real price", () => {
-        expect(LLMS).toMatch(/twenty cloud replies a day/i);
+        expect(LLMS).toMatch(/twenty full replies a day/i);
         expect(LLMS).toMatch(/₹149/);
     });
 

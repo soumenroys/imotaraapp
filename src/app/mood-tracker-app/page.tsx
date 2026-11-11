@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 const faqs = [
   {
     q: "What is a private mood tracker app?",
-    a: "A private mood tracker app lets you log how you feel each day without sharing that data with advertisers or third parties. Imotara stores all your entries on your device by default — your feelings stay yours.",
+    a: "A private mood tracker app lets you log how you feel each day without sharing that data with advertisers or third parties. Imotara saves your entries securely in your account, never shows them to anyone and never sells them — your feelings stay yours.",
   },
   {
     q: "How does Imotara help me talk about my feelings?",
@@ -54,7 +54,7 @@ const faqs = [
   },
   {
     q: "Does Imotara share my mood data?",
-    a: "No — your mood data is never sold or shared with advertisers. Entries are saved on your device. To write replies, your messages go to our secure servers (you can switch to on-device only in Settings). Backup across devices is optional and can be turned off at any time.",
+    a: "No — your mood data is never sold or shared with advertisers. Entries are saved securely in your Imotara account; when you're signed in, they follow you to your other devices. To write replies, your messages go to our service providers. You can delete your account and everything in it anytime in Settings.",
   },
   {
     q: "What does the mood timeline show?",
@@ -119,8 +119,8 @@ export default function MoodTrackerAppPage() {
               color: "text-emerald-300",
             },
             {
-              title: "Truly private by default",
-              desc: "All entries are stored locally on your device. There is no profile, no public feed, and no algorithms analysing your mood to sell you things.",
+              title: "Private, with no ads",
+              desc: "Your entries are saved securely in your account and never sold. There is no profile, no public feed, and no algorithms analysing your mood to sell you things.",
               color: "text-indigo-300",
             },
             {
@@ -130,12 +130,12 @@ export default function MoodTrackerAppPage() {
             },
             {
               title: "AI-powered reflections",
-              desc: "Imotara uses GPT-4.1 to provide thoughtful, contextual responses — not scripted replies. It notices what you write and responds to you, not to a template.",
+              desc: "Imotara gives thoughtful, contextual responses — not scripted replies. It notices what you write and responds to you, not to a template.",
               color: "text-amber-300",
             },
             {
-              title: "Works offline",
-              desc: "The web app installs as a PWA and both Android and iOS apps support full offline use. Your mood log is always available, even without internet.",
+              title: "Steady without signal",
+              desc: "Your mood log opens from a copy on your device, and without a connection the app can still give a simpler reply.",
               color: "text-rose-300",
             },
           ].map(({ title, desc, color }) => (

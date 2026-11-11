@@ -81,10 +81,9 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
 
       <p>
         Privacy isn't a feature toggle here. It's a design principle. Your
-        history stays on your device unless you choose to sync it to the
-        cloud. To reply, your messages go to our secure servers — or you can
-        switch to on-device replies in Settings. You can delete everything
-        with one tap.
+        conversations are saved securely in your Imotara account, with no ads
+        and nothing sold. To reply, your messages go to our service providers.
+        You can delete your account and everything in it from Settings.
       </p>
 
       <p>

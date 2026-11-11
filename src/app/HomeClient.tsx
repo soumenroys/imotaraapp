@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { isWithinLaunchOffer, getLaunchOfferEndsAt } from "@/lib/imotara/license";
 import { HOME_FAQ_SCHEMA } from "@/lib/seo/homeFaqSchema";
 import { HOME_MOODS } from "@/lib/imotara/homeMoods";
+import FirstMessageBox from "@/components/imotara/FirstMessageBox";
 import { gaEvent } from "@/lib/analytics/gaEvent";
 
 function IconChat(props: React.SVGProps<SVGSVGElement>) {
@@ -152,6 +153,9 @@ export default function Home() {
             respect for your privacy.
           </p>
 
+          {/* #130 D (11 Nov 2026): say the first thing right here ⇒ components/imotara/FirstMessageBox.tsx */}
+          <FirstMessageBox from="home" />
+
           {/* #91 (7 Nov 2026): the first card asks, and one tap starts the
               conversation. GA: 321 people saw this page for 7 seconds on
               average and only 18% reached /chat ⇒ lib/imotara/homeMoods.ts */}
@@ -197,8 +201,8 @@ export default function Home() {
             <p className="max-w-sm text-xs text-zinc-400">
               {/* #94 (owner, 7 Nov 2026): words match behaviour — new visitors get
                   cloud replies by default (FirstVisitBanner). */}
-              Your conversations are kept in this browser. Replies come from our
-              secure servers — you can switch to on-device only in Settings.
+              Your conversations are saved securely with us, with a copy in this
+              browser. Replies come from our secure servers — you can switch to on-device only in Settings.
             </p>
           </div>
         </div>

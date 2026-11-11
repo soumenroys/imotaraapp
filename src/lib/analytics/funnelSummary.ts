@@ -5,7 +5,7 @@ import { FUNNEL_STEPS, type FunnelStep } from "@/lib/analytics/visitTally";
 export type FunnelRow = { platform: string; bucket: number; hits: number };
 export type FunnelSummary = {
   steps: { step: FunnelStep; web: number; ios: number; android: number; total: number }[];
-  rates: { inviteAccepted: number | null; welcomePicked: number | null; checkoutToPaid: number | null; viewToCheckout: number | null };
+  rates: { landingCarried: number | null; inviteAccepted: number | null; welcomePicked: number | null; checkoutToPaid: number | null; viewToCheckout: number | null };
 };
 
 const BY_NUMBER = Object.fromEntries(Object.entries(FUNNEL_STEPS).map(([k, v]) => [v, k as FunnelStep]));
@@ -25,6 +25,7 @@ export function summariseFunnel(rows: FunnelRow[]): FunnelSummary {
   return {
     steps: [...acc.entries()].map(([step, v]) => ({ step, ...v })),
     rates: {
+      landingCarried: pct(t("landing_sent"), t("landing_send")),
       inviteAccepted: pct(t("invite_accepted"), t("invite_shown")),
       welcomePicked: pct(t("welcome_pick"), t("welcome_shown")),
       viewToCheckout: pct(t("checkout_start"), t("upgrade_view")),

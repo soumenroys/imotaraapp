@@ -41,7 +41,7 @@ describe("every home mood exists in the chat page's own English row", () => {
 });
 
 describe("wiring", () => {
-  const home = readFileSync("src/app/page.tsx", "utf8");
+  const home = readFileSync("src/app/HomeClient.tsx", "utf8");
   const chat = readFileSync("src/app/chat/page.tsx", "utf8");
   it("home asks the question and links each mood by KEY (no words in the URL)", () => {
     expect(home).toMatch(/How are you feeling right now\?/);

@@ -9,7 +9,7 @@ import { join } from "path";
 const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 
 describe("homepage headline and brand title say the same thing", () => {
-  const page = read("src/app/page.tsx");
+  const page = read("src/app/HomeClient.tsx");
   const layout = read("src/app/layout.tsx");
 
   it("the hero reads 'A Private Place / for How You Really Feel'", () => {

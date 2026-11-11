@@ -8,6 +8,7 @@ import packageJson from "../../../package.json";
 import { brandTitle } from "@/lib/seo/brandTitle";
 
 export const metadata = {
+  alternates: { canonical: "https://www.imotara.com/privacy" },
   title: brandTitle("Privacy Policy — Imotara"),
   description:
     "How Imotara collects, stores, and protects your data — with consent, clarity, and control.",

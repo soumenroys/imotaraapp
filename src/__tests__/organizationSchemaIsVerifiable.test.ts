@@ -139,7 +139,7 @@ describe("⛔ FAQPage markup only where the questions are visible", () => {
     });
 
     it("is on the homepage, which is the page those questions appear on", () => {
-        expect(read("src/app/page.tsx")).toContain("HOME_FAQ_SCHEMA");
+        expect(read("src/app/HomeClient.tsx")).toContain("HOME_FAQ_SCHEMA");
     });
 
     it("the homepage schema is a real FAQPage with questions", () => {

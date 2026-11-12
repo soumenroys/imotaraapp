@@ -3,7 +3,10 @@
 //
 // ⛔ Never says whether an account exists — the same answer either way.
 // ⛔ Rate limits, shared across every server instance (Postgres-backed):
-//     per IP: 10 codes / hour · per email: 5 codes / hour (keyed by a HASH, never the address).
+//     per IP: 60 codes / hour · per email: 5 codes / hour (keyed by a HASH, never the address).
+// 🔴 #134 simulator test (12 Nov 2026): 10/IP/hour would stop an NGO class or office joining
+//    together behind ONE shared connection after the 10th person. 60 per connection; the per-address
+//    limit (5) is what protects any one inbox.
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "node:crypto";
 import { checkPersistentIpRateLimit, getClientIp } from "@/lib/imotara/ipRateLimit";
@@ -12,7 +15,7 @@ import { EMAIL_RX } from "@/lib/auth/signInOptions";
 
 export const runtime = "nodejs";
 
-const PER_IP_PER_HOUR = 10;
+const PER_IP_PER_HOUR = 60;
 const PER_EMAIL_PER_HOUR = 5;
 
 export async function POST(req: NextRequest) {

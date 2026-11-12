@@ -68,3 +68,11 @@ describe("the route", () => {
     expect(code).not.toMatch(/exists|not found|no account/i);
   });
 });
+
+describe("🔴 found in the 12 Nov simulator test: a class joining together shares ONE connection", () => {
+  it("per connection allows a whole group (60/h); per address still protects each inbox (5/h)", () => {
+    const R = readFileSync("src/app/api/auth/email-code/route.ts", "utf8");
+    expect(R).toMatch(/const PER_IP_PER_HOUR = 60;/);
+    expect(R).toMatch(/const PER_EMAIL_PER_HOUR = 5;/);
+  });
+});

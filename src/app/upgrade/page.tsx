@@ -53,7 +53,7 @@ const SUBSCRIPTION_PLANS = [
         monthlyPaise: paiseFor("plus_monthly"),
         annualPaise:  paiseFor("plus_annual"),
         features: [
-            "Unlimited replies", "Unlimited cloud history", "Companion personas",
+            "Unlimited replies", "Unlimited cloud history",
             "Azure Neural TTS", "Semantic history search", "Data export",
             "Emotion trends & mood graphs", "Companion letters", "Growth arc tracking",
             "Unlimited Connect history", "Priority support",
@@ -447,11 +447,9 @@ export default function UpgradePage() {
                                 "Admin dashboard & analytics",
                                 "Multi-profile management",
                                 "Child-safe mode",
-                                "SSO / SAML integration",
-                                "Data residency options",
+                                "SSO / SAML (set up with our team)",
                                 "Bulk seat management",
                                 "Dedicated onboarding & support",
-                                "Custom companion persona",
                                 "SLA & compliance docs",
                             ].map((f) => (
                                 <li key={f} className="flex items-start gap-2">
@@ -542,25 +540,30 @@ export default function UpgradePage() {
                                     desc: "History and settings synced across all your devices",
                                     free: true, plus: true, ent: true,
                                 },
+                                // #132 F (12 Nov 2026): this table sold four rows as Plus that every free
+                                // user already has, or that were never built (companion modes, length
+                                // control). Owner rule 17 Sep: reply quality and tone are the SAME on
+                                // every tier ⇒ chat-reply route + replyQualityIsTierBlind.test.ts.
+                                // ⇒ plusListIsHonest.test.ts
                                 {
                                     label: "Cross-device sync",
-                                    desc: "Seamlessly switch between phone, tablet, and web with full history",
-                                    free: false, plus: true, ent: true,
+                                    desc: "Sign in on phone, tablet and web and see the same history",
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
-                                    label: "Companion mode / personas",
-                                    desc: "Themed companion personalities — Coach, Listener, Challenger, and more",
-                                    free: false, plus: true, ent: true,
+                                    label: "Companion relationship & tone",
+                                    desc: "Choose who it is to you and how it speaks — the same on every plan",
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
-                                    label: "Response length control",
-                                    desc: "Switch between short, medium, and detailed response modes",
-                                    free: false, plus: true, ent: true,
+                                    label: "Welcome back",
+                                    desc: "On your next visit, pick up the last conversation or start fresh",
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
-                                    label: "Companion tone selection",
-                                    desc: "Choose the mood of your companion — Warm, Direct, Playful, and more",
-                                    free: "1 tone", plus: "All tones", ent: "All tones",
+                                    label: "Daily check-in, if you want one",
+                                    desc: "Say yes once and Imotara gently checks in with you each day",
+                                    free: true, plus: true, ent: true,
                                 },
                                 {
                                     label: "Name your companion",
@@ -858,22 +861,17 @@ export default function UpgradePage() {
                                 },
                                 {
                                     label: "Bulk user provisioning",
-                                    desc: "Import users via CSV or SCIM; set default tier and permissions at scale",
+                                    desc: "Invite many people at once from a list of email addresses, each with a role",
                                     free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "SSO / SAML",
-                                    desc: "Single sign-on via Okta, Google Workspace, Azure AD, or any SAML provider",
-                                    free: false, plus: false, ent: true,
-                                },
-                                {
-                                    label: "Data residency",
-                                    desc: "Choose which geographic region stores your organisation's data",
+                                    desc: "Single sign-on with your SAML provider — set up together with our team",
                                     free: false, plus: false, ent: true,
                                 },
                                 {
                                     label: "API access",
-                                    desc: "Programmatic access to conversation summaries and analytics via REST API",
+                                    desc: "Organisation-wide usage and member counts via a REST API — never anyone\u2019s words",
                                     free: false, plus: false, ent: true,
                                 },
                                 {

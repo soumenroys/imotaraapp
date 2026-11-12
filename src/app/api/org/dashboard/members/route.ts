@@ -85,9 +85,13 @@ export async function POST(req: NextRequest) {
   // Send invite email
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://imotara.com").replace(/\/$/, "");
   const inviteUrl = `${siteUrl}/org/invite/${token}`;
-  void sendInviteEmail({ to: email, orgName: org?.name ?? "your organisation", inviteUrl, role });
+  // 🔴 #134 live test (12 Nov 2026): this was `void sendInviteEmail(…)` — the route answered
+  // "Invite sent" without waiting, and on Vercel the function can stop the moment it answers, so
+  // the email never left (the invite to soumen.roy@ never arrived). Wait for it, and say the truth;
+  // if it failed, hand the admin the link to share themselves.
+  const emailSent = await sendInviteEmail({ to: email, orgName: org?.name ?? "your organisation", inviteUrl, role });
 
-  return NextResponse.json({ ok: true, email, role, expiresAt });
+  return NextResponse.json({ ok: true, email, role, expiresAt, emailSent, ...(emailSent ? {} : { inviteUrl }) });
 }
 
 // ── DELETE — remove member ────────────────────────────────────────────────────
@@ -184,14 +188,14 @@ export async function PATCH(req: NextRequest) {
 // ── Email helper ──────────────────────────────────────────────────────────────
 async function sendInviteEmail({ to, orgName, inviteUrl, role }: {
   to: string; orgName: string; inviteUrl: string; role: string;
-}) {
+}): Promise<boolean> {
   const user = process.env.ALERT_GMAIL_USER?.trim();
   const pass = process.env.ALERT_GMAIL_APP_PASSWORD?.trim();
-  if (!user || !pass) return;
+  if (!user || !pass) return false;
 
   try {
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true, auth: { user, pass },
+      host: process.env.SMTP_HOST?.trim() || "smtp.hostinger.com", port: 465, secure: true, auth: { user, pass },
     });
     await transporter.sendMail({
       from:    `"Imotara" <${user}>`,
@@ -213,7 +217,9 @@ async function sendInviteEmail({ to, orgName, inviteUrl, role }: {
         </div>
       `,
     });
+    return true;
   } catch (err) {
     console.error("[org/members invite email]", err);
+    return false;
   }
 }

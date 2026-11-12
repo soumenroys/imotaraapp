@@ -3,6 +3,7 @@
 // Org admin dashboard shell — sidebar nav, auth guard, role-based tab visibility.
 // Entirely separate from the main consumer app layout.
 
+import { openSignIn } from "@/lib/auth/signInOptions";
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -31,10 +32,20 @@ export default function OrgDashboardLayout({ children }: { children: React.React
   // Set when we could not determine org membership at all — distinct from
   // "this user genuinely has no org", which redirects to /org/new.
   const [loadError, setLoadError] = useState(false);
+  // #134 (12 Nov 2026): a signed-OUT org admin was sent to /org/new ("submit an organisation
+  // request"), as if they had no organisation. Signed out ⇒ ask them to sign in, then come back.
+  const [signedOut, setSignedOut] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
+        try {
+          const { createBrowserClient } = await import("@supabase/ssr");
+          const sb = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+          const { data } = await sb.auth.getUser();
+          if (!data.user || data.user.is_anonymous) { setSignedOut(true); setLoading(false); return; }
+        } catch { /* fall through to the status check, as before */ }
+
         const r    = await fetch("/api/license/status", { credentials: "same-origin" });
 
         // 🔴 "Could not find out" is NOT "you have no organisation".
@@ -90,6 +101,21 @@ export default function OrgDashboardLayout({ children }: { children: React.React
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-indigo-400" />
+      </div>
+    );
+  }
+
+  if (signedOut) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
+        <p className="text-4xl">🔐</p>
+        <h1 className="mt-4 text-xl font-semibold text-zinc-100">Sign in to your organisation dashboard</h1>
+        <p className="mt-2 text-sm text-zinc-400">Use the same account your organisation added you with.</p>
+        <button type="button" onClick={() => openSignIn(pathname || "/org/dashboard")}
+          className="mt-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
+          Sign in
+        </button>
+        <p className="mt-4 text-xs text-zinc-500">Google, or your work or personal email — a code, or a password.</p>
       </div>
     );
   }

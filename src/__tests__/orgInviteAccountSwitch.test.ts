@@ -67,8 +67,9 @@ describe.each(PAGES)("$label — the account switch works", ({ file, dest, param
   });
 
   it("preserves the destination so the invite is not lost", () => {
-    // Template literal, so compare on the raw source text.
-    expect(src()).toContain(`/settings?redirect=${dest}`);
+    // #134 (12 Nov 2026): the sign-in panel opens for THIS page (it used to detour via
+    // /settings?redirect=…) — after signing in, the person lands back on the invite.
+    expect(src()).toContain(`openSignIn(\`${dest}\`)`);
   });
 
   it("navigates even if signOut throws", () => {
@@ -79,26 +80,26 @@ describe.each(PAGES)("$label — the account switch works", ({ file, dest, param
     expect(fn).toContain("catch");
     // the redirect must sit AFTER the try/catch, not inside the try
     const afterCatch = s.slice(s.indexOf("catch", s.indexOf("const switchAccount")));
-    expect(afterCatch).toContain("router.replace");
+    expect(afterCatch).toContain("openSignIn(");
   });
 
-  it("still offers the email & password route as a second option", () => {
-    // The fallback that already worked — do not lose it while fixing the other.
-    expect(src()).toMatch(/\/login\?redirect=/);
+  it("still offers the email & password route — now inside the one panel", () => {
+    // #134: the panel offers Google, an email code AND a password; the page says so.
+    expect(src()).toMatch(/your work or personal email — we&apos;ll send you a code, or you can use a password/);
   });
 
   it(`keeps the ${param} in scope for the redirect`, () => {
-    expect(src()).toContain(`}, [router, ${param}]);`);
+    expect(src()).toMatch(new RegExp(`\\}, \\[(router, )?${param}\\]\\);`));
   });
 });
 
 describe("the signed-out path that was already correct is untouched", () => {
-  it.each(PAGES)("$label still carries ?redirect= on its sign-in link", ({ file, dest }) => {
-    // This is the path a brand-new invitee takes. It was never broken, and a
-    // fix to the "wrong account" link must not disturb it.
+  it.each(PAGES)("$label still brings a brand-new invitee back to this page after signing in", ({ file, dest }) => {
+    // This is the path a brand-new invitee takes. #134: both the Sign in button and the account
+    // switch open the panel FOR THIS PAGE.
     const s = read(file);
-    const occurrences = s.split(`/settings?redirect=${dest}`).length - 1;
-    expect(occurrences).toBeGreaterThanOrEqual(2); // the sign-in link + switchAccount
+    const occurrences = s.split(`openSignIn(\`${dest}\`)`).length - 1;
+    expect(occurrences).toBeGreaterThanOrEqual(2); // the sign-in button + switchAccount
   });
 });
 

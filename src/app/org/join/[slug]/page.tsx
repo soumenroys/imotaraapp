@@ -5,6 +5,7 @@
 // invite link. Org admins share this link directly (e.g. with their whole
 // school/organisation) instead of sending individual invites.
 
+import { openSignIn } from "@/lib/auth/signInOptions";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -53,7 +54,7 @@ export default function JoinByDomainPage() {
     } catch {
       // fall through — still send them to sign-in
     }
-    router.replace(`/settings?redirect=/org/join/${slug}`);
+    openSignIn(`/org/join/${slug}`);
   }, [router, slug]);
 
 
@@ -153,18 +154,16 @@ export default function JoinByDomainPage() {
           </p>
         )}
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <Link href={`/settings?redirect=/org/join/${slug}`}
+          {/* #134 (12 Nov 2026): straight to the one sign-in panel, back here afterwards — it used to
+              detour through Settings, and said only admin-made accounts could use a password. */}
+          <button type="button" onClick={() => openSignIn(`/org/join/${slug}`)}
             className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
             <SsoIcon />
             Sign in
-          </Link>
-          <Link href={`/login?redirect=/org/join/${slug}`}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
-            Sign in with email &amp; password
-          </Link>
+          </button>
         </div>
         <p className="mt-4 text-xs text-zinc-500">
-          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses single sign-on.
+          Use Google, or your work or personal email — we&apos;ll send you a code, or you can use a password.
         </p>
       </div>
     );
@@ -225,7 +224,7 @@ export default function JoinByDomainPage() {
             Wrong account?{" "}
             <button type="button" onClick={switchAccount} className="underline hover:text-zinc-400">Sign in with a different account</button>
             {" "}or{" "}
-            <Link href={`/login?redirect=/org/join/${slug}`} className="underline hover:text-zinc-400">sign in with email &amp; password instead</Link>
+            <button type="button" onClick={() => openSignIn(`/org/join/${slug}`)} className="underline hover:text-zinc-400">sign in another way</button>
           </p>
         </>
       )}

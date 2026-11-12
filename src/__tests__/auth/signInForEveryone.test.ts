@@ -106,3 +106,10 @@ describe("🔴 found in the 12 Nov live test: Supabase makes 8-digit codes", () 
     expect(PANEL).not.toMatch(/CODE_LENGTH|6-digit/);
   });
 });
+
+describe("🔴 found in the 12 Nov live test: the 'too many codes' message said 'a minute' for an hourly limit", () => {
+  it("says what is true: use the latest code, or wait up to an hour", () => {
+    const PANEL = readFileSync("src/components/auth/SignInPanel.tsx", "utf8");
+    expect(PANEL).toMatch(/if \(r\.status === 429\) \{ setError\("You've asked for several codes already\. Please use the latest code we sent, or wait up to an hour/);
+  });
+});

@@ -113,7 +113,10 @@ export default function MembersPage() {
       });
       const j = await r.json();
       if (!r.ok) { setError(j.error ?? "Invite failed"); return; }
-      setInviteMsg(`✓ Invite sent to ${inviteEmail}`);
+      // #134: the server now waits for the email; if it did not go out, say so and give the link.
+      setInviteMsg(j.emailSent === false
+        ? `Invite created for ${inviteEmail}, but the email did not go out. Send them this link yourself: ${j.inviteUrl}`
+        : `✓ Invite sent to ${inviteEmail}`);
       setInviteEmail(""); void fetchMembers();
     } finally { setInviting(false); }
   }
@@ -142,7 +145,11 @@ export default function MembersPage() {
       });
       const j = await r.json();
       if (!r.ok) { setError(j.error ?? "Bulk invite failed."); return; }
-      setBulkResults(j.results);
+      // #134: say which invite emails did not go out (the invites themselves exist).
+      const failed: string[] = Array.isArray(j.emailsFailed) ? j.emailsFailed : [];
+      setBulkResults(failed.length
+        ? [...j.results.map((x: BulkResult) => failed.includes(x.email) ? { ...x, status: "error", reason: "invite created, but the email did not go out — resend from the list" } : x)]
+        : j.results);
       setBulkSummary(j.summary);
       setCsvRows([]); setCsvFileName("");
       void fetchMembers();

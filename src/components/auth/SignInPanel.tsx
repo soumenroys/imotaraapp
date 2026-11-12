@@ -123,7 +123,8 @@ export default function SignInPanel() {
         body: JSON.stringify({ email: em, purpose: step.intent === "reset" ? "reset" : "signin" }),
       });
       setBusy(null);
-      if (r.status === 429) { setError(friendlyAuthError("rate limit")); return; }
+      // Our limit is per hour (5 codes per address) — "a minute" would send them back too soon.
+      if (r.status === 429) { setError("You've asked for several codes already. Please use the latest code we sent, or wait up to an hour before asking again."); return; }
       if (!r.ok) { setError("We couldn't send the code just now. Please try again in a minute."); return; }
       setCode(""); setStep({ kind: "code-enter", email: em, intent: step.intent });
     } catch { setBusy(null); setError(friendlyAuthError(null)); }

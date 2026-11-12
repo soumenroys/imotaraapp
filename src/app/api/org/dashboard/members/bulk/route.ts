@@ -89,9 +89,11 @@ export async function POST(req: NextRequest) {
   const siteUrl  = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://imotara.com").replace(/\/$/, "");
 
   let transporter: ReturnType<typeof nodemailer.createTransport> | null = null;
+  const mailJobs: Promise<void>[] = [];
+  const mailFailed: string[] = [];
   if (smtpUser && smtpPass) {
     transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST ?? "smtp.hostinger.com", port: 465, secure: true,
+      host: process.env.SMTP_HOST?.trim() || "smtp.hostinger.com", port: 465, secure: true,
       auth: { user: smtpUser, pass: smtpPass },
     });
   }
@@ -146,7 +148,8 @@ export async function POST(req: NextRequest) {
     // — Send invite email (non-blocking per entry — log error but continue)
     if (transporter && smtpUser) {
       const inviteUrl = `${siteUrl}/org/invite/${token}`;
-      transporter.sendMail({
+      // 🔴 #134 live test: these were never waited for — the route could answer before they left.
+      mailJobs.push(transporter.sendMail({
         from:    `"Imotara" <${smtpUser}>`,
         to:      email,
         subject: `You've been invited to join ${org.name} on Imotara`,
@@ -163,7 +166,7 @@ export async function POST(req: NextRequest) {
             <p style="color:#6b7280;font-size:13px">This link expires in 7 days.</p>
           </div>
         `,
-      }).catch((err) => console.error("[bulk invite email]", email, err));
+      }).then(() => undefined).catch((err) => { console.error("[bulk invite email]", email, err); mailFailed.push(email); }));
     }
 
     slotsUsed++;
@@ -178,5 +181,7 @@ export async function POST(req: NextRequest) {
     errors:  results.filter((r) => r.status === "error").length,
   };
 
-  return NextResponse.json({ ok: true, summary, results });
+  // Wait for every email before answering (see above), and say which did not go out.
+  await Promise.allSettled(mailJobs);
+  return NextResponse.json({ ok: true, summary, results, emailsFailed: mailFailed, emailsConfigured: !!transporter });
 }

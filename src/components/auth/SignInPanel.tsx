@@ -2,7 +2,7 @@
 // site. Every "Sign in" button calls openSignIn() ⇒ lib/auth/signInOptions.ts.
 //
 //   · Continue with Google / Microsoft / Apple / LinkedIn — each only once switched on
-//   · Email me a code — any email address, a 6-digit code, no password
+//   · Email me a code — any email address, a one-time code, no password
 //   · Use a password  — sign in; "create an account" and "forgot password" are a code first,
 //                       then choose a password (the code proves the address is yours)
 // ⛔ Codes are made and emailed by OUR server from OUR mailbox (api/auth/email-code) — no outside
@@ -17,7 +17,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import Modal from "@/components/ui/Modal";
 import {
-  CODE_LENGTH, EMAIL_RX, MIN_PASSWORD, OPEN_SIGN_IN_EVENT,
+  CODE_MAX, CODE_MIN, EMAIL_RX, MIN_PASSWORD, OPEN_SIGN_IN_EVENT,
   callbackUrl, enabledEmail, enabledOAuth, friendlyAuthError, safeTarget,
   type OAuthOption,
 } from "@/lib/auth/signInOptions";
@@ -133,7 +133,7 @@ export default function SignInPanel() {
     e.preventDefault();
     if (step.kind !== "code-enter") return;
     const token = code.replace(/\D/g, "");
-    if (token.length !== CODE_LENGTH) { setError(`The code has ${CODE_LENGTH} digits.`); return; }
+    if (token.length < CODE_MIN || token.length > CODE_MAX) { setError("Please type the whole code from the email."); return; }
     setBusy("verify"); setError("");
     const { data, error: err } = await client().auth.verifyOtp({ email: step.email, token, type: "email" });
     if (err || !data.session) { setBusy(null); setError(friendlyAuthError(err?.message)); return; }
@@ -229,8 +229,8 @@ export default function SignInPanel() {
 
         {step.kind === "code-enter" && (
           <form onSubmit={verifyCode} className="space-y-3">
-            <p className="text-sm text-zinc-300">We sent a {CODE_LENGTH}-digit code to <span className="font-medium text-zinc-100">{step.email}</span>. It can take a minute — check spam too.</p>
-            <input autoFocus data-autofocus type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={CODE_LENGTH + 2} value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" aria-label="The code from the email" className={`${input} text-center tracking-[0.4em]`} />
+            <p className="text-sm text-zinc-300">We sent a code to <span className="font-medium text-zinc-100">{step.email}</span>. It can take a minute — check spam too.</p>
+            <input autoFocus data-autofocus type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={CODE_MAX + 2} value={code} onChange={(e) => setCode(e.target.value)} placeholder="12345678" aria-label="The code from the email" className={`${input} text-center tracking-[0.4em]`} />
             <button type="submit" disabled={!!busy} className={primary}>{busy === "verify" ? "Checking…" : step.intent === "signin" ? "Sign in" : "Continue"}</button>
             <div className="flex justify-between">
               <button type="button" onClick={() => { setError(""); setStep({ kind: "code-email", intent: step.intent }); }} className="text-xs text-zinc-400 hover:text-zinc-200">Send a new code</button>

@@ -98,3 +98,11 @@ describe("⛔ no Google-only sign-in button is left anywhere", () => {
     expect(callers.sort()).toEqual(["src/components/auth/SignInPanel.tsx"]);
   });
 });
+
+describe("🔴 found in the 12 Nov live test: Supabase makes 8-digit codes", () => {
+  it("the panel accepts the code as it comes (6–10 digits), never a fixed 6", () => {
+    const PANEL = readFileSync("src/components/auth/SignInPanel.tsx", "utf8");
+    expect(PANEL).toMatch(/token\.length < CODE_MIN \|\| token\.length > CODE_MAX/);
+    expect(PANEL).not.toMatch(/CODE_LENGTH|6-digit/);
+  });
+});

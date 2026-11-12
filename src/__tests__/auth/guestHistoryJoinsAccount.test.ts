@@ -64,3 +64,15 @@ describe("the route and the browser", () => {
     expect(readFileSync("src/app/layout.tsx", "utf8")).toContain("<GuestHistoryClaim />");
   });
 });
+
+describe("the app's guest is an anonymous ACCOUNT (uuid) — claimable only with proof", () => {
+  const ROUTE = readFileSync("src/app/api/history/claim/route.ts", "utf8");
+  it("a uuid scope needs the guest account's own token, verified by the server", () => {
+    expect(ROUTE).toMatch(/supabaseServer\.auth\.getUser\(body\.anonymousToken\)/);
+    expect(ROUTE).toMatch(/!anon\.is_anonymous \|\| anon\.id === user\.id/);
+    expect(ROUTE).toMatch(/scope = anon\.id;/);
+  });
+  it("without that proof, a uuid is still refused (isClaimableScope)", () => {
+    expect(isClaimableScope("198a5f40-edc6-4ad1-8f4e-c0758aec1245")).toBe(false);
+  });
+});

@@ -2,7 +2,7 @@
 export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import crypto from "crypto";
 import nodemailer from "nodemailer";
 import { logDonation } from "@/lib/donations/logDonation";
@@ -143,14 +143,14 @@ export async function POST(req: Request) {
                     // ⛔ This does NOT auto-activate. It makes the manual step
                     // reachable, which is what makes "manual" a process rather
                     // than a silence.
-                    void sendActivationAlert({
+                    after(async () => { try { await sendActivationAlert({
                         orgName:  `${orgLabel} — ${userEmail || userId}`,
                         orgId:    org?.id ?? "(unknown)",
                         orgType,
                         seats,
                         userEmail: userEmail || userId,
                         paymentId: paymentEntity?.id ?? orderEntity?.id ?? "(none)",
-                    });
+                    }); } catch (e) { console.error("[email after response]", e); } });
 
                     console.log("[razorpay/webhook] corporate org created:", slug, seats, "seats");
                 } else {

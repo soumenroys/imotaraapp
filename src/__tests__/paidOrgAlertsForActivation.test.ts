@@ -74,10 +74,16 @@ describe("but a human is told, so 'manual' is a process and not a silence", () =
 });
 
 describe("🔴 the alert can never break the payment webhook", () => {
-  it("is fired without awaiting it", () => {
+  it("never makes the webhook's answer wait for the email", () => {
     // Razorpay retries on a non-200. Blocking a payment webhook on SMTP would
     // be far worse than a missed email.
-    expect(WEBHOOK()).toMatch(/void sendActivationAlert\(/);
+    // 12 Nov 2026: was `void sendActivationAlert(…)` — that never blocked, but on Vercel the
+    // function can stop once it answers, so the alert could be lost. Now it runs in after():
+    // still after the answer, and the platform keeps the function alive until it is sent.
+    const s = WEBHOOK();
+    expect(s).toMatch(/after\(async \(\) => \{ try \{ await sendActivationAlert\(/);
+    const outsideAfter = s.replace(/after\(async \(\) => \{[\s\S]*?\}\);/g, "");
+    expect(outsideAfter).not.toMatch(/await sendActivationAlert\(/);
   });
 
   it("swallows its own failures", () => {

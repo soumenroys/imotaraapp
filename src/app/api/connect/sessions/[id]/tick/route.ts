@@ -7,7 +7,7 @@ export const maxDuration = 60;
 // Returns { ok, remaining_minutes, status }
 // Auth required.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
 import {
@@ -129,7 +129,7 @@ export async function POST(
 
     if (completedRows && completedRows.length > 0) {
       await creditConsultant(supabase, session.consultant_id, split.consultantCredited, sessionId);
-      void sendCompletionEmails(supabase, {
+      after(async () => { try { await sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
         consultantId:  session.consultant_id,
@@ -140,7 +140,7 @@ export async function POST(
         // was rounded.
         split,
         currency:      session.currency_code ?? "INR",
-      }).catch((e) => console.error("[tick] completion email error:", e));
+      }).catch((e) => console.error("[tick] completion email error:", e)); } catch (e) { console.error("[email after response]", e); } });
     }
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });
@@ -189,14 +189,14 @@ export async function POST(
 
     if (completedRows && completedRows.length > 0) {
       await creditConsultant(supabase, session.consultant_id, split.consultantCredited, sessionId);
-      void sendCompletionEmails(supabase, {
+      after(async () => { try { await sendCompletionEmails(supabase, {
         sessionId,
         userId:        session.user_id,
         consultantId:  session.consultant_id,
         minutesUsed:   billableMin,
         split,
         currency:      session.currency_code ?? "INR",
-      }).catch((e) => console.error("[tick] completion email error:", e));
+      }).catch((e) => console.error("[tick] completion email error:", e)); } catch (e) { console.error("[email after response]", e); } });
     }
 
     return NextResponse.json({ ok: true, status: "completed", remaining_minutes: 0 });

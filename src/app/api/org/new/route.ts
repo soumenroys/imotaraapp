@@ -2,7 +2,7 @@
 // POST /api/org/new — authenticated users submit an org creation request.
 // Creates org with status=pending, sends alert email to Imotara admin.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import nodemailer from "nodemailer";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";
 import { releasePriorOrgMembership } from "@/lib/imotara/org";
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
   }, { onConflict: "user_id" });
 
   // 7. Send alert email to Imotara admin (non-blocking — don't fail request if email fails)
-  void sendAdminAlert({
+  after(async () => { try { await sendAdminAlert({
     orgName:      org.name,
     orgSlug:      org.slug,
     orgId:        org.id,
@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
     ownerEmail:   userEmail ?? "unknown",
     contactEmail: body.contact_email ?? null,
     description:  body.description   ?? null,
-  });
+  }); } catch (e) { console.error("[email after response]", e); } });
 
   return NextResponse.json({ ok: true, org: { id: org.id, name: org.name, slug: org.slug } }, { status: 201 });
 }

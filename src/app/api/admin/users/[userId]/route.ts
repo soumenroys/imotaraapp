@@ -15,7 +15,7 @@
 // §10.6). This is the other direction: an explicit, standalone "delete this
 // specific person's account" action, independent of any org.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { revokeOrgLicense } from "@/lib/imotara/org";
@@ -104,7 +104,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
     );
   }
 
-  void sendAdminUserDeletionAlert({ deletedEmail: email, userId, deletedByAdminEmail: auth.admin.email });
+  after(async () => { try { await sendAdminUserDeletionAlert({ deletedEmail: email, userId, deletedByAdminEmail: auth.admin.email }); } catch (e) { console.error("[email after response]", e); } });
 
   return NextResponse.json({
     ok: true,

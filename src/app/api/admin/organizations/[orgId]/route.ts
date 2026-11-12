@@ -131,6 +131,14 @@ export async function PATCH(
     orgNameForEmail      = existing?.name ?? null;
   }
 
+  // #132 (12 Nov 2026 live pilot run): the org's END DATE before this edit — see the
+  // propagation below the update.
+  const { data: before } = await admin
+    .from("organizations")
+    .select("tier, expires_at")
+    .eq("id", orgId)
+    .maybeSingle();
+
   const { data, error } = await admin
     .from("organizations")
     .update(update)
@@ -156,6 +164,25 @@ export async function PATCH(
         reviewNote:  (orgSettingsForEmail?.verification_review_note as string | null) ?? null,
       }).catch((err) => console.error("[admin/organizations PATCH] verification email failed:", err));
     }).catch((err) => console.error("[admin/organizations PATCH] owner lookup failed:", err));
+  }
+
+  // 🔴 #132 (12 Nov 2026, found in the live pilot run): every member's licence carries a COPY of
+  // the org's end date (grantOrgTierWithFloor / the sync below), and resolve_user_tier reads that
+  // licence first. So changing the org's end date changed nothing for members: ending a pilot
+  // early left them on the org's plan until the old date, and EXTENDING a pilot that became paid
+  // would have cut them off on the old date. ⇒ move every licence the org GRANTED (same tier,
+  // same old end date) to the new date. A member who bought their own plan has their own date
+  // and is untouched — the floor rule below still holds. ⇒ ngoPilotPath.test.ts
+  if (body.expires_at !== undefined && before && (before.expires_at ?? null) !== (data?.expires_at ?? null)) {
+    let granted = admin
+      .from("licenses")
+      .update({ expires_at: data?.expires_at ?? null, updated_at: new Date().toISOString() })
+      .eq("org_id", orgId)
+      .eq("source", "org")
+      .eq("tier", before.tier);
+    granted = before.expires_at ? granted.eq("expires_at", before.expires_at) : granted.is("expires_at", null);
+    const { error: propErr } = await granted;
+    if (propErr) console.error("[admin/organizations PATCH] end-date propagation failed:", propErr.message);
   }
 
   // If tier OR status changed to active, sync all active org members' licenses

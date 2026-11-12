@@ -111,3 +111,22 @@ describe("🔴 found in the 12 Nov live run: a brand-new owner was never recorde
     expect(route).toMatch(/\.eq\("role", "owner"\)\.eq\("status", "active"\)/);
   });
 });
+
+describe("🔴 found in the 12 Nov live run: changing the org's end date changed nothing for members", () => {
+  const route = readFileSync("src/app/api/admin/organizations/[orgId]/route.ts", "utf8");
+  const patch = route.slice(route.indexOf("export async function PATCH"), route.indexOf("export async function DELETE"));
+  it("the end date before the edit is read BEFORE the update", () => {
+    expect(patch.indexOf('select("tier, expires_at")')).toBeGreaterThan(-1);
+    expect(patch.indexOf('select("tier, expires_at")')).toBeLessThan(patch.indexOf(".update(update)"));
+  });
+  it("only licences the org GRANTED move: this org, source org, same tier, same old date", () => {
+    const i = patch.indexOf("end-date propagation");
+    const block = patch.slice(patch.indexOf("if (body.expires_at !== undefined && before"), i);
+    for (const fence of ['.eq("org_id", orgId)', '.eq("source", "org")', '.eq("tier", before.tier)', 'granted.eq("expires_at", before.expires_at)']) {
+      expect(block).toContain(fence);
+    }
+  });
+  it("it runs before the floor sync, so that sync reads the new dates", () => {
+    expect(patch.indexOf("end-date propagation")).toBeLessThan(patch.indexOf("const tierChanged"));
+  });
+});

@@ -99,3 +99,15 @@ describe("⛔ mark-paid can only touch a due, hand-written invoice of that org",
     expect(patch.indexOf("requireSuperAdmin(")).toBeLessThan(patch.indexOf(".update("));
   });
 });
+
+describe("🔴 found in the 12 Nov live run: a brand-new owner was never recorded on the org", () => {
+  it("creating an org records the owner the invite just created", () => {
+    const route = readFileSync("src/app/api/admin/organizations/route.ts", "utf8");
+    const after = route.slice(route.indexOf("ownerProvisioned = provision.ok;"));
+    expect(after).toMatch(/if \(provision\.ok && !ownerUserId\)[\s\S]{0,200}owner_user_id: provision\.data\.userId/);
+  });
+  it("an invoice for an older org falls back to its active owner member", () => {
+    const route = readFileSync("src/app/api/admin/organizations/[orgId]/invoices/route.ts", "utf8");
+    expect(route).toMatch(/\.eq\("role", "owner"\)\.eq\("status", "active"\)/);
+  });
+});

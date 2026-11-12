@@ -154,6 +154,18 @@ export async function POST(req: NextRequest) {
       ACCEPT_REDIRECT,
     );
     ownerProvisioned = provision.ok;
+    // 🔴 #132 E2E (12 Nov 2026): a brand-new owner has no account when the org row is inserted,
+    // so owner_user_id was written NULL and never filled — the org had an owner in org_members
+    // but not on the org (invoices, owner emails and the one-org-per-owner rule all read it).
+    // The invite just created the account ⇒ record it now.
+    if (provision.ok && !ownerUserId) {
+      const { error: ownErr } = await admin
+        .from("organizations")
+        .update({ owner_user_id: provision.data.userId })
+        .eq("id", data.id)
+        .is("owner_user_id", null);
+      if (ownErr) console.error("[admin/organizations] could not record owner:", ownErr.message);
+    }
     if (!provision.ok) {
       ownerProvisionError = provision.error;
       // Fall back to the old informational email so the intended owner at

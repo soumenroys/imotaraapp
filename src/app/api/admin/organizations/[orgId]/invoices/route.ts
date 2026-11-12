@@ -21,12 +21,23 @@ const LIST_COLUMNS =
   "id, invoice_number, description, amount_paise, currency, payment_gateway, gateway_ref, status, issued_at, period_start, period_end";
 
 async function loadOrg(orgId: string) {
-  const { data } = await getSupabaseAdmin()
+  const admin = getSupabaseAdmin();
+  const { data } = await admin
     .from("organizations")
     .select("id, name, slug, tier, owner_user_id")
     .eq("id", orgId)
     .maybeSingle();
-  return data as { id: string; name: string; slug: string; tier: string | null; owner_user_id: string | null } | null;
+  const org = data as { id: string; name: string; slug: string; tier: string | null; owner_user_id: string | null } | null;
+  // Orgs created before 12 Nov 2026 for a brand-new owner never got owner_user_id (see
+  // api/admin/organizations POST) — the active member whose role is "owner" is the same person.
+  if (org && !org.owner_user_id) {
+    const { data: m } = await admin
+      .from("org_members").select("user_id")
+      .eq("org_id", orgId).eq("role", "owner").eq("status", "active")
+      .limit(1).maybeSingle();
+    org.owner_user_id = (m?.user_id as string | undefined) ?? null;
+  }
+  return org;
 }
 
 export async function GET(req: NextRequest, { params }: Params) {

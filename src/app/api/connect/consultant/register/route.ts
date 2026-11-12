@@ -5,7 +5,7 @@ export const preferredRegion = ["sin1"];
 // Body: { display_name, gender, role_category?, photo_url?, bio, expertise_tags, languages,
 //         rate_per_min, currency_code, availability_note?, coc_agreed }
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
 import nodemailer from "nodemailer";
@@ -301,13 +301,13 @@ export async function POST(req: NextRequest) {
 
   // Notify admin + confirm receipt to applicant (fire-and-forget — SMTP latency must not block the response)
   const applicantEmail = contact_email?.trim() || user.email || "";
-  void sendRegistrationEmails({
+  after(async () => { try { await sendRegistrationEmails({
     display_name,
     applicant_email: applicantEmail,
     auth_email: user.email ?? "",
     currency_code,
     rate_per_min,
-  }).catch((e) => console.error("[consultant/register] email error:", e));
+  }).catch((e) => console.error("[consultant/register] email error:", e)); } catch (e) { console.error("[email after response]", e); } });
 
   return NextResponse.json({ ok: true, id: consultant.id, status: "pending" }, { status: 201 });
 }

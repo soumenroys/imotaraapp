@@ -5,7 +5,7 @@
 export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { getConnectUser } from "@/lib/connect/auth";
 import { getConnectScope, applyConsultantVisibility } from "@/lib/connect/scope";
@@ -347,13 +347,14 @@ export async function POST(req: NextRequest) {
     .single();
 
   // Confirmation email to the requesting user (P2-24, non-blocking)
-  if (user.email) {
-    void sendSessionRequestEmail({
-      userEmail:      user.email,
+  const requesterEmail = user.email;
+  if (requesterEmail) {
+    after(async () => { try { await sendSessionRequestEmail({
+      userEmail:      requesterEmail,
       consultantName: consultantForPush?.display_name ?? "your companion",
       sessionType:    type as "instant" | "scheduled",
       sessionId:      createdSession.id,
-    }).catch((e) => console.error("[sessions] request email error:", e));
+    }).catch((e) => console.error("[sessions] request email error:", e)); } catch (e) { console.error("[email after response]", e); } });
   }
 
   if (consultantForPush?.expo_push_token) {

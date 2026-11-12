@@ -8,7 +8,7 @@
 //        that history loss; here it's the owner's own informed choice about
 //        their own org, a different consent context).
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { requireOrgAdmin } from "@/app/api/org/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import nodemailer from "nodemailer";
@@ -112,7 +112,7 @@ export async function DELETE(req: NextRequest) {
   // Alert Imotara so there's a record this happened — org_audit_log itself
   // cascades away with the delete below, so this email is the only trace
   // left afterward.
-  void sendDeletionAlert({ orgName: org.name, orgId: auth.orgId, deletedBy: auth.userId });
+  after(async () => { try { await sendDeletionAlert({ orgName: org.name, orgId: auth.orgId, deletedBy: auth.userId }); } catch (e) { console.error("[email after response]", e); } });
 
   // Deletes the org row; org_members, org_audit_log, api_keys,
   // org_license_pools/assignments, org_invites, cohorts/cohort_members all

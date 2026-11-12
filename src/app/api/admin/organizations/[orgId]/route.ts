@@ -8,7 +8,7 @@
 //         on the org's own owner-initiated delete (org/dashboard/settings).
 // Protected by ADMIN_SECRET Bearer token.
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { TIER_ORDER, TIER_RANK, isLicenseTier, type LicenseTier } from "@/types/license";
 import { adminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
@@ -153,17 +153,17 @@ export async function PATCH(
 
   // Notify the org owner of the verification decision (fire-and-forget).
   if (body.verification_decision !== undefined && ownerUserIdForEmail) {
-    admin.auth.admin.getUserById(ownerUserIdForEmail).then(({ data: userData }) => {
+    after(async () => { try { await admin.auth.admin.getUserById(ownerUserIdForEmail).then(async ({ data: userData }) => {
       const email = userData?.user?.email;
       if (!email) return;
-      void sendOrgVerificationDecisionEmail({
+      await sendOrgVerificationDecisionEmail({
         ownerEmail:  email,
         ownerName:   (userData.user?.user_metadata?.full_name as string | undefined) ?? null,
         orgName:     orgNameForEmail ?? "your organization",
         approved:    body.verification_decision === "approved",
         reviewNote:  (orgSettingsForEmail?.verification_review_note as string | null) ?? null,
       }).catch((err) => console.error("[admin/organizations PATCH] verification email failed:", err));
-    }).catch((err) => console.error("[admin/organizations PATCH] owner lookup failed:", err));
+    }).catch((err) => console.error("[admin/organizations PATCH] owner lookup failed:", err)); } catch (e) { console.error("[email after response]", e); } });
   }
 
   // 🔴 #132 (12 Nov 2026, found in the live pilot run): every member's licence carries a COPY of
@@ -307,11 +307,11 @@ export async function DELETE(
   // Member licenses are released automatically by the same DB trigger used
   // by the org's own owner-initiated delete — see
   // docs/sql/org_delete_license_release_trigger.sql.
-  void sendAdminDeletionAlert({
+  after(async () => { try { await sendAdminDeletionAlert({
     orgName:      org.name,
     orgId,
     deletedByAdminEmail: auth.admin.email,
-  });
+  }); } catch (e) { console.error("[email after response]", e); } });
 
   const { error } = await admin.from("organizations").delete().eq("id", orgId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

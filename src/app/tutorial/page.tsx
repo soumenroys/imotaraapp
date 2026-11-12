@@ -710,7 +710,7 @@ const FEATURES: Record<string, Feature[]> = {
       steps: [
         "Open Settings (gear icon, bottom right).",
         "Scroll to 'Remote history sync' or tap 'Sign in' when prompted during cloud sync.",
-        "Website: choose Continue with Google, Continue with Microsoft, Email me a code, or Use a password. Apps: Google, or Apple on iPhone.",
+        "Website: choose Continue with Google, Continue with Microsoft, Continue with Apple, Email me a code, or Use a password. Apps: Google, or Apple on iPhone.",
         "Finish in the sign-in window — or type the code we email you from imotara.com.",
         "You're signed in — your history begins syncing to the cloud.",
       ],

@@ -15,6 +15,7 @@ describe("Microsoft sign-in door", () => {
   it("the login sentence lists exactly what is switched on", () => {
     expect(otherWaysText(enabledOAuth("google"))).toBe("Google or a code by email");
     expect(otherWaysText(enabledOAuth("google,azure"))).toBe("Google, Microsoft or a code by email");
+    expect(otherWaysText(enabledOAuth("google,azure,apple"))).toBe("Google, Microsoft, Apple or a code by email");
     expect(readFileSync("src/app/login/page.tsx", "utf8")).not.toMatch(/\(Google, or a code by email\)/);
   });
   it("help and policy are current", () => {

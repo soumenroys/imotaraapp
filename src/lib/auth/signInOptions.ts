@@ -64,7 +64,10 @@ export function callbackUrl(origin: string, target: string): string {
 
 export const EMAIL_RX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const MIN_PASSWORD = 8;
-export const CODE_LENGTH = 6;
+// The code's length is Supabase's setting (8 on this project — seen in the live test, 12 Nov), not ours:
+// accept what it makes. ⛔ A fixed 6 refused every real code.
+export const CODE_MIN = 6;
+export const CODE_MAX = 10;
 
 /** Supabase's English error text ⇒ a sentence a person can act on. */
 export function friendlyAuthError(message: string | null | undefined): string {

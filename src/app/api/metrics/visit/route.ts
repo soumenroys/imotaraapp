@@ -9,10 +9,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 import { parseTallyEvents } from "@/lib/analytics/visitTally";
+import { refuseAsRobot } from "@/lib/analytics/automatedVisitor";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
+    // #76: a robot that skipped the browser check is still refused here ⇒ lib/analytics/automatedVisitor.ts
+    // ⛔ Only for web: the apps' own HTTP stacks (okhttp, CFNetwork) are not robots.
+    const platform = resolvePlatform(req);
+    if (refuseAsRobot(platform, req.headers.get("user-agent"))) {
+        return new NextResponse(null, { status: 204 });
+    }
     let body: unknown = null;
     try {
         body = await req.json();
@@ -23,7 +30,6 @@ export async function POST(req: NextRequest) {
     const events = parseTallyEvents(body);
     if (events.length === 0) return new NextResponse(null, { status: 204 });
 
-    const platform = resolvePlatform(req);
     try {
         const db = getSupabaseAdmin();
         await Promise.all(events.map((e) =>

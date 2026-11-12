@@ -12,7 +12,8 @@
 
 import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { isAutomatedBrowser } from "@/lib/analytics/automatedVisitor";
 import { gaMeasurementId, isUntrackedPath } from "@/lib/analytics/ga";
 
 declare global {
@@ -80,8 +81,15 @@ export default function GoogleAnalytics() {
     // opening /unsubscribe) must not even load gtag: its config call alone
     // records first_visit and session_start.
     const pathname = usePathname();
+    // #76 (12 Nov 2026): robots never load gtag — 76 of 125 weekly "users" were Ashburn
+    // robots. Decided after mount (navigator is browser-only); until then nothing loads.
+    const [person, setPerson] = useState(false);
+    useEffect(() => {
+        try { setPerson(!isAutomatedBrowser(navigator)); } catch { setPerson(false); }
+    }, []);
     if (!measurementId) return null;
     if (isUntrackedPath(pathname)) return null;
+    if (!person) return null;
 
     return (
         <>

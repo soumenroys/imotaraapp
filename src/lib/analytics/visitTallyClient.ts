@@ -11,6 +11,7 @@
 // and the next report moves its single +1 to the new bucket (−1 old, +1 new),
 // so each visit is counted once at its final size.
 
+import { isAutomatedBrowser } from "@/lib/analytics/automatedVisitor";
 import {
     FUNNEL_STEPS,
     type FunnelStep,
@@ -46,6 +47,8 @@ function save(s: State) {
 
 function send(events: TallyEvent[]) {
     if (events.length === 0) return;
+    // #76: robots are not visitors ⇒ lib/analytics/automatedVisitor.ts
+    try { if (isAutomatedBrowser(typeof navigator === "undefined" ? null : navigator)) return; } catch { return; }
     const body = JSON.stringify({ events });
     try {
         if (navigator.sendBeacon?.(ENDPOINT, new Blob([body], { type: "application/json" }))) return;

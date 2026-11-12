@@ -150,11 +150,11 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
       },
       {
         do: "The Funnel card: did the landing message box, the invite, the welcome-back card and the upgrade page do anything?",
-        then: "Each step counts devices once per day — anonymous, no names, never the words. Read the five rates at the top (landing box → sent in chat, invite accepted, welcome-back picked, upgrade → checkout, checkout → paid). The landing box is the message box on the home page and /ai-emotional-support (from its release). Web from 11 Nov 2026; the apps from their next release.",
+        then: "Each step counts devices once per day — anonymous, never the words. Read the five rates at the top. The landing box is the message box on the home page and /ai-emotional-support. Web from 11 Nov 2026; apps from their next release.",
       },
     ],
     footnote:
-      "⚠️ usage_events records costly things — a cloud reply, a spoken reply, a transcription. It is not a clickstream: it cannot tell you where somebody came from or what they tapped.",
+      "⚠️ usage_events records costly things — a cloud reply, a spoken reply, a transcription. It is not a clickstream: it cannot tell you where somebody came from or what they tapped. 🤖 From 12 Nov 2026 robots are left out of visits, the funnel and GA — the drop that day is robots leaving.",
   },
 
   crisis: {

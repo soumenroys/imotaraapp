@@ -14,6 +14,7 @@
 // plaintext password ever transited email) using the exact same complexity
 // policy as the super-admin system (src/lib/imotara/passwordPolicy.ts).
 
+import { openSignIn } from "@/lib/auth/signInOptions";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -66,7 +67,7 @@ function AcceptHandler() {
                         window.history.replaceState(null, "", window.location.pathname);
                         setStep("set_password");
                     } else {
-                        setError("This invite link is invalid or has already been used.");
+                        setError("This link has expired or was already used — that is normal if you have signed in another way since.");
                         setStep("error");
                     }
                 });
@@ -106,7 +107,7 @@ function AcceptHandler() {
                         window.history.replaceState(null, "", window.location.pathname);
                         setStep("set_password");
                     } else {
-                        setError("This invite link is invalid or has already been used.");
+                        setError("This link has expired or was already used — that is normal if you have signed in another way since.");
                         setStep("error");
                     }
                 });
@@ -205,12 +206,16 @@ function AcceptHandler() {
         return (
             <div className="w-full max-w-sm text-center">
                 <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-                <Link
-                    href="/auth/forgot-password"
+                {/* #134 (12 Nov 2026, live test): an invited person who signed in with an emailed code
+                    first finds this link spent. Their account is ready — offer the code, not a dead end. */}
+                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Your account is ready. Sign in with a code sent to your email, and you can set a password from there.</p>
+                <button
+                    type="button"
+                    onClick={() => openSignIn("/org/dashboard", { intent: "signin" })}
                     className="mt-4 inline-flex w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
                 >
-                    Request a new link
-                </Link>
+                    Sign in with a code
+                </button>
             </div>
         );
     }

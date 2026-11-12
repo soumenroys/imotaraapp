@@ -15,7 +15,7 @@ Quick fixes for the most common hiccups: sign-in, syncing, voice, language, noti
 **Sign-in code not arriving (web):**
 1. Double-check the email address you typed.
 2. Check your spam folder — it comes from Imotara at imotara.com.
-3. Wait a minute, then tap **Send a new code**. A code works once and expires within an hour; if you ask too often, we pause for a few minutes to protect your inbox.
+3. Wait a minute, then tap **Send a new code**. A code works once and expires within an hour. To protect your inbox, we send at most 5 codes an hour to one address — if you hit that, use the latest code you received, or wait up to an hour.
 
 **Apple sign-in closed unexpectedly:**
 - If you dismissed the Apple sheet, that's just a cancel — tap sign in again.

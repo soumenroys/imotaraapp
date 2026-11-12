@@ -40,3 +40,13 @@ describe("a signed-out organisation admin is asked to sign in — not sent to 'c
     expect(N).not.toContain('<Link href="/settings"');
   });
 });
+
+describe("🔴 found in the live test: an invite link spent by an earlier code sign-in was a dead end", () => {
+  it("the spent-link screen says the account is ready and offers a code — not 'request a new link'", () => {
+    const A = readFileSync("src/app/auth/accept/page.tsx", "utf8");
+    const err = A.slice(A.indexOf('if (step === "error")'), A.indexOf('if (step === "done")'));
+    expect(err).toMatch(/Your account is ready\. Sign in with a code/);
+    expect(err).toMatch(/openSignIn\("\/org\/dashboard"/);
+    expect(err).not.toMatch(/Request a new link/);
+  });
+});

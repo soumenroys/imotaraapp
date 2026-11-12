@@ -29,7 +29,10 @@ function getSupabase() {
 
 function safeRedirect(raw: string | null): string {
     if (raw && raw.startsWith("/") && !raw.startsWith("//")) return raw;
-    return "/org/dashboard";
+    // #134 (12 Nov 2026): /login is for EVERYONE now, not only organisations. Defaulting to
+    // /org/dashboard sent an ordinary person to "Set up your organisation" after signing in
+    // (seen in the live Microsoft test). Org links ask for the dashboard explicitly.
+    return "/chat";
 }
 
 function LoginForm() {

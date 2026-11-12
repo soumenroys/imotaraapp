@@ -49,7 +49,8 @@ describe("⛔ the words never travel in a URL", () => {
   it("the box navigates only to that constant", () => {
     const box = readFileSync("src/components/imotara/FirstMessageBox.tsx", "utf8");
     const pushes = [...box.matchAll(/router\.push\(([^)]*)\)/g)].map((m) => m[1].trim());
-    expect(pushes).toEqual(["LANDING_CHAT_URL"]);
+    // the draft URL, or a mood KEY (the chat writes that mood's line in the person's language)
+    expect(pushes).toEqual(["LANDING_CHAT_URL", "`/chat?mood=${key}`"]);
     expect(box).not.toMatch(/encodeURIComponent|[?&](q|text|msg|draft)=/);
   });
 });
@@ -79,7 +80,7 @@ describe("the openers read for anyone, anywhere", () => {
 
 describe("both landing pages carry the box", () => {
   it.each([["src/app/HomeClient.tsx", "home"], ["src/app/ai-emotional-support/page.tsx", "ai-emotional-support"]])("%s", (file, from) => {
-    expect(readFileSync(file, "utf8")).toContain(`<FirstMessageBox from="${from}" />`);
+    expect(readFileSync(file, "utf8")).toMatch(new RegExp(`<FirstMessageBox from="${from}"[^>]*/>`));
   });
 });
 

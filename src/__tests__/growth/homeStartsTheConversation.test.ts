@@ -43,11 +43,14 @@ describe("every home mood exists in the chat page's own English row", () => {
 describe("wiring", () => {
   const home = readFileSync("src/app/HomeClient.tsx", "utf8");
   const chat = readFileSync("src/app/chat/page.tsx", "utf8");
-  it("home asks the question and links each mood by KEY (no words in the URL)", () => {
-    expect(home).toMatch(/How are you feeling right now\?/);
-    expect(home).toMatch(/href=\{`\/chat\?mood=\$\{m\.key\}`\}/);
-    expect(home).toMatch(/gaEvent\("home_mood", \{ mood: m\.key \}\)/);
-    expect(home).toMatch(/<span>Start talking<\/span>/);
+  it("home asks the question and opens each mood by KEY (no words in the URL)", () => {
+    // 12 Nov 2026 (owner, option A): the moods moved UNDER the message box — one way in.
+    const box = readFileSync("src/components/imotara/FirstMessageBox.tsx", "utf8");
+    expect(home).toContain('<FirstMessageBox from="home" openers={false} moods />');
+    expect(box).toMatch(/Or start with how you feel:/);
+    expect(box).toMatch(/router\.push\(`\/chat\?mood=\$\{key\}`\)/);
+    expect(box).toMatch(/gaEvent\("home_mood", \{ mood: key \}\)/);
+    expect(home).not.toMatch(/<span>Start talking<\/span>/); // removed: three ways in looked odd
   });
   it("chat reads ?mood, fills the box (never sends), and skips the intake questions", () => {
     expect(chat).toMatch(/const urlMood = \(searchParams\?\.get\("mood"\) \?\? ""\)\.trim\(\);/);

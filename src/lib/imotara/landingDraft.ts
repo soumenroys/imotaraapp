@@ -27,6 +27,15 @@ export function saveLandingDraft(text: string, s?: Store | null): boolean {
   try { store(s)?.setItem(LANDING_DRAFT_KEY, t); return true; } catch { return false; }
 }
 
+/**
+ * Keep it AS THEY TYPE (12 Nov 2026, owner): only Send saved it, so typing and then tapping a
+ * mood, "Start talking" or the Chat menu dropped their words. Empty box ⇒ nothing kept.
+ */
+export function keepLandingDraft(text: string, s?: Store | null): void {
+  if (saveLandingDraft(text, s)) return;
+  try { store(s)?.removeItem(LANDING_DRAFT_KEY); } catch { /* ignore */ }
+}
+
 /** Read it ONCE and forget it, so a reload or a later visit never refills the box. */
 export function takeLandingDraft(s?: Store | null): string | null {
   const st = store(s);

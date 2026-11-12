@@ -121,6 +121,7 @@ import { returningFeeling, returningLangOf, returningLine, type FeelingDetectors
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent, tallyFunnel } from "@/lib/analytics/visitTallyClient";
 import { takeLandingDraft } from "@/lib/imotara/landingDraft";
+import { TERMS_ACCEPTANCE_KEY, hasAcceptedCurrentTerms, parseAcceptance } from "@/lib/legal/termsVersion";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
 import { moodStarter } from "@/lib/imotara/homeMoods";
 import BillingIssueBanner from "@/components/imotara/BillingIssueBanner";
@@ -926,6 +927,7 @@ export default function ChatPage() {
   const urlMessageId = (searchParams?.get("messageId") ?? "").trim();
   // #91 (7 Nov 2026): a mood tapped on the home page ⇒ /chat?mood=sad.
   const urlMood = (searchParams?.get("mood") ?? "").trim();
+  const fromLandingSend = (searchParams?.get("src") ?? "") === "landing";
 
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -1850,8 +1852,38 @@ export default function ChatPage() {
     landingDraftRef.current = t;
     setDraft(t);
     composerRef.current?.focus();
+    // Owner, 12 Nov 2026: they pressed SEND on the landing page — so send it. Filling the box
+    // and waiting looked like nothing happened ("my text didn't appear, no reply"). Only for
+    // the Send / Enter path (?src=landing); a mood or the menu still just fills the box.
+    if (fromLandingSend) autoSendRef.current = t;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted]);
+
+  // Send it once the chat is really ready: conversations loaded (activeId), no reply in flight,
+  // the box still holds exactly their words (they did not change it), and the CURRENT terms
+  // accepted — on a first visit the welcome screen comes first; we wait for it (up to a minute),
+  // and if it is never accepted the words simply stay in the box, unsent.
+  const autoSendRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!mounted || !autoSendRef.current) return;
+    const pending = autoSendRef.current;
+    const termsOk = () => {
+      try { return hasAcceptedCurrentTerms(parseAcceptance(localStorage.getItem(TERMS_ACCEPTANCE_KEY))); } catch { return false; }
+    };
+    const trySend = () => {
+      if (autoSendRef.current !== pending) return true;
+      if (!activeId || analyzing || draft.trim() !== pending.trim()) return draft.trim() !== pending.trim();
+      if (!termsOk()) return false;
+      autoSendRef.current = null;
+      sendMessage(pending);
+      return true;
+    };
+    if (trySend()) return;
+    let tries = 0;
+    const timer = window.setInterval(() => { tries += 1; if (trySend() || tries > 60) window.clearInterval(timer); }, 1000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, activeId, analyzing, draft]);
 
   // Emotion-reactive ambient glow — derived from latest non-neutral emotion in current thread
   const latestEmotion = useMemo(() => {

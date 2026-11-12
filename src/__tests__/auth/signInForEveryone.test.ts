@@ -58,13 +58,16 @@ describe("errors a person can act on", () => {
 
 describe("the panel", () => {
   const PANEL = readFileSync("src/components/auth/SignInPanel.tsx", "utf8");
-  it("a code is checked as an EMAIL code, and any email may create an account", () => {
-    expect(PANEL).toMatch(/verifyOtp\(\{ email: step\.email, token, type: "email" \}\)/);
-    expect(PANEL).toMatch(/shouldCreateUser: true/);
+  it("codes come from OUR route — never Supabase's own mailer", () => {
+    expect(PANEL).toContain('fetch("/api/auth/email-code"');
+    expect(PANEL).not.toMatch(/signInWithOtp\(|auth\.signUp\(|resetPasswordForEmail\(/);
   });
-  it("a new password account is confirmed by email before it is signed in", () => {
-    expect(PANEL).toMatch(/auth\.signUp\(\{[\s\S]{0,160}emailRedirectTo: callbackUrl/);
-    expect(PANEL).toMatch(/if \(!data\.session\) \{ setStep\(\{ kind: "check-email"/);
+  it("a code is checked as an EMAIL code", () => {
+    expect(PANEL).toMatch(/verifyOtp\(\{ email: step\.email, token, type: "email" \}\)/);
+  });
+  it("creating an account and resetting a password = a code first, THEN a password", () => {
+    expect(PANEL).toMatch(/if \(step\.intent !== "signin"\) \{[^}]*kind: "set-password"/);
+    expect(PANEL).toMatch(/auth\.updateUser\(\{ password \}\)/);
   });
   it("⛔ no extra click while Google is the only way in", () => {
     expect(PANEL).toMatch(/if \(ways\.length === 1 && enabledEmail\(\)\.length === 0\)/);
@@ -74,6 +77,10 @@ describe("the panel", () => {
   });
   it("is mounted once, in the root layout", () => {
     expect(readFileSync("src/app/layout.tsx", "utf8")).toContain("<SignInPanel />");
+  });
+  it("the Forgot password page hands over to the panel once email sign-in is on", () => {
+    const page = readFileSync("src/app/auth/forgot-password/page.tsx", "utf8");
+    expect(page).toMatch(/if \(enabledEmail\(\)\.length > 0\) \{\s*openSignIn\("\/chat", \{ intent: "reset"/);
   });
 });
 

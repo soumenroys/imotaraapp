@@ -2,6 +2,7 @@
 // src/app/org/invite/[token]/page.tsx
 // Public invite acceptance page — user clicks link from email, signs in if needed, joins org.
 
+import { openSignIn } from "@/lib/auth/signInOptions";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -52,7 +53,7 @@ export default function InviteAcceptPage() {
     } catch {
       // fall through — still send them to sign-in
     }
-    router.replace(`/settings?redirect=/org/invite/${token}`);
+    openSignIn(`/org/invite/${token}`);
   }, [router, token]);
 
 
@@ -171,18 +172,16 @@ export default function InviteAcceptPage() {
           </p>
         )}
         <div className="mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-          <Link href={`/settings?redirect=/org/invite/${token}`}
+          {/* #134 (12 Nov 2026): straight to the one sign-in panel, back here afterwards — it used to
+              detour through Settings, and said only admin-made accounts could use a password. */}
+          <button type="button" onClick={() => openSignIn(`/org/invite/${token}`)}
             className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
             <SsoIcon />
             Sign in
-          </Link>
-          <Link href={`/login?redirect=/org/invite/${token}`}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-white/10">
-            Sign in with email &amp; password
-          </Link>
+          </button>
         </div>
         <p className="mt-4 text-xs text-zinc-500">
-          Was your account set up by an Imotara admin? Use email &amp; password. Everyone else uses single sign-on.
+          Use Google, or your work or personal email — we&apos;ll send you a code, or you can use a password.
         </p>
       </div>
     );

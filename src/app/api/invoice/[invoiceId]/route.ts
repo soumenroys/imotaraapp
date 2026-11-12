@@ -61,7 +61,13 @@ export async function GET(req: NextRequest, { params }: Params) {
   const userEmail = authUser?.user?.email ?? "—";
   const userName  = authUser?.user?.user_metadata?.full_name ?? null;
 
-  const html = renderInvoiceHtml({ ...invoice, user_email: userEmail, user_name: userName });
+  // #132: an organisation's invoice names the organisation.
+  let orgName: string | null = null;
+  if (invoice.org_id) {
+    const { data: org } = await admin.from("organizations").select("name").eq("id", invoice.org_id).maybeSingle();
+    orgName = (org?.name as string | undefined) ?? null;
+  }
+  const html = renderInvoiceHtml({ ...invoice, user_email: userEmail, user_name: userName, billed_to_org: orgName });
 
   const download = req.nextUrl.searchParams.get("download") === "1";
   return new NextResponse(html, {

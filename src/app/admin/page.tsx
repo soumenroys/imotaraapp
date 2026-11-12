@@ -1,5 +1,6 @@
 "use client";
 
+import { pilotWindow, pilotNote, PILOT_DAYS } from "@/lib/imotara/orgPilot";
 import Image from "next/image";
 import { adminFetchOpts } from "@/lib/imotara/adminFetch";
 import BroadcastSection from "@/components/admin/BroadcastSection";
@@ -1631,6 +1632,111 @@ function OrgVerificationPanel({ orgId, token }: { orgId: string; token: string }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OrgInvoicesPanel — #132 F (12 Nov 2026): hand-written invoices for an org that pays by
+// bank transfer / UPI (a pilot becoming paid). ⇒ lib/imotara/manualInvoice.ts
+// ─────────────────────────────────────────────────────────────────────────────
+
+function OrgInvoicesPanel({ orgId, token }: { orgId: string; token: string }) {
+  interface Inv { id:string; invoice_number:string; description:string; amount_paise:number; status:string; payment_gateway:string; issued_at:string }
+  const [list, setList]       = useState<Inv[]>([]);
+  const [show, setShow]       = useState(false);
+  const [loaded, setLoaded]   = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [desc, setDesc]       = useState("Imotara organisation licence");
+  const [amount, setAmount]   = useState("");
+  const [pStart, setPStart]   = useState("");
+  const [pEnd, setPEnd]       = useState("");
+  const [paid, setPaid]       = useState(false);
+  const [ref, setRef]         = useState("");
+  const [msg, setMsg]         = useState("");
+  const [payingId, setPayingId] = useState<string | null>(null);
+  const [payRef, setPayRef]     = useState("");
+
+  async function load() {
+    const r = await fetch(`/api/admin/organizations/${orgId}/invoices`, adminFetchOpts(token));
+    if (r.ok) { setList((await r.json()).invoices ?? []); setLoaded(true); }
+  }
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault(); setSaving(true); setMsg("");
+    const r = await fetch(`/api/admin/organizations/${orgId}/invoices`, adminFetchOpts(token, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: desc, amount_inr: Number(amount), status: paid ? "paid" : "due", reference: ref || undefined, period_start: pStart || undefined, period_end: pEnd || undefined }),
+    }));
+    setSaving(false);
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { setList((l) => [j.invoice, ...l]); setMsg(`✓ ${j.invoice.invoice_number} issued to the org owner (they see it in Settings → Invoices)`); setAmount(""); setRef(""); }
+    else setMsg(j.error ?? "Failed");
+  }
+
+  async function markPaid(id: string) {
+    const reference = payRef.trim();
+    if (!reference) { setMsg("Enter the bank / UPI reference first."); return; }
+    const r = await fetch(`/api/admin/organizations/${orgId}/invoices`, adminFetchOpts(token, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ invoiceId: id, reference }),
+    }));
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) { setList((l) => l.map((x) => x.id === id ? j.invoice : x)); setPayingId(null); setPayRef(""); } else setMsg(j.error ?? "Failed");
+  }
+
+  async function view(id: string) {
+    const r = await fetch(`/api/admin/organizations/${orgId}/invoices?view=${id}`, adminFetchOpts(token));
+    if (!r.ok) { setMsg("Could not open the invoice."); return; }
+    const url = URL.createObjectURL(new Blob([await r.text()], { type: "text/html" }));
+    window.open(url, "_blank", "noopener");
+  }
+
+  const inCls = "rounded-lg border border-white/10 bg-black/20 px-2.5 py-1.5 text-xs text-zinc-100 outline-none";
+
+  return (
+    <div className="border-t border-white/8 pt-3 mt-2">
+      <button onClick={async () => { setShow((v) => !v); if (!show && !loaded) await load(); }} className="text-xs text-sky-400 hover:text-sky-300 transition">
+        {show ? "▲ Hide invoices" : "▼ Invoices (bank transfer / UPI)"}
+      </button>
+      {show && (
+        <div className="mt-3 space-y-3">
+          <form onSubmit={create} className="rounded-xl border border-sky-500/20 bg-sky-500/5 p-3 space-y-2">
+            <p className="text-xs font-medium text-sky-300">Write an invoice for this organisation</p>
+            <div className="flex flex-wrap gap-2">
+              <input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="What it is for" className={`${inCls} flex-1 min-w-[12rem]`} />
+              <input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="₹ amount" className={`${inCls} w-28`} />
+              <input type="date" value={pStart} onChange={(e) => setPStart(e.target.value)} title="Period from" className={inCls} />
+              <input type="date" value={pEnd} onChange={(e) => setPEnd(e.target.value)} title="Period to" className={inCls} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs text-zinc-300"><input type="checkbox" checked={paid} onChange={(e) => setPaid(e.target.checked)} /> Already paid</label>
+              {paid && <input value={ref} onChange={(e) => setRef(e.target.value)} placeholder="Bank / UPI reference" className={`${inCls} flex-1`} />}
+              <button type="submit" disabled={saving} className="rounded-lg bg-sky-500/70 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50">{saving ? "Saving…" : "Issue invoice"}</button>
+            </div>
+            <p className="text-[10px] text-zinc-500">No GST is added — M/S IMOTARA is not GST-registered. Issued to the org owner.</p>
+          </form>
+          {msg && <p className="text-xs text-zinc-300">{msg}</p>}
+          {loaded && list.length === 0 && <p className="text-xs text-zinc-500">No invoices for this organisation yet.</p>}
+          {list.map((i) => (
+            <div key={i.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/8 px-3 py-2 text-xs">
+              <span className="text-zinc-200">{i.invoice_number} · {i.description}</span>
+              <span className="text-zinc-400">₹{(i.amount_paise / 100).toLocaleString("en-IN")} · {fmtDate(i.issued_at)}</span>
+              <span className={i.status === "paid" ? "text-emerald-400" : i.status === "due" ? "text-amber-400" : "text-zinc-400"}>{i.status}</span>
+              <span className="flex gap-2">
+                <button onClick={() => void view(i.id)} className="text-sky-400 hover:underline">View</button>
+                {i.status === "due" && i.payment_gateway === "manual" && payingId !== i.id && <button onClick={() => { setPayingId(i.id); setPayRef(""); }} className="text-emerald-400 hover:underline">Mark paid</button>}
+              </span>
+              {payingId === i.id && (
+                <span className="flex w-full gap-2">
+                  <input value={payRef} onChange={(e) => setPayRef(e.target.value)} placeholder="Bank / UPI reference" className={`${inCls} flex-1`} />
+                  <button onClick={() => void markPaid(i.id)} className="rounded-lg bg-emerald-500/70 px-3 py-1 text-xs text-white">Save as paid</button>
+                  <button onClick={() => setPayingId(null)} className="text-xs text-zinc-400">Cancel</button>
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // OrgPoolsPanel — super-admin issues license pools to an org
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1867,7 +1973,15 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
       {/* Create form */}
       {showCreate && (
         <form onSubmit={handleCreate} className="rounded-2xl border border-indigo-400/20 bg-indigo-500/5 p-5 space-y-4">
-          <p className="text-sm font-semibold text-indigo-200">Create Organization</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-indigo-200">Create Organization</p>
+            {/* #132 F: one click fills a free 30-day pilot — active now, ends by itself ⇒ lib/imotara/orgPilot.ts */}
+            <button type="button"
+              onClick={() => { const w = pilotWindow(); setCreateForm((p) => ({ ...p, billing_type: "ngo", status: "active", expires_at: w.end, notes: p.notes ? `${pilotNote(w)}\n${p.notes}` : pilotNote(w) })); }}
+              className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-[11px] font-medium text-emerald-300 hover:bg-emerald-500/20">
+              Free {PILOT_DAYS}-day pilot
+            </button>
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
             {[
               { key: "name",        label: "Name *",        placeholder: "Acme Corp" },
@@ -2019,6 +2133,7 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
                     <OrgMembersPanel orgId={org.orgId} token={token} />
                     {/* License pool issuance */}
                     <OrgPoolsPanel orgId={org.orgId} token={token} />
+                    <OrgInvoicesPanel orgId={org.orgId} token={token} />
                     {/* NGO/EDU verification review */}
                     <OrgVerificationPanel orgId={org.orgId} token={token} />
                     {/* Aggregate usage stats (read-only, no individual data) */}

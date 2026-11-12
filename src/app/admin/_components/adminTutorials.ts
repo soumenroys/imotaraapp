@@ -82,6 +82,10 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
         then: "Until it passes, its members cannot use what the organisation paid for.",
       },
       { do: "The audit log lists every change anybody made to this organisation.", then: "Read it before you change something you did not set up yourself." },
+      {
+        do: "A free pilot: + New Org, then “Free 30-day pilot”.",
+        then: "It starts active and ends by itself after 30 days — members return to their own plan. When they pay by bank or UPI, open Invoices on the org, issue one, and mark it paid with the reference. The owner sees it in Settings.",
+      },
     ],
     footnote: "⛔ The danger zone at the bottom suspends or removes an organisation. It affects every one of its members at once.",
   },

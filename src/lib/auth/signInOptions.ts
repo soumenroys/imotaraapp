@@ -91,3 +91,9 @@ export function openSignIn(target?: string, start?: { intent: "signin" | "create
     detail: { target: safeTarget(target ?? window.location.pathname), intent: start?.intent, email: start?.email },
   }));
 }
+
+/** "Google, Microsoft or a code by email" — the ways the panel really offers, never a hand-written list. */
+export function otherWaysText(providers = enabledOAuth()): string {
+    const ways = [...providers.map((o) => o.label.replace(/^Continue with /, "")), "a code by email"];
+    return ways.length === 1 ? ways[0] : `${ways.slice(0, -1).join(", ")} or ${ways[ways.length - 1]}`;
+}

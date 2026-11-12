@@ -60,7 +60,7 @@ All invite paths respect your seat limit, and a person can only occupy one org s
 5. Bulk import still sends each person an invite email they must accept — it doesn't silently add anyone.
 
 ### Members without a Google account
-Imotara sign-in is normally Google-only, so the invite paths above assume the person can sign in with Google. If some of your members don't have (or can't use) a Google account — common for younger students, for example — contact **info@imotara.com**: we can set up their account directly and email them a link to choose their own password instead, which they then use to sign in at **imotara.com/login**. This isn't self-service from your org dashboard yet — it's arranged with Imotara support on request.
+Nobody needs a Google account. Every invite path works with **any email address** — school, work or personal. On the sign-in screen a member can choose **Email me a code** (we email a one-time code from imotara.com) or **Use a password** (they create one after confirming their email). People with a Microsoft account (Outlook, Hotmail or many work accounts) can also use **Continue with Microsoft**. If your organisation's IT blocks outside apps on Microsoft accounts, members simply use an email code instead.
 
 ### Domain auto-join (NGO and EDU orgs only)
 Ideal for "everyone with a school/organization email can join" setups.

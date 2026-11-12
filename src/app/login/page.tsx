@@ -13,7 +13,7 @@
 // for a specific destination after sign-in, mirroring the open-redirect
 // guard already used by /org/invite/[token]'s settings redirect.
 
-import { openSignIn, safeTarget } from "@/lib/auth/signInOptions";
+import { openSignIn, otherWaysText, safeTarget } from "@/lib/auth/signInOptions";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -79,7 +79,8 @@ function LoginForm() {
                     <button type="button" onClick={() => openSignIn(safeTarget(redirectTo))} className="underline hover:text-zinc-700 dark:hover:text-zinc-200">
                         Other ways to sign in
                     </button>{" "}
-                    (Google, or a code by email).
+                    {/* Built from the buttons that are switched on — a hand-written list went stale. */}
+                    ({otherWaysText()}).
                 </p>
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">

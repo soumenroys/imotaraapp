@@ -9,13 +9,13 @@ Quick fixes for the most common hiccups: sign-in, syncing, voice, language, noti
 2. **Wait about 5 seconds**, or close and reopen the app — you'll very likely find yourself signed in.
 3. If you cancelled or closed the sign-in window early, just try again.
 
-**Waiting for a magic-link email on mobile:**
-- The email magic link is a **web-only** sign-in option. On mobile, use **Google** (or **Apple** on iOS) instead — there's no sign-in email to wait for.
+**Waiting for a sign-in code on mobile:**
+- Email codes are on the **website** for now; the apps get them in their next update. On the phone, use **Google** (or **Apple** on iOS) until then.
 
-**Magic link not arriving (web):**
+**Sign-in code not arriving (web):**
 1. Double-check the email address you typed.
-2. Check your spam folder.
-3. Request a fresh link — links are single-use and time-limited.
+2. Check your spam folder — it comes from Imotara at imotara.com.
+3. Wait a minute, then tap **Send a new code**. A code works once and expires within an hour; if you ask too often, we pause for a few minutes to protect your inbox.
 
 **Apple sign-in closed unexpectedly:**
 - If you dismissed the Apple sheet, that's just a cancel — tap sign in again.

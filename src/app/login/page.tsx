@@ -13,6 +13,7 @@
 // for a specific destination after sign-in, mirroring the open-redirect
 // guard already used by /org/invite/[token]'s settings redirect.
 
+import { openSignIn, safeTarget } from "@/lib/auth/signInOptions";
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -73,7 +74,12 @@ function LoginForm() {
             <div className="rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <h1 className="text-lg font-semibold">Sign in</h1>
                 <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                    For organisation accounts set up by an Imotara admin.
+                    {/* #134 (12 Nov 2026): no longer organisation-only — anyone with a password. */}
+                    Sign in with your email and password.{" "}
+                    <button type="button" onClick={() => openSignIn(safeTarget(redirectTo))} className="underline hover:text-zinc-700 dark:hover:text-zinc-200">
+                        Other ways to sign in
+                    </button>{" "}
+                    (Google, or a code by email).
                 </p>
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">

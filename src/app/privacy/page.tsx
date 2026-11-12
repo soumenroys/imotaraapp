@@ -131,9 +131,13 @@ export default function PrivacyPage() {
                   Account information (optional)
                 </p>
                 <p className="mt-1 text-sm leading-7 text-zinc-300">
-                  Imotara can use an anonymous sign-in identifier to keep your synced data separated
-                  without requiring email or phone. If you choose to upgrade to a full account in the
-                  future (where available), we may collect an email address for authentication.
+                  {/* #134 (12 Nov 2026): said email "may be collected in the future" — untrue since
+                      Google sign-in. Says exactly what is kept for each way of signing in. */}
+                  You can use Imotara without signing in. If you sign in — with Google or Apple, or
+                  with your email address and a one-time code — we keep your email address so you can
+                  sign in again and reach the same history on another device. If you choose a password,
+                  it is stored only in a scrambled (hashed) form by our database provider; nobody at
+                  Imotara can read it. We never ask for your phone number to sign in.
                 </p>
 
               </div>
@@ -318,7 +322,7 @@ export default function PrivacyPage() {
             </p>
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">
               <li>
-                <strong>Essential messages</strong> — password resets, sign-in links, receipts, and
+                <strong>Essential messages</strong> — sign-in codes, password resets, invitations to an organisation, receipts, and
                 notices about changes to the service. These are part of providing the service and
                 cannot be opted out of while you hold an account.
               </li>
@@ -449,9 +453,12 @@ export default function PrivacyPage() {
                 <strong>Purchases in the apps</strong>: <strong>Apple</strong> and <strong>Google Play</strong> confirm to us that a purchase you made in their stores is genuine.
               </li>
               <li>
-                <strong>Email delivery</strong>: <strong>Resend (resend.com)</strong> delivers the email we
-                send you — account messages such as password resets, and, if you asked for them, occasional
-                updates about Imotara. Only your email address and the message itself are shared.
+                {/* #134 (12 Nov 2026): this said Resend sent account mail — it never did. */}
+                <strong>Email</strong>: messages about your account — sign-in codes, password resets,
+                invitations and receipts — are sent from our own imotara.com mailbox, hosted by{" "}
+                <strong>Hostinger</strong>. Occasional updates about Imotara, only if you asked for them,
+                are delivered by <strong>Resend (resend.com)</strong>. In both cases only your email
+                address and the message itself are shared.
               </li>
               <li>
                 <strong>Notifications</strong>: <strong>Expo</strong> delivers push notifications to your phone if you use Connect and allow them.
@@ -502,7 +509,7 @@ export default function PrivacyPage() {
               here and, when appropriate, notify you in-app or via email.
             </p>
             <p className="mt-2 text-xs text-zinc-400">
-              Effective date: Nov 1, 2025 • Last updated: Nov 11, 2026
+              Effective date: Nov 1, 2025 • Last updated: Nov 12, 2026
             </p>
           </section>
 

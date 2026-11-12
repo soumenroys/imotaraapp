@@ -148,13 +148,28 @@ NGO and EDU orgs that are active with at least 10 members for 30+ days can also 
 3. Type your organization's **exact name** into the confirmation box (the **"Permanently delete organisation"** button stays disabled until it matches), click it, and confirm the browser dialog.
 4. Everything org-related is removed — members, invites, pools, teams, and the audit history — and **every member's plan reverts to Free** (or their own personal subscription). This is **irreversible**.
 
+## Company single sign-on (SAML)
+
+For **Education and Enterprise** organisations whose members must sign in through the organisation's own system — **Okta, Microsoft Entra ID, Google Workspace, OneLogin, JumpCloud** or any SAML 2.0 identity provider.
+
+1. Open **Org dashboard → Settings → Single sign-on (SAML)**.
+2. **Step 1** shows Imotara's details — *Entity ID / Audience*, *ACS (reply) URL*, *our metadata URL* and the *Name ID format* (email address). Give them to your IT team; they create a new SAML app for Imotara in your identity provider.
+3. **Step 2:** paste your identity provider's **metadata link** (or its metadata XML) and the **email domain(s)** your members use, e.g. `hopefoundation.org`. Click **Save and ask Imotara to switch it on**.
+4. Imotara checks that your organisation owns those domains and switches single sign-on on — usually within a working day — and emails you. Personal-mail domains (gmail.com, outlook.com and the like) can never be used.
+5. From then on, anyone who types an address at your domain on Imotara's sign-in screen sees **"… uses its own sign-in — continue with it"**, or can choose **Work or school sign-in (single sign-on)**, and is taken to your organisation's login page and back.
+
+Good to know:
+- **Members still need to join your organisation** (invite, CSV or domain auto-join) to get its plan — signing in through your system proves who they are; membership is still yours to manage.
+- An Imotara account someone made earlier **with a code or password** stays separate from their single-sign-on account (same email, two accounts). If that matters, ask them to use single sign-on from the start.
+- Turning single sign-on off, or deleting the organisation, signs those members out of their single-sign-on sessions straight away.
+
 ## Honest status: what's coming soon
 
 We'd rather tell you plainly:
 
 - **LMS / website embed** — the embed section in Settings is marked **"Coming soon"** and isn't functional yet.
 - **Referral commissions (NGO)** — you can create referral codes today, but commission tracking and payouts aren't live yet. Please don't count on referral revenue until we announce it.
-- **SSO / SAML sign-in (EDU/Enterprise)** — you can save your identity-provider details in Settings, then contact us to activate it; it isn't fully self-service yet.
+- **Single sign-on (SAML) — EDU/Enterprise** — set up below in *Company single sign-on*. You save your identity provider's details yourself; Imotara switches it on after checking that your organisation owns the email domain.
 - **Custom branding (EDU/Enterprise)** — this one works today: set your logo, accent color, and a brand name that appears in your members' app header.
 
 Questions at any point? **info@imotara.com** — we love helping orgs get set up.

@@ -97,6 +97,10 @@ const PROCESSOR_HOSTS: Record<string, string> = {
     // Email delivery — already named. Called directly (not through the SDK) since 30 Oct 2026
     // to fetch delivery reports the webhook lost ⇒ lib/broadcast/deliveryReports.
     "api.resend.com": "Resend",
+    // Supabase's Management API (12 Nov 2026, company SSO) — registers an organisation's SAML
+    // provider: the org's IdP metadata link/XML and its email domains. Same company as our
+    // database, already named. ⇒ lib/auth/companySso.ts, api/admin/organizations/[orgId]/sso
+    "api.supabase.com": "Supabase",
 };
 
 /**

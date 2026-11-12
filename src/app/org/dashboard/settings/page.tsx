@@ -431,19 +431,42 @@ function SaveNote({ load, msg, error }: { load: LoadState; msg: string; error: b
 }
 
 // ── SSO / SAML ────────────────────────────────────────────────────────────────
+// 12 Nov 2026 (owner: "take care of company sign-in now"): was loose fields nothing used. Now:
+// Imotara's details for their IT team ⇒ their metadata + domains ⇒ Imotara activates it.
+// ⇒ api/org/dashboard/sso · lib/auth/companySso.ts
+type SpDetails = { entityId: string; metadataUrl: string; metadataDownload: string; acsUrl: string; nameIdFormat: string };
+
+function CopyRow({ label, value }: { label: string; value: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-40 shrink-0 text-[11px] text-zinc-500">{label}</span>
+      <code className="min-w-0 flex-1 truncate rounded-lg bg-black/30 px-2 py-1 text-[11px] text-zinc-200">{value}</code>
+      <button type="button" onClick={() => { void navigator.clipboard?.writeText(value).then(() => { setDone(true); setTimeout(() => setDone(false), 1500); }); }} className="shrink-0 text-[11px] text-sky-300 hover:underline">
+        {done ? "Copied" : "Copy"}
+      </button>
+    </div>
+  );
+}
+
 function SsoSection({ orgTier }: { orgTier: string }) {
-  const [saml, setSaml]     = useState<Record<string,string> | null>(null);
+  const [saml, setSaml]     = useState<Record<string, unknown> | null>(null);
+  const [sp, setSp]         = useState<SpDetails | null>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg]       = useState("");
-  const [fields, setFields] = useState({ entity_id: "", sso_url: "", certificate: "", email_domain: "" });
+  const [fields, setFields] = useState({ metadata_url: "", metadata_xml: "", domains: "" });
   const [load, setLoad]     = useState<LoadState>("loading");
   const [msgError, setMsgError] = useState(false);
 
   useEffect(() => {
     loadSettings("/api/org/dashboard/sso").then((j) => {
       if (!j) { setLoad("failed"); return; }
-      setSaml(j.saml);
-      if (j.saml) setFields({ entity_id: j.saml.entity_id ?? "", sso_url: j.saml.sso_url ?? "", certificate: j.saml.certificate ?? "", email_domain: j.saml.email_domain ?? "" });
+      setSaml(j.saml); setSp(j.serviceProvider ?? null);
+      if (j.saml) setFields({
+        metadata_url: (j.saml.metadata_url as string) ?? "",
+        metadata_xml: (j.saml.metadata_xml as string) ?? "",
+        domains: Array.isArray(j.saml.domains) ? (j.saml.domains as string[]).join(", ") : ((j.saml.email_domain as string) ?? ""),
+      });
       setLoad("ok");
     });
   }, []);
@@ -455,40 +478,55 @@ function SsoSection({ orgTier }: { orgTier: string }) {
     const r = await fetch("/api/org/dashboard/sso", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) }).catch(() => null);
     const j = r ? await r.json().catch(() => ({})) : {};
     setSaving(false);
-    if (r?.ok) { setSaml(j.saml); setMsgError(false); setMsg("Saved — contact info@imotara.com to activate SSO for your org."); }
+    if (r?.ok) { setSaml(j.saml); setMsgError(false); setMsg("Saved. Imotara will check that your organisation owns these domains and switch single sign-on on — usually within a working day. We'll email you."); }
     else { setMsgError(true); setMsg(j.error ?? "Couldn't save — nothing was changed. Please try again."); }
   }
 
+  const status = (saml?.status as string | undefined) ?? null;
   const inputCls = "w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-indigo-400/50";
   return (
     <div className="rounded-2xl border border-white/8 bg-white/4 px-5 py-5 space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-zinc-300">SSO / SAML</p>
-        {saml?.status === "active"
+        <p className="text-sm font-medium text-zinc-300">Single sign-on (SAML)</p>
+        {status === "active"
           ? <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-300">Active</span>
-          : saml?.entity_id
-            ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">Pending activation</span>
+          : status === "pending"
+            ? <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">Waiting for Imotara to switch on</span>
             : null}
       </div>
-      <p className="text-xs text-zinc-500">Connect your IdP (Okta, Google Workspace, Azure AD) so members sign in via SSO. Save your IdP metadata below, then contact us to activate.</p>
+      <p className="text-xs text-zinc-500">
+        Members with your email domain sign in through your own system (Okta, Microsoft Entra, Google Workspace, OneLogin, JumpCloud…).
+        Plan tier: {orgTier}. Note: an account someone already made with a code or password stays separate from their single-sign-on account.
+      </p>
+
+      {sp && (
+        <div className="space-y-1.5 rounded-xl border border-white/8 bg-black/10 p-3">
+          <p className="text-[11px] font-medium text-zinc-400">1 · Give these to your IT team (a new SAML app in your identity provider):</p>
+          <CopyRow label="Entity ID / Audience" value={sp.entityId} />
+          <CopyRow label="ACS (reply) URL" value={sp.acsUrl} />
+          <CopyRow label="Our metadata URL" value={sp.metadataUrl} />
+          <CopyRow label="Name ID format" value={sp.nameIdFormat} />
+          <p className="pt-1 text-[11px] text-zinc-500">Send the person&apos;s email address as the Name ID (or as an attribute called <code>email</code>).</p>
+        </div>
+      )}
+
       <form onSubmit={handleSave} className="space-y-3">
-        {[
-          { key: "entity_id",    label: "Entity ID / Issuer URL",     placeholder: "https://accounts.google.com/o/saml2?idpid=..." },
-          { key: "sso_url",      label: "SSO URL (IdP Sign-on URL)",  placeholder: "https://sso.okta.com/app/.../sso/saml" },
-          { key: "email_domain", label: "Email domain (auto-join)",   placeholder: "yourorg.com" },
-        ].map(({ key, label, placeholder }) => (
-          <label key={key}>
-            <span className="block text-xs text-zinc-400 mb-1">{label}</span>
-            <input value={(fields as Record<string,string>)[key]} onChange={(e) => setFields((p) => ({ ...p, [key]: e.target.value }))} placeholder={placeholder} className={inputCls} />
-          </label>
-        ))}
-        <label>
-          <span className="block text-xs text-zinc-400 mb-1">X.509 Certificate</span>
-          <textarea rows={3} value={fields.certificate} onChange={(e) => setFields((p) => ({ ...p, certificate: e.target.value }))} placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----" className={`${inputCls} resize-none font-mono text-[11px]`} />
+        <p className="text-[11px] font-medium text-zinc-400">2 · Then give us your identity provider&apos;s details:</p>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-400">Your IdP metadata URL (preferred)</span>
+          <input value={fields.metadata_url} onChange={(e) => setFields((p) => ({ ...p, metadata_url: e.target.value }))} placeholder="The https:// metadata link from your identity provider" className={inputCls} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-400">…or paste the metadata XML</span>
+          <textarea rows={3} value={fields.metadata_xml} onChange={(e) => setFields((p) => ({ ...p, metadata_xml: e.target.value }))} placeholder="<EntityDescriptor …>…</EntityDescriptor>" className={`${inputCls} resize-y font-mono text-[11px]`} />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-xs text-zinc-400">Email domain(s) your members use</span>
+          <input value={fields.domains} onChange={(e) => setFields((p) => ({ ...p, domains: e.target.value }))} placeholder="yourorg.org, staff.yourorg.org" className={inputCls} />
         </label>
         <SaveNote load={load} msg={msg} error={msgError} />
         <button type="submit" disabled={saving || load !== "ok"} className="rounded-xl bg-indigo-500/80 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-500 disabled:opacity-50">
-          {saving ? "Saving…" : "Save SSO config"}
+          {saving ? "Saving…" : "Save and ask Imotara to switch it on"}
         </button>
       </form>
     </div>

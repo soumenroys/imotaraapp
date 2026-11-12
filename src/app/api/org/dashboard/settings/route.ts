@@ -8,6 +8,7 @@
 //        that history loss; here it's the owner's own informed choice about
 //        their own org, a different consent context).
 
+import { removeSsoProvider, ssoProviderIdOf } from "@/lib/auth/companySso";
 import { NextRequest, NextResponse, after } from "next/server";
 import { requireOrgAdmin } from "@/app/api/org/_auth";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -95,7 +96,7 @@ export async function DELETE(req: NextRequest) {
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
   const admin = getSupabaseAdmin();
-  const { data: org } = await admin.from("organizations").select("name").eq("id", auth.orgId).single();
+  const { data: org } = await admin.from("organizations").select("name, org_settings").eq("id", auth.orgId).single();
   if (!org) return NextResponse.json({ error: "org not found" }, { status: 404 });
 
   // Require the org's exact name as a confirmation — same safeguard pattern
@@ -118,6 +119,10 @@ export async function DELETE(req: NextRequest) {
   // org_license_pools/assignments, org_invites, cohorts/cohort_members all
   // cascade-delete automatically via their existing FK constraints, and the
   // trigger above releases member licenses in the same transaction.
+  // Company SSO (12 Nov 2026): remove the org's SAML provider first, or its domain keeps signing
+  // people in through an IdP with no organisation behind it. ⇒ lib/auth/companySso.ts
+  await removeSsoProvider(ssoProviderIdOf(org.org_settings));
+
   const { error } = await admin.from("organizations").delete().eq("id", auth.orgId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

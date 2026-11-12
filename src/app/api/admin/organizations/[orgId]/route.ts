@@ -13,6 +13,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { TIER_ORDER, TIER_RANK, isLicenseTier, type LicenseTier } from "@/types/license";
 import { adminAuthorized, requireSuperAdmin } from "@/app/api/admin/_auth";
 import { getOrgMembers } from "@/lib/imotara/org";
+import { removeSsoProvider, ssoProviderIdOf } from "@/lib/auth/companySso";
 import { sendOrgVerificationDecisionEmail } from "@/lib/connect/mailer";
 import nodemailer from "nodemailer";
 
@@ -303,7 +304,7 @@ export async function DELETE(
   catch { return NextResponse.json({ error: "invalid JSON" }, { status: 400 }); }
 
   const admin = getSupabaseAdmin();
-  const { data: org } = await admin.from("organizations").select("name").eq("id", orgId).single();
+  const { data: org } = await admin.from("organizations").select("name, org_settings").eq("id", orgId).single();
   if (!org) return NextResponse.json({ error: "org not found" }, { status: 404 });
 
   /**
@@ -332,6 +333,8 @@ export async function DELETE(
     deletedByAdminEmail: auth.admin.email,
   }); } catch (e) { console.error("[email after response]", e); } });
 
+  // Company SSO (12 Nov 2026): remove the org's SAML provider first. ⇒ lib/auth/companySso.ts
+  await removeSsoProvider(ssoProviderIdOf(org.org_settings));
   const { error } = await admin.from("organizations").delete().eq("id", orgId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

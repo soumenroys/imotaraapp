@@ -31,7 +31,8 @@ type Step =
   | { kind: "code-email"; intent: Intent }
   | { kind: "code-enter"; email: string; intent: Intent }
   | { kind: "set-password"; intent: Intent; createdAt?: string }
-  | { kind: "password" };
+  | { kind: "password" }
+  | { kind: "sso" };
 
 function client() {
   return createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
@@ -46,6 +47,10 @@ export default function SignInPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
+  // Company single sign-on (12 Nov 2026): the domain of the email typed, if its organisation
+  // signs in through its own identity provider. ⇒ lib/auth/companySso.ts
+  const [ssoDomain, setSsoDomain] = useState<string | null>(null);
+  const [ssoNote, setSsoNote] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const oauth = enabledOAuth();
@@ -109,6 +114,44 @@ export default function SignInPanel() {
       });
       if (err) { setError(friendlyAuthError(err.message)); setBusy(null); }
     } catch { setError(friendlyAuthError(null)); setBusy(null); }
+  }
+
+  // As they type an email, ask (POST, never in a URL) whether its domain uses company sign-in.
+  useEffect(() => {
+    if (!open || !["code-email", "password", "sso"].includes(step.kind)) return;
+    const em = email.trim().toLowerCase();
+    setSsoDomain(null);
+    if (!EMAIL_RX.test(em)) return;
+    const t = window.setTimeout(() => {
+      fetch("/api/auth/sso-domain", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: em }) })
+        .then((r) => r.json()).then((j: { sso?: boolean; domain?: string }) => setSsoDomain(j.sso && j.domain ? j.domain : null))
+        .catch(() => {});
+    }, 500);
+    return () => window.clearTimeout(t);
+  }, [email, open, step.kind]);
+
+  async function withCompanySso(domain: string) {
+    setBusy("sso"); setError("");
+    try {
+      const { data, error: err } = await client().auth.signInWithSSO({
+        domain,
+        options: { redirectTo: callbackUrl(window.location.origin, target) },
+      });
+      if (err || !data?.url) { setBusy(null); setError("Your organisation's sign-in isn't answering just now. Please try again, or use “Email me a code”."); return; }
+      window.location.href = data.url;
+    } catch { setBusy(null); setError(friendlyAuthError(null)); }
+  }
+
+  async function ssoSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const em = email.trim().toLowerCase();
+    if (!EMAIL_RX.test(em)) { setError("Please enter your work or school email address."); return; }
+    setSsoNote(""); setError(""); setBusy("sso");
+    const j = await fetch("/api/auth/sso-domain", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: em }) })
+      .then((r) => r.json()).catch(() => ({})) as { sso?: boolean; domain?: string };
+    if (j.sso && j.domain) { await withCompanySso(j.domain); return; }
+    setBusy(null);
+    setSsoNote("Your organisation hasn't set up single sign-on with Imotara. You can still sign in with this address — use “Email me a code”.");
   }
 
   async function sendCode(e: React.FormEvent) {
@@ -209,10 +252,26 @@ export default function SignInPanel() {
                 )}
               </>
             )}
+            <button type="button" disabled={!!busy} onClick={() => { setError(""); setSsoNote(""); setStep({ kind: "sso" }); }} className="w-full pt-1 text-center text-xs text-sky-300 hover:underline">
+              Work or school sign-in (single sign-on)
+            </button>
             <p className="pt-1 text-[11px] leading-relaxed text-zinc-500">
               Signing in keeps your history safe and lets you pick it up on any device. You can keep using Imotara without an account.
+              {emailMethods.includes("code") && " Work account not allowed? “Email me a code” works with any email address."}
             </p>
           </div>
+        )}
+
+        {step.kind === "sso" && (
+          <form onSubmit={ssoSubmit} className="space-y-3">
+            <label className="block text-sm text-zinc-300" htmlFor="signin-sso-email">
+              Your work or school email — if your organisation signs in through its own system (Okta, Microsoft, Google…), we&apos;ll take you there.
+            </label>
+            <input id="signin-sso-email" autoFocus data-autofocus type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@yourorganisation.org" className={input} />
+            <button type="submit" disabled={!!busy} className={primary}>{busy === "sso" ? "Opening…" : "Continue"}</button>
+            {ssoNote && <p className="text-xs text-amber-200">{ssoNote}</p>}
+            {back}
+          </form>
         )}
 
         {step.kind === "code-email" && (
@@ -223,6 +282,11 @@ export default function SignInPanel() {
                 : "Your email — any address works"}
             </label>
             <input id="signin-email" autoFocus data-autofocus type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className={input} />
+            {ssoDomain && (
+              <button type="button" disabled={!!busy} onClick={() => void withCompanySso(ssoDomain)} className={btn}>
+                {busy === "sso" ? "Opening…" : `${ssoDomain} uses its own sign-in — continue with it`}
+              </button>
+            )}
             <button type="submit" disabled={!!busy} className={primary}>{busy === "code" ? "Sending…" : "Send me a code"}</button>
             {back}
           </form>
@@ -243,6 +307,11 @@ export default function SignInPanel() {
         {step.kind === "password" && (
           <form onSubmit={withPassword} className="space-y-3">
             <input autoFocus data-autofocus type="email" autoComplete="email" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email — any address" aria-label="Email" className={input} />
+            {ssoDomain && (
+              <button type="button" disabled={!!busy} onClick={() => void withCompanySso(ssoDomain)} className={btn}>
+                {busy === "sso" ? "Opening…" : `${ssoDomain} uses its own sign-in — continue with it`}
+              </button>
+            )}
             <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" aria-label="Password" className={input} />
             <button type="submit" disabled={!!busy} className={primary}>{busy === "password" ? "One moment…" : "Sign in"}</button>
             <div className="flex flex-wrap justify-between gap-2 text-xs">

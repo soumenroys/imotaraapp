@@ -9,6 +9,7 @@ import SiteFooter from "@/components/SiteFooter";
 import SiteFooterSlot from "@/components/SiteFooterSlot";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
+import SignInPanel from "@/components/auth/SignInPanel";
 import ServiceWorkerRegistration from "@/components/imotara/ServiceWorkerRegistration";
 import OnboardingTour from "@/components/imotara/OnboardingTour";
 import OfflineIndicator from "@/components/imotara/OfflineIndicator";
@@ -422,6 +423,8 @@ export default function RootLayout({
         <AppearanceInit />
         <RtlInit />
         <FirstVisitBanner />
+        {/* #134: the one sign-in panel every "Sign in" button opens */}
+        <SignInPanel />
         <OnboardingTour />
         <OfflineIndicator />
         <PWAInstallPrompt />

@@ -1632,6 +1632,65 @@ function OrgVerificationPanel({ orgId, token }: { orgId: string; token: string }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// OrgSsoPanel — company single sign-on (12 Nov 2026). The org saves its IdP metadata + domains
+// (org dashboard ⇒ Settings); here Imotara's owner switches it ON or OFF. ⛔ Before activating,
+// confirm the organisation really owns every domain listed — SSO takes over sign-in for it.
+// ⇒ api/admin/organizations/[orgId]/sso · lib/auth/companySso.ts
+function OrgSsoPanel({ orgId, token }: { orgId: string; token: string }) {
+  const [saml, setSaml] = useState<Record<string, unknown> | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg]   = useState("");
+  const [confirmOwn, setConfirmOwn] = useState(false);
+
+  const load = useCallback(async () => {
+    const r = await fetch(`/api/admin/organizations/${orgId}`, adminFetchOpts(token));
+    const j = await r.json().catch(() => ({}));
+    const settings = (j.org?.org_settings ?? {}) as Record<string, unknown>;
+    setSaml((settings.saml ?? null) as Record<string, unknown> | null);
+  }, [orgId, token]);
+  useEffect(() => { void load(); }, [load]);
+
+  async function act(method: "POST" | "DELETE") {
+    setBusy(true); setMsg("");
+    const r = await fetch(`/api/admin/organizations/${orgId}/sso`, adminFetchOpts(token, { method }));
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    setMsg(r.ok ? (method === "POST" ? "Single sign-on is ON for these domains." : "Single sign-on is OFF.") : (j.error ?? "Failed."));
+    setConfirmOwn(false);
+    void load();
+  }
+
+  if (!saml) return null;
+  const domains = Array.isArray(saml.domains) ? (saml.domains as string[]) : [];
+  const status = String(saml.status ?? "—");
+  return (
+    <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3 space-y-2">
+      <p className="text-xs font-medium text-zinc-300">Single sign-on (SAML) — <span className={status === "active" ? "text-emerald-300" : status === "pending" ? "text-amber-300" : "text-zinc-400"}>{status}</span></p>
+      <p className="text-[11px] text-zinc-400">Domains: {domains.join(", ") || "—"}</p>
+      <p className="truncate text-[11px] text-zinc-500">Metadata: {(saml.metadata_url as string) || (saml.metadata_xml ? "XML pasted" : "—")}</p>
+      {status !== "active" && (
+        <label className="flex items-start gap-2 text-[11px] text-zinc-300">
+          <input type="checkbox" checked={confirmOwn} onChange={(e) => setConfirmOwn(e.target.checked)} className="mt-0.5" />
+          I have checked that this organisation owns {domains.length === 1 ? "this domain" : "all these domains"} (e.g. their website / an email from that domain).
+        </label>
+      )}
+      <div className="flex gap-2">
+        {status !== "active" && (
+          <button disabled={busy || !confirmOwn || domains.length === 0} onClick={() => void act("POST")} className="rounded-lg bg-emerald-600/80 px-3 py-1.5 text-xs text-white disabled:opacity-40">
+            {busy ? "Working…" : "Activate SSO"}
+          </button>
+        )}
+        {(status === "active" || !!saml.provider_id) && (
+          <button disabled={busy} onClick={() => void act("DELETE")} className="rounded-lg border border-rose-400/40 px-3 py-1.5 text-xs text-rose-300 disabled:opacity-40">
+            Turn off SSO
+          </button>
+        )}
+      </div>
+      {msg && <p className="text-[11px] text-zinc-300">{msg}</p>}
+    </div>
+  );
+}
+
 // OrgInvoicesPanel — #132 F (12 Nov 2026): hand-written invoices for an org that pays by
 // bank transfer / UPI (a pilot becoming paid). ⇒ lib/imotara/manualInvoice.ts
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2134,6 +2193,7 @@ function OrganizationsSection({ token, myRole }: { token: string; myRole: string
                     {/* License pool issuance */}
                     <OrgPoolsPanel orgId={org.orgId} token={token} />
                     <OrgInvoicesPanel orgId={org.orgId} token={token} />
+                    <OrgSsoPanel orgId={org.orgId} token={token} />
                     {/* NGO/EDU verification review */}
                     <OrgVerificationPanel orgId={org.orgId} token={token} />
                     {/* Aggregate usage stats (read-only, no individual data) */}

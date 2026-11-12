@@ -107,7 +107,7 @@ export default function FirstMessageBox({ from, openers = true, moods = false }:
           </div>
         </div>
       )}
-      <p className="mt-3 text-xs text-zinc-400">Free · no sign-up · you&apos;ll see it in the chat before it&apos;s sent.</p>
+      <p className="mt-3 text-xs text-zinc-400">Free · no sign-up · Send opens the chat and sends it; a mood just starts the sentence for you.</p>
     </form>
   );
 }

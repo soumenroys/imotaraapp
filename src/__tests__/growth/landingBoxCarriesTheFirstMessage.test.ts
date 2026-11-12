@@ -55,19 +55,30 @@ describe("⛔ the words never travel in a URL", () => {
   });
 });
 
-describe("⛔ never sent for them", () => {
+describe("sent for them ONLY when they pressed Send on the landing page (owner, 12 Nov 2026)", () => {
+  // Was "never sent for them": the words waited in the box and the owner saw "nothing happened,
+  // no reply". Now Send on the landing page means send — with every guard below.
   const chat = readFileSync("src/app/chat/page.tsx", "utf8");
   const start = chat.indexOf("const landingDraftRef");
-  const effect = chat.slice(start, chat.indexOf("}, [mounted]);", start));
-  it("the chat fills the box and focuses it — and does not call send", () => {
-    expect(effect).toContain("takeLandingDraft()");
-    expect(effect).toContain("setDraft(t)");
-    expect(effect).not.toMatch(/sendMessage\(/);
-  });
-  it("only an EMPTY box is filled — never over what they already typed", () => {
-    const guard = effect.indexOf('draft.trim() !== ""');
+  const fill = chat.slice(start, chat.indexOf("}, [mounted]);", start));
+  const auto = chat.slice(chat.indexOf("const autoSendRef"), chat.indexOf("}, [mounted, activeId, analyzing, draft]);"));
+  it("the box is filled first, and only an EMPTY box", () => {
+    expect(fill).toContain("takeLandingDraft()");
+    expect(fill).toContain("setDraft(t)");
+    const guard = fill.indexOf('draft.trim() !== ""');
     expect(guard).toBeGreaterThan(-1);
-    expect(guard).toBeLessThan(effect.indexOf("setDraft(t)"));
+    expect(guard).toBeLessThan(fill.indexOf("setDraft(t)"));
+    expect(fill).not.toMatch(/sendMessage\(/);
+  });
+  it("only the Send/Enter path (?src=landing) queues a send — a mood or the menu never does", () => {
+    expect(chat).toMatch(/const fromLandingSend = \(searchParams\?\.get\("src"\) \?\? ""\) === "landing";/);
+    expect(fill).toMatch(/if \(fromLandingSend\) autoSendRef\.current = t;/);
+  });
+  it("sends only when ready, unchanged, and with the CURRENT terms accepted", () => {
+    expect(auto).toMatch(/if \(!activeId \|\| analyzing \|\| draft\.trim\(\) !== pending\.trim\(\)\)/);
+    expect(auto).toMatch(/hasAcceptedCurrentTerms\(parseAcceptance\(localStorage\.getItem\(TERMS_ACCEPTANCE_KEY\)\)\)/);
+    expect(auto.indexOf("if (!termsOk()) return false;")).toBeLessThan(auto.indexOf("sendMessage(pending)"));
+    expect(auto).toMatch(/autoSendRef\.current = null;\s*sendMessage\(pending\);/); // once only
   });
 });
 

@@ -18,7 +18,6 @@
 // retention_runs row even when it does nothing: the absence of rows is the
 // alarm, and it is the only signal a silent death produces.
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";

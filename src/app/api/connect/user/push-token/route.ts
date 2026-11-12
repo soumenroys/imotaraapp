@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // PATCH /api/connect/user/push-token
 // Saves the caller's Expo push token to their auth user metadata so the server

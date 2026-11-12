@@ -8,7 +8,6 @@
 
 export const maxDuration = 60;
 
-export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // GET /api/connect/consultant/earnings
 // Auth required. Returns consultant's earnings summary and recent sessions.

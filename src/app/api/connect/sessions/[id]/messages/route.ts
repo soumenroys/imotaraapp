@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
 // POST /api/connect/sessions/[id]/messages

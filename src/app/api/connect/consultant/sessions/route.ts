@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // GET /api/connect/consultant/sessions
 // Returns sessions assigned to the authenticated consultant.

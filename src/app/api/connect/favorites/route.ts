@@ -3,7 +3,6 @@
 // DELETE /api/connect/favorites        — remove        { consultant_id }
 // Auth required.
 
-export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
 // GET /api/cron/exchange-rates

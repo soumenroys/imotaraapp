@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 export const maxDuration = 15;
 
 // POST /api/connect/translate

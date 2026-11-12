@@ -3,7 +3,6 @@
 // Body: { consultant_id, minutes, currency_code? }
 // Returns: { razorpay_order_id, amount_paise, amount, currency, minutes, breakdown }
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
 import { NextRequest, NextResponse } from "next/server";

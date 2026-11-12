@@ -136,7 +136,6 @@ function detectEmotionalArc(
 }
 
 // Node.js runtime — required for next/headers (used by getSupabaseUserServerClient for cookie auth).
-// Deploy to Singapore — closest Vercel region to Supabase ap-southeast-1 and Indian users.
 
 /**
  * How long the CLIENT says it will wait, from the `x-imotara-client-timeout-ms`
@@ -157,7 +156,6 @@ function clientBudgetFrom(req: Request): number | undefined {
   return Math.min(Math.max(n, 5_000), 120_000);
 }
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
 
 // Metadata-only crisis-detection log (owner decision 2026-08-14: no message

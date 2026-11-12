@@ -7,7 +7,6 @@
 // (POST /api/connect/wallet/recharge/create) instead — that is the only system that
 // ever actually paid for a session.
 
-export const preferredRegion = ["sin1"];
 
 import { NextResponse } from "next/server";
 

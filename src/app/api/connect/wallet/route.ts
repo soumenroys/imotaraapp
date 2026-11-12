@@ -2,7 +2,6 @@
 // Auth required. Returns user's balance per consultant + consultant earnings if applicable.
 // Query param: consultant_id — filter balance to a specific consultant
 
-export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

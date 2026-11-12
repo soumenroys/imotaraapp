@@ -2,7 +2,6 @@
 // Saves the user's age-gate status to Supabase user_metadata so Connect
 // API routes can enforce age server-side.
 
-export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

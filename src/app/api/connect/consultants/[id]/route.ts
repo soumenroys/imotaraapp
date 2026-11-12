@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // GET /api/connect/consultants/[id]
 // An approved consultant's full profile, subject to org visibility.

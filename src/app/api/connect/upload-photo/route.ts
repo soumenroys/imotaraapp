@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // POST /api/connect/upload-photo
 // Auth required. Accepts multipart/form-data with a "file" field (image, max 5 MB).

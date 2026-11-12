@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // POST /api/connect/consultant/register
 // Auth required. Creates a pending consultant application.

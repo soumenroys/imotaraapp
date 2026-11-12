@@ -1,5 +1,4 @@
 // src/app/api/payments/razorpay/webhook/route.ts
-export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
 import { NextResponse, after } from "next/server";

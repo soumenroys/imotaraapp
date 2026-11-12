@@ -2,7 +2,6 @@
 // POST /api/connect/sessions — create a new session
 // Auth required.
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
 import { NextRequest, NextResponse, after } from "next/server";

@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // GET  /api/connect/consultant/profile — own profile (any status)
 // PATCH /api/connect/consultant/profile — update own profile fields

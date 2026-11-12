@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // GET  /api/connect/consultant/payout — list own payout history (last 50)
 // POST /api/connect/consultant/payout — request a new payout

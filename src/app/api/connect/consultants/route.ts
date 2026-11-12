@@ -2,7 +2,6 @@
 // Public — list approved consultants with optional filters.
 // Query params: gender, tag, lang, online (true/false), category (role_category)
 
-export const preferredRegion = ["sin1"];
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";

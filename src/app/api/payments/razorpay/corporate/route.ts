@@ -7,7 +7,6 @@ export const maxDuration = 30;
 // Body: { orgType: "commercial"|"ngo"|"edu"|"govt", seats: number }
 // Response: { ok: true, razorpay: { orderId, keyId, amount, currency }, orgType, seats, tier }
 
-export const preferredRegion = ["sin1"];
 
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin, getSupabaseUserServerClient } from "@/lib/supabaseServer";

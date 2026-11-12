@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // POST /api/connect/sessions/[id]/review
 // Auth required. User submits a rating (1–5) after a completed session.

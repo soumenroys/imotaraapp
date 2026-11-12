@@ -6,7 +6,6 @@
 // 300s and a list of thousands will not fit. Draining a slice per minute also
 // means a crash loses one batch, not a whole broadcast.
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";

@@ -7,7 +7,7 @@
     "dev": "next dev",
     "prebuild": "cross-env IMOTARA_PRUNE_DEV_ROUTES=1 node scripts/devRoutes.mjs prune",
     "build": "next build",
-    "postbuild": "cross-env IMOTARA_PRUNE_DEV_ROUTES=1 node scripts/devRoutes.mjs restore && node scripts/ping-sitemap.mjs",
+    "postbuild": "cross-env IMOTARA_PRUNE_DEV_ROUTES=1 node scripts/devRoutes.mjs restore",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest",
@@ -134,5 +134,13 @@
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.0.4",
     "vitest": "^4.0.17"
+  },
+  "allowScripts": {
+    "@sentry/cli": true,
+    "esbuild": true,
+    "unrs-resolver": true,
+    "@ffmpeg-installer/darwin-arm64": true,
+    "fsevents": true,
+    "@ffmpeg-installer/linux-x64": true
   }
 }

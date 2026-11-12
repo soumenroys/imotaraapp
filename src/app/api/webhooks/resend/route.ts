@@ -10,7 +10,6 @@
 // sender's reputation degrades — so it is recorded once, globally, and every
 // future send skips it.
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 30;
 
 import { NextRequest, NextResponse } from "next/server";

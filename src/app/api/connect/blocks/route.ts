@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // POST   /api/connect/blocks  — consultant blocks a user  { blocked_user_id, reason? }
 // DELETE /api/connect/blocks  — unblock                   { blocked_user_id }

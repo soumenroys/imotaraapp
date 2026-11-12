@@ -1,4 +1,3 @@
-export const preferredRegion = ["sin1"];
 
 // POST /api/connect/upload-doc
 // Auth required. Accepts multipart/form-data:

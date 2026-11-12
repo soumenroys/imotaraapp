@@ -20,7 +20,6 @@
 // rows were blocking the removal of two obvious test accounts from the public
 // marketplace.
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";

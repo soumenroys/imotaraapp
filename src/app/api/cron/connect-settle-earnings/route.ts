@@ -10,7 +10,6 @@
 // this replaces (three separate completion paths that gave up on a
 // console.error with no retry at all).
 
-export const preferredRegion = ["sin1"];
 export const maxDuration = 60;
 
 import { NextRequest, NextResponse } from "next/server";

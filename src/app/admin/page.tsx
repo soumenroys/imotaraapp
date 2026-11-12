@@ -422,7 +422,7 @@ function LoginGate({ onAuth }: { onAuth: (token: string) => void }) {
                 reset flow, which is already offered above. */}
             <p className="text-center text-[11px] text-zinc-600">
               This is Imotara&apos;s own internal panel — not for org accounts.
-              Org member or admin? <Link href="/login" className="text-indigo-400 hover:text-indigo-300 underline">Sign in here instead</Link>.
+              Org member or admin? <Link href="/login?redirect=/org/dashboard" className="text-indigo-400 hover:text-indigo-300 underline">Sign in here instead</Link>.
             </p>
           </form>
         )}

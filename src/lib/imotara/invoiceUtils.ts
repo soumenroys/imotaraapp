@@ -3,6 +3,7 @@
 
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { BUSINESS } from "@/lib/imotara/businessIdentity";
 
 export interface InvoiceData {
   invoiceNumber: string;
@@ -11,7 +12,7 @@ export interface InvoiceData {
   productId:     string;
   tier?:         string | null;
   description:   string;
-  paymentGateway: "razorpay" | "apple" | "google_play" | "stripe";
+  paymentGateway: "razorpay" | "apple" | "google_play" | "stripe" | "manual";
   gatewayRef:    string;
   amountPaise:   number;
   currency:      string;
@@ -132,7 +133,13 @@ export function renderInvoiceHtml(invoice: {
   status:         string;
   user_email:     string;
   user_name?:     string | null;
+  /** #132: an organisation's invoice is billed to the ORGANISATION, care of its owner. */
+  billed_to_org?: string | null;
 }): string {
+  // #132 F (12 Nov 2026): a hand-written org invoice can be DUE (not yet paid) — it must then say
+  // "Invoice" and "Amount due", never "Payment Receipt" / "Total paid". ⇒ lib/imotara/manualInvoice.ts
+  const due = invoice.status === "due";
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
   const issuedDate = new Date(invoice.issued_at).toLocaleDateString("en-IN", {
     day: "numeric", month: "long", year: "numeric",
   });
@@ -146,7 +153,12 @@ export function renderInvoiceHtml(invoice: {
     apple:       "Apple App Store",
     google_play: "Google Play Store",
     stripe:      "Stripe",
+    manual:      "Bank transfer / UPI",
   }[invoice.payment_gateway] ?? invoice.payment_gateway;
+  const statusClass = invoice.status === "paid" ? "status-paid" : due ? "status-due" : "status-refunded";
+  const billedTo = invoice.billed_to_org
+    ? `${esc(invoice.billed_to_org)} (c/o ${invoice.user_name ? `${esc(invoice.user_name)} ` : ""}${esc(invoice.user_email)})`
+    : `${invoice.user_name ? `${esc(invoice.user_name)} ` : ""}${esc(invoice.user_email)}`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -173,6 +185,7 @@ export function renderInvoiceHtml(invoice: {
   .status{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase}
   .status-paid{background:#d1fae5;color:#065f46}
   .status-refunded{background:#fee2e2;color:#991b1b}
+  .status-due{background:#fef3c7;color:#92400e}
   .footer{background:#f9fafb;padding:20px 40px;font-size:12px;color:#9ca3af;text-align:center}
   @media print{body{background:#fff;padding:0}.page{box-shadow:none;border-radius:0}}
 </style>
@@ -181,27 +194,27 @@ export function renderInvoiceHtml(invoice: {
 <div class="page">
   <div class="header">
     <div class="logo">imotara<span>.</span></div>
-    <div class="invoice-tag">Payment Receipt</div>
+    <div class="invoice-tag">${due ? "Invoice" : "Payment Receipt"}</div>
   </div>
   <div class="body">
     <div class="row"><span class="label">Invoice number</span><span class="value">${invoice.invoice_number}</span></div>
     <div class="row"><span class="label">Issued</span><span class="value">${issuedDate}</span></div>
-    <div class="row"><span class="label">Billed to</span><span class="value">${invoice.user_name ? `${invoice.user_name} ` : ""}${invoice.user_email}</span></div>
-    <div class="row"><span class="label">Status</span><span class="status ${invoice.status === "paid" ? "status-paid" : "status-refunded"}">${invoice.status}</span></div>
+    <div class="row"><span class="label">Billed to</span><span class="value">${billedTo}</span></div>
+    <div class="row"><span class="label">Status</span><span class="status ${statusClass}">${invoice.status}</span></div>
     <hr class="divider"/>
-    <div class="row"><span class="label">Description</span><span class="value">${invoice.description}</span></div>
+    <div class="row"><span class="label">Description</span><span class="value">${esc(invoice.description)}</span></div>
     ${periodText ? `<div class="row"><span class="label">Period</span><span class="value">${periodText}</span></div>` : ""}
-    <div class="row"><span class="label">Payment via</span><span class="value">${gatewayLabel}</span></div>
-    <div class="row"><span class="label">Reference</span><span class="value" style="font-family:monospace;font-size:12px">${invoice.gateway_ref}</span></div>
+    <div class="row"><span class="label">${due ? "Pay by" : "Payment via"}</span><span class="value">${gatewayLabel}</span></div>
+    ${due ? `<div class="row"><span class="label">How to pay</span><span class="value">Bank details from ${esc(BUSINESS.email)} — quote ${esc(invoice.invoice_number)}</span></div>` : `<div class="row"><span class="label">Reference</span><span class="value" style="font-family:monospace;font-size:12px">${esc(invoice.gateway_ref)}</span></div>`}
     <hr class="divider"/>
     <div class="amount-row">
-      <span class="amount-label">Total paid</span>
+      <span class="amount-label">${due ? "Amount due" : "Total paid"}</span>
       <span class="amount-value">${amount}</span>
     </div>
   </div>
   <div class="footer">
-    Imotara · 6/B, Kalipada Mukherjee Road, Kolkata, West Bengal – 700008, India · info@imotara.com<br/>
-    This is a computer-generated receipt and does not require a signature.
+    ${BUSINESS.legalName} (${BUSINESS.brand}) · 6/B, Kalipada Mukherjee Road, Kolkata, West Bengal – 700008, India · ${BUSINESS.email}<br/>
+    This is a computer-generated ${due ? "invoice" : "receipt"} and does not require a signature.
   </div>
 </div>
 </body>

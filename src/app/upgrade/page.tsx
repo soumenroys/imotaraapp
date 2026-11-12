@@ -2,6 +2,7 @@
 
 // src/app/upgrade/page.tsx — LIC-8: Pricing + Razorpay checkout for web
 
+import { openSignIn } from "@/lib/auth/signInOptions";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Check, X as XIcon } from "lucide-react";
@@ -207,8 +208,7 @@ export default function UpgradePage() {
             // Save what the user wanted to buy, then start OAuth.
             // After sign-in, the auth listener above will auto-trigger checkout.
             try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ productId, description })); } catch {}
-            const redirectTo = `${window.location.origin}/auth/callback?redirectTo=/upgrade`;
-            await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
+            openSignIn("/upgrade"); // #134 — the pending purchase resumes after sign-in, as before
             return;
         }
 
@@ -239,8 +239,7 @@ export default function UpgradePage() {
             if (!res.ok || !json.ok) {
                 if (res.status === 401) {
                     try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ productId, description })); } catch {}
-                    const redirectTo = `${window.location.origin}/auth/callback?redirectTo=/upgrade`;
-                    await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
+                    openSignIn("/upgrade"); // #134
                     return;
                 }
                 setStatus({ type: "error", msg: json?.error || "Could not create order. Please try again." });

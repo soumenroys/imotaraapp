@@ -45,33 +45,29 @@ describe("🔴 the header offers Sign in when signed out", () => {
         expect(SRC).not.toMatch(/\{mounted && user && \(\s*<button/);
     });
 
-    it("🔴 Sign in uses Google OAuth — NOT the /login org form", () => {
+    it("🔴 Sign in opens the shared sign-in panel — NOT the /login org form", () => {
         /**
-         * 🔴 SHIPPED BUG, 2026-10-01. The header first linked to
-         * `/login?redirect=…`. That page is the ORGANISATION email+password
-         * form — its own heading reads "For organisation accounts set up by an
-         * Imotara admin". An ordinary user clicking Sign in in the header was
-         * shown a login they could not use, while the identical-looking button
-         * in Settings signed them in fine.
-         *
-         * The header must do what the Settings capsule's primary button does.
+         * 🔴 SHIPPED BUG, 2026-10-01. The header first linked to `/login?redirect=…` —
+         * the ORGANISATION email+password form. An ordinary user was shown a login they
+         * could not use. #134 (12 Nov 2026): the header now opens the ONE panel every
+         * Sign in button uses (Google + Microsoft + Apple + LinkedIn + any email), and
+         * that panel's guarantees are pinned in signInForEveryone.test.ts.
          */
-        expect(CODE).toMatch(/signInWithOAuth/);
-        expect(CODE).toMatch(/provider: "google"/);
+        expect(CODE).toMatch(/openSignIn\(/);
         expect(CODE).not.toMatch(/href=\{`\/login\?redirect=/);
     });
 
-    it("🔴 forces Google's account chooser", () => {
-        // Without prompt:"select_account" Google silently reuses whichever
-        // account is already active in the browser, signing someone into a
-        // different Imotara account with no visible choice. Already fixed once
-        // in settings/page.tsx — do not let the header reintroduce it.
-        expect(CODE).toMatch(/prompt: "select_account"/);
+    it("🔴 forces Google's account chooser — now in the shared options", () => {
+        // Without prompt:"select_account" Google silently reuses whichever account is
+        // already active in the browser. It moved with #134; it must not be lost.
+        const OPTS = fs.readFileSync(path.join(__dirname, "..", "lib", "auth", "signInOptions.ts"), "utf8")
+            .replace(/\/\*[\s\S]*?\*\//g, "").replace(/^[ \t]*\/\/.*$/gm, "");
+        expect(OPTS).toMatch(/id: "google"[^}]*queryParams: \{ prompt: "select_account" \}/);
     });
 
     it("🔑 Sign in returns you to the page you were on", () => {
-        expect(CODE).toMatch(/\/auth\/callback\?redirectTo=\$\{encodeURIComponent\(target\)\}/);
         expect(CODE).toMatch(/pathname \?\? "\/chat"/);
+        expect(CODE).toMatch(/openSignIn\(\(pathname \?\? "\/chat"\)/);
     });
 
     it("⚠️ both states stay behind `mounted` — no SSR flicker", () => {

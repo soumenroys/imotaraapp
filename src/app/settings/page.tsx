@@ -1,5 +1,6 @@
 "use client";
 
+import { openSignIn } from "@/lib/auth/signInOptions";
 import React, { useEffect, useMemo, useState, useRef, useCallback, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -1437,20 +1438,11 @@ export default function SettingsPage() {
         setSigningIn(true);
         try {
             const { createBrowserClient } = await import("@supabase/ssr");
-            const sb = createBrowserClient(
-                process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-            );
             const rawRedirect = new URLSearchParams(window.location.search).get("redirect") ?? "";
             const target = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/settings";
-            const redirectTo = `${window.location.origin}/auth/callback?redirectTo=${encodeURIComponent(target)}`;
-            // prompt: "select_account" forces Google's account chooser every
-            // time — without it, Google can silently reuse whichever Google
-            // account is already active in the browser, signing the user
-            // into a completely different Imotara account than the one they
-            // meant to pick, with no visible choice or warning.
-            await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo, queryParams: { prompt: "select_account" } } });
-        } catch { setSigningIn(false); }
+            // #134: one panel for every way in (Google keeps its account chooser there).
+            openSignIn(target);
+        } finally { setSigningIn(false); }
     }
 
     async function handleSignOut() {

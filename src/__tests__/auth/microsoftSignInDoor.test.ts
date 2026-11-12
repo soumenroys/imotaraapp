@@ -16,11 +16,12 @@ describe("Microsoft sign-in door", () => {
     expect(otherWaysText(enabledOAuth("google"))).toBe("Google or a code by email");
     expect(otherWaysText(enabledOAuth("google,azure"))).toBe("Google, Microsoft or a code by email");
     expect(otherWaysText(enabledOAuth("google,azure,apple"))).toBe("Google, Microsoft, Apple or a code by email");
+    expect(otherWaysText(enabledOAuth("google,azure,apple,linkedin_oidc"))).toBe("Google, Microsoft, Apple, LinkedIn or a code by email");
     expect(readFileSync("src/app/login/page.tsx", "utf8")).not.toMatch(/\(Google, or a code by email\)/);
   });
   it("help and policy are current", () => {
     expect(readFileSync("src/content/help/organizations.md", "utf8")).not.toMatch(/Google-only/);
     expect(readFileSync("src/content/help/getting-started.md", "utf8")).toMatch(/Continue with Microsoft/);
-    expect(readFileSync("src/app/privacy/page.tsx", "utf8")).toMatch(/with Google, Microsoft or Apple/);
+    expect(readFileSync("src/app/privacy/page.tsx", "utf8")).toMatch(/with Google, Microsoft, Apple or LinkedIn/);
   });
 });

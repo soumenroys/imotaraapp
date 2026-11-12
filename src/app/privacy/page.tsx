@@ -133,9 +133,11 @@ export default function PrivacyPage() {
                 <p className="mt-1 text-sm leading-7 text-zinc-300">
                   {/* #134 (12 Nov 2026): said email "may be collected in the future" — untrue since
                       Google sign-in. Says exactly what is kept for each way of signing in. */}
-                  You can use Imotara without signing in. If you sign in — with Google, Microsoft or Apple, or
+                  You can use Imotara without signing in. If you sign in — with Google, Microsoft, Apple or LinkedIn, or
                   with your email address and a one-time code — we keep your email address so you can
-                  sign in again and reach the same history on another device. If you choose a password,
+                  sign in again and reach the same history on another device. If you use Google, Microsoft,
+                  Apple or LinkedIn, we also keep the name and profile photo that service shares with us,
+                  if it shares one. If you choose a password,
                   it is stored only in a scrambled (hashed) form by our database provider; nobody at
                   Imotara can read it. We never ask for your phone number to sign in.
                 </p>

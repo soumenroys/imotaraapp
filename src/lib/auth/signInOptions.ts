@@ -82,7 +82,9 @@ export function friendlyAuthError(message: string | null | undefined): string {
 
 /** The window event every "Sign in" button fires; the one panel in the layout listens. */
 export const OPEN_SIGN_IN_EVENT = "imotara:open-sign-in";
-export function openSignIn(target?: string): void {
+export function openSignIn(target?: string, start?: { intent: "signin" | "create" | "reset"; email?: string }): void {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(OPEN_SIGN_IN_EVENT, { detail: { target: safeTarget(target ?? window.location.pathname) } }));
+  window.dispatchEvent(new CustomEvent(OPEN_SIGN_IN_EVENT, {
+    detail: { target: safeTarget(target ?? window.location.pathname), intent: start?.intent, email: start?.email },
+  }));
 }

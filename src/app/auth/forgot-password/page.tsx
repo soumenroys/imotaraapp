@@ -15,6 +15,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { createBrowserClient } from "@supabase/ssr";
+import { enabledEmail, openSignIn } from "@/lib/auth/signInOptions";
 
 function getSupabase() {
     return createBrowserClient(
@@ -33,6 +34,13 @@ function ForgotPasswordForm() {
         const trimmedEmail = email.trim().toLowerCase();
         if (!trimmedEmail) return;
 
+        // #134 (12 Nov 2026): a CODE from our own mailbox, then a new password — the shared sign-in
+        // panel does both (api/auth/email-code). Supabase's own reset mail is no longer used.
+        // Until email sign-in is switched on, the old reset link still works as before.
+        if (enabledEmail().length > 0) {
+            openSignIn("/chat", { intent: "reset", email: trimmedEmail });
+            return;
+        }
         setBusy(true);
         try {
             const supabase = getSupabase();

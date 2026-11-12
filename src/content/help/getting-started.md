@@ -50,7 +50,9 @@ Signing in is what turns on cross-device sync, cloud backup, and unlimited voice
 
 **On web:**
 1. Go to **Settings** and find the **Remote history sync** card (or use the sign-in entry in the top bar).
-2. Choose **Google** or **email magic link**. You'll be returned to the app once sign-in completes.
+2. Choose **Continue with Google**, or sign in with **any email address**:
+   - **Email me a code** — type your email, and we send a one-time code (up to 10 digits) from imotara.com. Type it in and you're signed in. No password needed.
+   - **Use a password** — sign in with your email and password. New here? **Create an account** sends a code to confirm your email, then you choose a password. **Forgot password?** works the same way.
 3. Confirm you're signed in: the **Remote history sync** card shows **Signed in as [your email]**.
 
 **On mobile:**
@@ -58,7 +60,7 @@ Signing in is what turns on cross-device sync, cloud backup, and unlimited voice
 2. Tap **Sign in to restore your plan** — mobile supports **Google** sign-in, and **Sign in with Apple** on iOS.
 3. Once signed in, the **Your plan** card stops showing the sign-in prompt.
 
-> Note: the email magic link is a **web-only** option. On mobile, please use Google or Apple sign-in. If you're on mobile and waiting for a sign-in email, that's the mix-up — use Google or Apple instead.
+> Note: signing in with an email code or password is on the **website** for now; the apps will get it in their next update. Until then, on the phone please use Google, or Apple on iPhone.
 
 ## Signing in on a second device
 

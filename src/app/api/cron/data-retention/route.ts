@@ -34,6 +34,7 @@ import {
     retentionEnforcing,
 } from "@/lib/account/retentionPolicy";
 import { markCronFired } from "@/lib/cron/heartbeat";
+import { cleanupUnconfirmedEmailAccounts } from "@/lib/auth/cleanupUnconfirmed";
 
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
@@ -60,6 +61,17 @@ export async function GET(req: NextRequest) {
 
     const admin = getSupabaseAdmin();
     const errors: string[] = [];
+
+    // #134: email sign-ups that never typed their code — empty, unconfirmed, never signed in.
+    // Runs first and on its own: a failure here never stops the retention work below.
+    let abandonedRemoved = 0;
+    try {
+        const c = await cleanupUnconfirmedEmailAccounts(admin);
+        abandonedRemoved = c.deleted;
+        errors.push(...c.errors.map((e) => `abandoned-signups: ${e}`));
+    } catch (e) {
+        errors.push(`abandoned-signups: ${(e as Error).message}`);
+    }
 
     // 🔴 ENFORCEMENT REQUIRES A WORKING SENDER. Without one, nobody can be
     // warned, and erasing accounts that were never warned is precisely the
@@ -166,6 +178,7 @@ export async function GET(req: NextRequest) {
         wouldPurge: toPurge.length,
         warned,
         purged,
+        abandonedRemoved,
         errors: errors.length ? errors : undefined,
     });
 }

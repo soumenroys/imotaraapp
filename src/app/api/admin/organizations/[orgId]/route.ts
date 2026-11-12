@@ -185,6 +185,25 @@ export async function PATCH(
     if (propErr) console.error("[admin/organizations PATCH] end-date propagation failed:", propErr.message);
   }
 
+  // 🔴 #132 (12 Nov 2026, proven on the live DB): SUSPENDING or CANCELLING an org changed nothing
+  // for its members — each keeps a licence COPY of the org's plan, and resolve_user_tier falls back
+  // to that copy once the org is no longer active ⇒ members stayed on Pro after the org was
+  // suspended or cancelled. ⇒ take back exactly what the org GRANTED: same org, same tier, same
+  // end date as the org had. A member's own purchase has its own date and is untouched.
+  // Re-activating hands it back (the sync below raises active members to the org tier again).
+  const nowInactive = body.status !== undefined && body.status !== "active";
+  if (nowInactive && before) {
+    let granted = admin
+      .from("licenses")
+      .update({ tier: "free", expires_at: null, updated_at: new Date().toISOString() })
+      .eq("org_id", orgId)
+      .eq("source", "org")
+      .eq("tier", before.tier);
+    granted = before.expires_at ? granted.eq("expires_at", before.expires_at) : granted.is("expires_at", null);
+    const { error: revokeErr } = await granted;
+    if (revokeErr) console.error("[admin/organizations PATCH] revoke on suspend/cancel failed:", revokeErr.message);
+  }
+
   // If tier OR status changed to active, sync all active org members' licenses
   const tierChanged   = !!body.tier;
   const justActivated = body.status === "active";

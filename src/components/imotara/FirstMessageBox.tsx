@@ -4,15 +4,21 @@
 //
 // ⛔ The words never go in the URL — sessionStorage only (read once by the chat page).
 // ⛔ Nothing is sent from here: the chat page's own consent screen and send button still apply.
+//
+// 12 Nov 2026 (owner, option A): the home page had THREE ways in stacked up (this box + three
+// openers, the mood row, a big "Start talking"). Now the box is the one way in; on the home page
+// the moods sit under it. And the words are kept AS THEY TYPE, so every way into the chat —
+// Send, Enter, a mood, the Chat menu — carries them (only Send did, and the rest lost them).
 "use client";
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LANDING_CHAT_URL, LANDING_DRAFT_MAX, LANDING_OPENERS, saveLandingDraft } from "@/lib/imotara/landingDraft";
+import { LANDING_CHAT_URL, LANDING_DRAFT_MAX, LANDING_OPENERS, keepLandingDraft, saveLandingDraft } from "@/lib/imotara/landingDraft";
+import { HOME_MOODS } from "@/lib/imotara/homeMoods";
 import { tallyFunnel } from "@/lib/analytics/visitTallyClient";
 import { gaEvent } from "@/lib/analytics/gaEvent";
 
-export default function FirstMessageBox({ from }: { from: string }) {
+export default function FirstMessageBox({ from, openers = true, moods = false }: { from: string; openers?: boolean; moods?: boolean }) {
   const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
   const router = useRouter();
@@ -23,6 +29,18 @@ export default function FirstMessageBox({ from }: { from: string }) {
     tallyFunnel("landing_send"); // anonymous count, never the words
     gaEvent("landing_first_message", { from });
     router.push(LANDING_CHAT_URL);
+  }
+
+  /** A mood: their own words win if they typed any; otherwise the chat writes the mood's first line in their language. */
+  function pickMood(key: string) {
+    gaEvent("home_mood", { mood: key });
+    if (ready) { go(); return; }
+    router.push(`/chat?mood=${key}`);
+  }
+
+  function change(v: string) {
+    setText(v);
+    keepLandingDraft(v);
   }
 
   return (
@@ -41,7 +59,7 @@ export default function FirstMessageBox({ from }: { from: string }) {
           rows={2}
           maxLength={LANDING_DRAFT_MAX}
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => change(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); go(); }
           }}
@@ -56,19 +74,40 @@ export default function FirstMessageBox({ from }: { from: string }) {
           Send
         </button>
       </div>
-      <div className="mt-3 flex flex-wrap gap-2" aria-label="Or start with one of these">
-        {LANDING_OPENERS.map((o) => (
-          <button
-            key={o}
-            type="button"
-            onClick={() => { setText(o); ref.current?.focus(); }}
-            className="rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-zinc-200 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
-          >
-            {o}
-          </button>
-        ))}
-      </div>
-      <p className="mt-2 text-xs text-zinc-400">Free · no sign-up · you&apos;ll see it in the chat before it&apos;s sent.</p>
+      {openers && (
+        <div className="mt-3 flex flex-wrap gap-2" aria-label="Or start with one of these">
+          {LANDING_OPENERS.map((o) => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => { change(o); ref.current?.focus(); }}
+              className="rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5 text-sm text-zinc-200 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
+      {moods && (
+        <div className="mt-4">
+          <p className="text-xs text-zinc-400">Or start with how you feel:</p>
+          <div className="mt-2 flex flex-wrap gap-2" role="list" aria-label="Pick how you feel to start talking">
+            {HOME_MOODS.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                role="listitem"
+                onClick={() => pickMood(m.key)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3.5 py-2 text-sm text-zinc-100 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+              >
+                <span aria-hidden="true">{m.emoji}</span>
+                <span>{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <p className="mt-3 text-xs text-zinc-400">Free · no sign-up · you&apos;ll see it in the chat before it&apos;s sent.</p>
     </form>
   );
 }

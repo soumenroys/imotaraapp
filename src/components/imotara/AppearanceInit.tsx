@@ -29,6 +29,21 @@ export default function AppearanceInit() {
       document.documentElement.setAttribute("data-theme", mode);
       document.documentElement.setAttribute("data-theme-pref", pref);
     } catch { /* ignore */ }
+
+    // 12 Nov 2026 (owner: "sometimes dark, sometimes light"): with "System" chosen and the Mac on
+    // Auto appearance, an OPEN page kept its old mode and flipped only on the next full load —
+    // which read as random. Follow the OS the moment it changes (only while the choice is System;
+    // the Settings page's own hook does the same while it is open).
+    const mq = window.matchMedia?.("(prefers-color-scheme: light)");
+    if (!mq) return;
+    const follow = () => {
+      try {
+        if (localStorage.getItem(THEME_KEY) !== "system") return;
+        document.documentElement.setAttribute("data-theme", resolveColorMode("system", mq.matches));
+      } catch { /* ignore */ }
+    };
+    mq.addEventListener?.("change", follow);
+    return () => mq.removeEventListener?.("change", follow);
   }, []);
   return null;
 }

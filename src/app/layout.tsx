@@ -10,6 +10,7 @@ import SiteFooterSlot from "@/components/SiteFooterSlot";
 import LocalDataNotice from "@/components/imotara/LocalDataNotice";
 import FirstVisitBanner from "@/components/imotara/FirstVisitBanner";
 import SignInPanel from "@/components/auth/SignInPanel";
+import GuestHistoryClaim from "@/components/auth/GuestHistoryClaim";
 import ServiceWorkerRegistration from "@/components/imotara/ServiceWorkerRegistration";
 import OnboardingTour from "@/components/imotara/OnboardingTour";
 import OfflineIndicator from "@/components/imotara/OfflineIndicator";
@@ -425,6 +426,8 @@ export default function RootLayout({
         <FirstVisitBanner />
         {/* #134: the one sign-in panel every "Sign in" button opens */}
         <SignInPanel />
+        {/* #135: a guest's history in this browser joins the account on sign-in */}
+        <GuestHistoryClaim />
         <OnboardingTour />
         <OfflineIndicator />
         <PWAInstallPrompt />

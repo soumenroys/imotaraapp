@@ -1,6 +1,6 @@
 // src/app/api/admin/licenses/route.ts
 // GET  /api/admin/licenses?search=&page=0&limit=20&excludeAnonymous=1
-//        &tier=&status=&platform=&activeDays=&joinedFrom=&joinedTo=&sort=
+//        &tier=&status=&platform=&activeDays=&joinedFrom=&joinedTo=&sort=&msgMin=&msgMax=
 //                                                   — list/search users with licenses,
 //          each with message count, last active and platform (admin_v5, task #86)
 // POST /api/admin/licenses                          — assign or create a license (upsert)
@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { adminAuthorized } from "@/app/api/admin/_auth";
-import { needsActivityQuery, parseUserListFilters } from "@/lib/admin/userListFilters";
+import { hasMessageFilter, needsActivityQuery, parseUserListFilters } from "@/lib/admin/userListFilters";
 
 const MISSING_FN = /Could not find the function|PGRST202|does not exist/i;
 
@@ -36,24 +36,44 @@ export async function GET(req: NextRequest) {
   // platform. Until docs/sql/admin_v5_users_activity.sql is run, fall back to
   // v4: the list still works, the new columns and filters are simply absent,
   // and the page says so (activityUnavailable).
+  const baseArgs = {
+    search_email:      search,
+    page_offset:       page * limit,
+    page_limit:        limit,
+    exclude_anonymous: excludeAnonymous,
+    f_tier:            filters.tier,
+    f_status:          filters.status,
+    f_platform:        filters.platform,
+    f_active_days:     filters.activeDays,
+    f_joined_from:     filters.joinedFrom,
+    f_joined_to:       filters.joinedTo,
+    sort_by:           filters.sort,
+  };
+
+  // #136 (12 Nov 2026): admin_v6 adds the message-count range. Until
+  // docs/sql/admin_v6_message_filter.sql is run, fall back to v5 — everything else keeps working and
+  // the page says the message filter is not available yet (messageFilterUnavailable).
   {
-    const v5 = await supabase.rpc("admin_search_users_v5", {
-      search_email:      search,
-      page_offset:       page * limit,
-      page_limit:        limit,
-      exclude_anonymous: excludeAnonymous,
-      f_tier:            filters.tier,
-      f_status:          filters.status,
-      f_platform:        filters.platform,
-      f_active_days:     filters.activeDays,
-      f_joined_from:     filters.joinedFrom,
-      f_joined_to:       filters.joinedTo,
-      sort_by:           filters.sort,
-    });
+    const v6 = await supabase.rpc("admin_search_users_v6", { ...baseArgs, f_msgs_min: filters.msgMin, f_msgs_max: filters.msgMax });
+    if (!v6.error) {
+      const users = v6.data ?? [];
+      const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
+      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable: false });
+    }
+    if (!MISSING_FN.test(`${v6.error.message} ${v6.error.code ?? ""}`)) {
+      console.error("[admin/licenses GET v6]", v6.error.message);
+      return NextResponse.json({ error: v6.error.message }, { status: 500 });
+    }
+    console.warn("[admin/licenses GET] admin_v6 not applied — falling back to v5", hasMessageFilter(filters) ? "(message filter ignored)" : "");
+  }
+  const messageFilterUnavailable = hasMessageFilter(filters);
+
+  {
+    const v5 = await supabase.rpc("admin_search_users_v5", baseArgs);
     if (!v5.error) {
       const users = v5.data ?? [];
       const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
-      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false });
+      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable });
     }
     if (!MISSING_FN.test(`${v5.error.message} ${v5.error.code ?? ""}`)) {
       console.error("[admin/licenses GET v5]", v5.error.message);
@@ -99,7 +119,7 @@ export async function GET(req: NextRequest) {
     ? Number(users[0].total_count)
     : null;
 
-  return NextResponse.json({ users, total, page, limit, filterUnavailable, activityUnavailable: true });
+  return NextResponse.json({ users, total, page, limit, filterUnavailable, activityUnavailable: true, messageFilterUnavailable });
 }
 
 export async function POST(req: NextRequest) {

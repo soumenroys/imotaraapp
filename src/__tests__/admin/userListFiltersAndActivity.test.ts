@@ -47,29 +47,30 @@ describe("last active is shown in Indian time, whatever the admin's computer say
 describe("the route", () => {
   beforeEach(() => rpc.mockReset());
 
-  it("asks admin_v5 with the filters and returns its rows and total", async () => {
+  it("asks admin_v6 with the filters and returns its rows and total", async () => {
     rpc.mockResolvedValueOnce({ data: [{ user_id: "u1", message_count: 12, last_active_at: "2026-11-07T10:00:00Z", platform: "android", total_count: 1 }], error: null });
     const res = await GET(req("page=0&limit=20&excludeAnonymous=1&tier=plus&activeDays=30&sort=last_active&joinedFrom=2026-11-01"));
     const body = await res.json();
     expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc.mock.calls[0][0]).toBe("admin_search_users_v5");
-    expect(rpc.mock.calls[0][1]).toMatchObject({ exclude_anonymous: true, f_tier: "plus", f_active_days: 30, sort_by: "last_active", f_joined_from: "2026-10-31T18:30:00.000Z", f_joined_to: null });
+    expect(rpc.mock.calls[0][0]).toBe("admin_search_users_v6");
+    expect(rpc.mock.calls[0][1]).toMatchObject({ exclude_anonymous: true, f_tier: "plus", f_active_days: 30, sort_by: "last_active", f_joined_from: "2026-10-31T18:30:00.000Z", f_joined_to: null, f_msgs_min: null, f_msgs_max: null });
     expect(body).toMatchObject({ total: 1, activityUnavailable: false });
     expect(body.users[0].message_count).toBe(12);
   });
 
   it("⛔ before the SQL is run, the list still works on v4 and SAYS the new parts are missing", async () => {
     rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "Could not find the function public.admin_search_users_v6", code: "PGRST202" } })
       .mockResolvedValueOnce({ data: null, error: { message: "Could not find the function public.admin_search_users_v5", code: "PGRST202" } })
       .mockResolvedValueOnce({ data: [{ user_id: "u1", total_count: 1 }], error: null });
     const body = await (await GET(req("tier=plus"))).json();
-    expect(rpc.mock.calls[1][0]).toBe("admin_search_users_with_licenses");
-    expect(rpc.mock.calls[1][1]).not.toHaveProperty("f_tier");
+    expect(rpc.mock.calls[2][0]).toBe("admin_search_users_with_licenses");
+    expect(rpc.mock.calls[2][1]).not.toHaveProperty("f_tier");
     expect(body).toMatchObject({ activityUnavailable: true, total: 1 });
   });
 
   it("any other database error is an error, not a silent fallback", async () => {
-    rpc.mockResolvedValueOnce({ data: null, error: { message: "permission denied for function admin_search_users_v5", code: "42501" } });
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "permission denied for function admin_search_users_v6", code: "42501" } });
     const res = await GET(req(""));
     expect(res.status).toBe(500);
     expect(rpc).toHaveBeenCalledTimes(1);
@@ -85,12 +86,19 @@ describe("the SQL", () => {
     expect(sql).toMatch(/revoke execute on function admin_search_users_v5\(text, integer, integer, boolean, text, text, text, integer, timestamptz, timestamptz, text\)\s+from public, anon, authenticated;/);
     expect(sql).toMatch(/grant\s+execute on function admin_search_users_v5\([^)]*\)\s+to service_role;/);
   });
-  it("every argument the route sends exists in the function", () => {
+  it("every argument the route sends exists in the function (v5 and v6)", () => {
     const route = readFileSync("src/app/api/admin/licenses/route.ts", "utf8");
-    const v5Call = route.slice(route.indexOf('rpc("admin_search_users_v5"'), route.indexOf("});", route.indexOf('rpc("admin_search_users_v5"')));
-    const sent = [...v5Call.matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
+    const start = route.indexOf("const baseArgs = {");
+    const block = route.slice(start, route.indexOf("};", start));
+    const sent = [...block.matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
     expect(sent.length).toBe(11);
-    for (const a of sent) expect(sql).toMatch(new RegExp(`^\\s+${a}\\s+(text|integer|boolean|timestamptz)\\b`, "m"));
+    const v6 = readFileSync("docs/sql/admin_v6_message_filter.sql", "utf8");
+    for (const a of sent) {
+      expect(sql).toMatch(new RegExp(`^\\s+${a}\\s+(text|integer|boolean|timestamptz)\\b`, "m"));
+      expect(v6).toMatch(new RegExp(`^\\s+${a}\\s+(text|integer|boolean|timestamptz)\\b`, "m"));
+    }
+    expect(route).toMatch(/rpc\("admin_search_users_v6", \{ \.\.\.baseArgs, f_msgs_min: filters\.msgMin, f_msgs_max: filters\.msgMax \}\)/);
+    expect(route).toMatch(/rpc\("admin_search_users_v5", baseArgs\)/);
   });
 });
 
@@ -103,5 +111,63 @@ describe("the page", () => {
   it("says counts leave out phone-only chats, and what to run when the query is missing", () => {
     expect(ui).toMatch(/chats kept only on a phone are not counted/);
     expect(ui).toMatch(/run docs\/sql\/admin_v5_users_activity\.sql in Supabase/);
+  });
+});
+
+// #136 (owner, 12 Nov 2026): filter by number of messages.
+describe("#136 — the message-count filter", () => {
+  beforeEach(() => rpc.mockReset());
+  const v6 = readFileSync("docs/sql/admin_v6_message_filter.sql", "utf8");
+
+  it("only whole numbers reach the database; a reversed range is put the right way round", () => {
+    expect(parseUserListFilters(new URLSearchParams("msgMin=6&msgMax=20"))).toMatchObject({ msgMin: 6, msgMax: 20 });
+    expect(parseUserListFilters(new URLSearchParams("msgMin=20&msgMax=6"))).toMatchObject({ msgMin: 6, msgMax: 20 });
+    expect(parseUserListFilters(new URLSearchParams("msgMin=0&msgMax=0"))).toMatchObject({ msgMin: 0, msgMax: 0 });
+    for (const bad of ["-1", "5.5", "1e3", "abc", "1;drop", "999999999"])
+      expect(parseUserListFilters(new URLSearchParams(`msgMin=${bad}`)).msgMin).toBeNull();
+    expect(parseUserListFilters(new URLSearchParams("msgMin=101")).msgMax).toBeNull(); // "more than 100"
+  });
+
+  it("the range is sent to admin_v6", async () => {
+    rpc.mockResolvedValueOnce({ data: [], error: null });
+    const body = await (await GET(req("msgMin=1&msgMax=5"))).json();
+    expect(rpc.mock.calls[0][0]).toBe("admin_search_users_v6");
+    expect(rpc.mock.calls[0][1]).toMatchObject({ f_msgs_min: 1, f_msgs_max: 5 });
+    expect(body.messageFilterUnavailable).toBe(false);
+  });
+
+  it("⛔ before v6 is run: the list still works on v5 and SAYS the message filter is not applied", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "Could not find the function public.admin_search_users_v6", code: "PGRST202" } })
+      .mockResolvedValueOnce({ data: [{ user_id: "u1", total_count: 1 }], error: null });
+    const body = await (await GET(req("msgMin=1&msgMax=5&tier=plus"))).json();
+    expect(rpc.mock.calls[1][0]).toBe("admin_search_users_v5");
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty("f_msgs_min");
+    expect(rpc.mock.calls[1][1]).toMatchObject({ f_tier: "plus" });
+    expect(body).toMatchObject({ messageFilterUnavailable: true, activityUnavailable: false, total: 1 });
+  });
+
+  it("no range asked ⇒ falling back to v5 is silent (nothing was ignored)", async () => {
+    rpc
+      .mockResolvedValueOnce({ data: null, error: { message: "Could not find the function public.admin_search_users_v6", code: "PGRST202" } })
+      .mockResolvedValueOnce({ data: [], error: null });
+    const body = await (await GET(req("tier=plus"))).json();
+    expect(body.messageFilterUnavailable).toBe(false);
+  });
+
+  it("the SQL filters on the same own-message count, both ends inclusive, and is service_role only", () => {
+    expect(v6).toMatch(/h\.record->>'source' = 'user' and not coalesce\(h\.deleted, false\)/);
+    expect(v6).toMatch(/and \(f_msgs_min\s+is null or base\.message_count >= f_msgs_min\)/);
+    expect(v6).toMatch(/and \(f_msgs_max\s+is null or base\.message_count <= f_msgs_max\)/);
+    expect(v6).toMatch(/revoke execute on function admin_search_users_v6\(text, integer, integer, boolean, text, text, text, integer, timestamptz, timestamptz, text, integer, integer\)\s+from public, anon, authenticated;/);
+    expect(v6).toMatch(/grant\s+execute on function admin_search_users_v6\([^)]*\)\s+to service_role;/);
+    expect(v6).not.toMatch(/\b(insert|update|delete)\s+(into|from)?\s*public\./i);
+  });
+
+  it("the page offers the ranges and a custom range, and says when v6 is missing", () => {
+    const ui = readFileSync("src/app/admin/page.tsx", "utf8");
+    expect(ui).toMatch(/MESSAGE_RANGES\.map/);
+    expect(ui).toMatch(/Custom range…/);
+    expect(ui).toMatch(/run docs\/sql\/admin_v6_message_filter\.sql in Supabase/);
   });
 });

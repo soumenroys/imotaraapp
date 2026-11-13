@@ -99,7 +99,7 @@ import { AdminShell, SignOutButton, Tile, type NavKey } from "@/app/admin/_compo
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { CronHealth } from "@/app/admin/_components/CronHealth";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
-import { formatIST } from "@/lib/admin/userListFilters";
+import { MESSAGE_RANGES, formatIST } from "@/lib/admin/userListFilters";
 
 const SESSION_KEY = "imotara_admin_token";
 
@@ -2863,14 +2863,24 @@ function StatsSection({ token }: { token: string }) {
 type UserFilterState = {
   tier: string; status: string; platform: string; activeDays: string;
   joinedFrom: string; joinedTo: string; sort: string;
+  msgMin: string; msgMax: string; // #136 — number of messages, inclusive
 };
-const NO_FILTERS: UserFilterState = { tier: "", status: "", platform: "", activeDays: "", joinedFrom: "", joinedTo: "", sort: "" };
+const NO_FILTERS: UserFilterState = { tier: "", status: "", platform: "", activeDays: "", joinedFrom: "", joinedTo: "", sort: "", msgMin: "", msgMax: "" };
+// #136 (owner, 12 Nov 2026): ready-made message ranges; "custom" shows two number boxes.
+const MESSAGE_RANGE_OPTIONS = MESSAGE_RANGES.map((r) => ({
+  key: r.key, label: r.label, min: String(r.min), max: r.max === null ? "" : String(r.max),
+}));
+function messageRangeKey(f: Pick<UserFilterState, "msgMin" | "msgMax">, custom: boolean): string {
+  if (custom) return "custom";
+  if (!f.msgMin && !f.msgMax) return "";
+  return MESSAGE_RANGE_OPTIONS.find((o) => o.min === f.msgMin && o.max === f.msgMax)?.key ?? "custom";
+}
 const PLATFORM_LABEL: Record<string, string> = { web: "Web", android: "Android", ios: "iPhone" };
 const SORT_LABEL: Record<string, string> = {
   "": "most recently updated", updated: "most recently updated",
   last_active: "most recently active", messages: "most messages", joined: "newest first",
 };
-const USER_FILTER_SELECTS: { key: Exclude<keyof UserFilterState, "joinedFrom" | "joinedTo">; label: string; options: [string, string][] }[] = [
+const USER_FILTER_SELECTS: { key: Exclude<keyof UserFilterState, "joinedFrom" | "joinedTo" | "msgMin" | "msgMax">; label: string; options: [string, string][] }[] = [
   { key: "tier", label: "Plan", options: [["", "Any plan"], ["free", "Free"], ["plus", "Plus"], ["family", "Family"], ["none", "No licence"]] },
   { key: "status", label: "Status", options: [["", "Any status"], ["trial", "Trial"], ["valid", "Valid"], ["cancelling", "Cancelling"], ["expired", "Expired"], ["invalid", "Withdrawn"]] },
   { key: "platform", label: "Platform", options: [["", "Any platform"], ["web", "Web"], ["android", "Android"], ["ios", "iPhone"], ["unknown", "Not known"]] },
@@ -2895,6 +2905,8 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   // a sort. Every value is re-checked on the server (lib/admin/userListFilters).
   const [filters, setFilters] = useState<UserFilterState>(NO_FILTERS);
   const [activityUnavailable, setActivityUnavailable] = useState(false);
+  const [messageFilterUnavailable, setMessageFilterUnavailable] = useState(false);
+  const [customMsgRange, setCustomMsgRange] = useState(false);
   const setFilter = (k: keyof UserFilterState, v: string) => setFilters((f) => ({ ...f, [k]: v }));
   const filtersOn = (Object.keys(NO_FILTERS) as (keyof UserFilterState)[]).some((k) => filters[k] !== NO_FILTERS[k]);
   const PAGE_SIZE = 20;
@@ -2918,6 +2930,7 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
       setTotal(typeof json.total === "number" ? json.total : null);
       setFilterUnavailable(!!json.filterUnavailable);
       setActivityUnavailable(!!json.activityUnavailable);
+      setMessageFilterUnavailable(!!json.messageFilterUnavailable);
     } catch { setError("Network error."); }
     finally { setLoading(false); }
   }, [token]);
@@ -3020,6 +3033,38 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
                 </label>
               ))}
               <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
+                Messages
+                <select value={messageRangeKey(filters, customMsgRange)} disabled={activityUnavailable}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "custom") { setCustomMsgRange(true); return; }
+                    setCustomMsgRange(false);
+                    const o = MESSAGE_RANGE_OPTIONS.find((x) => x.key === v);
+                    setFilters((f) => ({ ...f, msgMin: o?.min ?? "", msgMax: o?.max ?? "" }));
+                  }}
+                  className="rounded-lg border border-white/10 bg-zinc-900 px-2 py-1.5 text-xs text-zinc-200 outline-none focus:border-indigo-500/40 disabled:opacity-40">
+                  <option value="">Any number</option>
+                  {MESSAGE_RANGE_OPTIONS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+                  <option value="custom">Custom range…</option>
+                </select>
+              </label>
+              {messageRangeKey(filters, customMsgRange) === "custom" && (
+                <div className="flex items-end gap-1">
+                  <label className="flex flex-1 flex-col gap-1 text-[10px] text-zinc-500">
+                    From
+                    <input type="number" min={0} inputMode="numeric" value={filters.msgMin} disabled={activityUnavailable}
+                      onChange={(e) => setFilter("msgMin", e.target.value.replace(/\D/g, ""))}
+                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none disabled:opacity-40" />
+                  </label>
+                  <label className="flex flex-1 flex-col gap-1 text-[10px] text-zinc-500">
+                    To
+                    <input type="number" min={0} inputMode="numeric" value={filters.msgMax} placeholder="no limit" disabled={activityUnavailable}
+                      onChange={(e) => setFilter("msgMax", e.target.value.replace(/\D/g, ""))}
+                      className="w-full rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none disabled:opacity-40" />
+                  </label>
+                </div>
+              )}
+              <label className="flex flex-col gap-1 text-[10px] text-zinc-500">
                 Joined from
                 <input type="date" value={filters.joinedFrom} disabled={activityUnavailable}
                   onChange={(e) => setFilter("joinedFrom", e.target.value)}
@@ -3038,8 +3083,13 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
                   ? "Filters, message counts and last active need the admin_v5 query — run docs/sql/admin_v5_users_activity.sql in Supabase."
                   : "Last active is India time (IST). Message counts include only chats saved to the account — chats kept only on a phone are not counted."}
               </span>
+              {messageFilterUnavailable && (
+                <span className="text-[10px] text-amber-500/80">
+                  The message filter needs the admin_v6 query — run docs/sql/admin_v6_message_filter.sql in Supabase. Showing everyone for now.
+                </span>
+              )}
               {filtersOn && (
-                <button type="button" onClick={() => setFilters(NO_FILTERS)}
+                <button type="button" onClick={() => { setFilters(NO_FILTERS); setCustomMsgRange(false); }}
                   className="rounded-lg border border-white/10 bg-white/5 px-3 py-1 text-[10px] text-zinc-400 hover:text-zinc-200">
                   Clear filters
                 </button>

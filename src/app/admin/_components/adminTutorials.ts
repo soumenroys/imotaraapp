@@ -53,7 +53,7 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
     steps: [
       { do: "Search the person's email address.", then: "Exact or partial — it matches on the address, not the name." },
       {
-        do: "Or narrow the list with the filters — plan, status, platform, last active, joined dates — and sort it.",
+        do: "Or narrow the list with the filters — plan, status, platform, last active, number of messages (e.g. 1–5, or a custom range), joined dates — and sort it.",
         then: "Each row shows how many messages the person has sent and when they were last active, in India time (IST). Chats kept only on a phone are not counted.",
       },
       {

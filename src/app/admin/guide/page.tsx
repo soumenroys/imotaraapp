@@ -425,7 +425,7 @@ function SuperAdminSection() {
       <Table
         headers={["Sub-tab","What it does"]}
         rows={[
-          ["User Licenses","Search users by email, view their tier and token balance, manually change their plan, add tokens, and ban/unban their account"],
+          ["User Licenses","Search users by email or narrow the list (plan, status, platform, last active, number of messages, joined dates), view their tier and token balance, manually change their plan, add tokens, and ban/unban their account"],
           ["Action History","A log of all license changes made by admins — who changed what, when, and to which user"],
         ]}
       />

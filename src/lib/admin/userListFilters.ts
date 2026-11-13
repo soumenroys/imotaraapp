@@ -11,6 +11,16 @@ export const STATUSES = ["trial", "valid", "cancelling", "expired", "invalid"] a
 export const PLATFORMS = ["web", "android", "ios", "unknown"] as const;
 export const ACTIVE_DAYS = [0, 1, 7, 30, 90] as const; // 0 = never active
 export const SORTS = ["updated", "last_active", "messages", "joined"] as const;
+/** #136 (owner, 12 Nov 2026): filter by how many messages a person has sent. Ready-made ranges for
+ *  the drop-down; a custom range sends its own msgMin / msgMax. Upper bound inclusive, null = no cap. */
+export const MESSAGE_RANGES: readonly { key: string; label: string; min: number; max: number | null }[] = [
+  { key: "0", label: "None (0)", min: 0, max: 0 },
+  { key: "1-5", label: "1–5", min: 1, max: 5 },
+  { key: "6-20", label: "6–20", min: 6, max: 20 },
+  { key: "21-100", label: "21–100", min: 21, max: 100 },
+  { key: "101+", label: "More than 100", min: 101, max: null },
+];
+const MSG_CAP = 10_000_000;
 
 export type UserListFilters = {
   tier: (typeof TIERS)[number] | null;
@@ -19,8 +29,17 @@ export type UserListFilters = {
   activeDays: (typeof ACTIVE_DAYS)[number] | null;
   joinedFrom: string | null; // ISO instant, start of that day in IST
   joinedTo: string | null;   // ISO instant, start of the NEXT day in IST (exclusive)
+  msgMin: number | null;     // #136 — own messages, inclusive
+  msgMax: number | null;
   sort: (typeof SORTS)[number];
 };
+
+/** A whole number 0…10 million, or null. "5.5", "-1", "1e3", "abc" ⇒ null. */
+export function parseCount(v: string | null | undefined): number | null {
+  if (v == null || !/^\d{1,8}$/.test(v.trim())) return null;
+  const n = Number(v.trim());
+  return n <= MSG_CAP ? n : null;
+}
 
 function pick<T extends readonly (string | number)[]>(list: T, v: string | null | undefined): T[number] | null {
   if (v == null || v === "") return null;
@@ -45,6 +64,9 @@ export function istDayStart(day: string | null | undefined, addDays = 0): string
 export function parseUserListFilters(q: URLSearchParams): UserListFilters {
   const fromOk = istDayStart(q.get("joinedFrom"));
   const toOk = istDayStart(q.get("joinedTo"));
+  let msgMin = parseCount(q.get("msgMin"));
+  let msgMax = parseCount(q.get("msgMax"));
+  if (msgMin !== null && msgMax !== null && msgMin > msgMax) [msgMin, msgMax] = [msgMax, msgMin];
   return {
     tier: pick(TIERS, q.get("tier")),
     status: pick(STATUSES, q.get("status")),
@@ -52,13 +74,20 @@ export function parseUserListFilters(q: URLSearchParams): UserListFilters {
     activeDays: pick(ACTIVE_DAYS, q.get("activeDays")),
     joinedFrom: fromOk,
     joinedTo: toOk ? istDayStart(q.get("joinedTo"), 1) : null,
+    msgMin,
+    msgMax,
     sort: pick(SORTS, q.get("sort")) ?? "updated",
   };
 }
 
 /** True when the old (v4) query could answer this exactly. */
 export function needsActivityQuery(f: UserListFilters): boolean {
-  return !!(f.tier || f.status || f.platform || f.activeDays !== null || f.joinedFrom || f.joinedTo || f.sort !== "updated");
+  return !!(f.tier || f.status || f.platform || f.activeDays !== null || f.joinedFrom || f.joinedTo || f.sort !== "updated" || hasMessageFilter(f));
+}
+
+/** True when a message-count range is asked for (needs admin_v6). */
+export function hasMessageFilter(f: Pick<UserListFilters, "msgMin" | "msgMax">): boolean {
+  return f.msgMin !== null || f.msgMax !== null;
 }
 
 /** "7 Nov 2026, 9:05 pm IST" — always India time, whatever the admin's computer says. */

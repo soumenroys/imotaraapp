@@ -92,6 +92,12 @@ describe("every cloud write/pull on the web asks the switch first", () => {
         expect(settings).toMatch(/disabled=\{syncBusy \|\| !cloudBackup\}/);
     });
 
+    it("Settings: the backup switch is the same pill switch as every other toggle (owner, 14 Nov)", () => {
+        expect(settings).not.toMatch(/type="checkbox"\s*checked=\{cloudBackup\}/);
+        expect(settings).toMatch(/role="switch"\s*aria-checked=\{cloudBackup\}/);
+        expect(settings).toMatch(/\$\{cloudBackup \? "bg-sky-500" : "bg-zinc-600"\}/);
+    });
+
     it("Settings: signing out switches backup off", () => {
         expect(settings).toMatch(/await sb\.auth\.signOut\(\);\s*setCloudBackupOn\(false\)/);
     });

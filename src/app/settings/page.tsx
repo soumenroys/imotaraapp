@@ -4663,16 +4663,21 @@ export default function SettingsPage() {
                         Off by default. When it is on, your chats are copied to Imotara&apos;s secure cloud so you can restore them or see them on another device. When it is off, your chat history stays only in this browser. Free for everyone who is signed in.
                     </p>
                     {sbEmail ? (<>
-                        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-200">
-                            <input
-                                type="checkbox"
-                                checked={cloudBackup}
-                                onChange={(e) => toggleCloudBackup(e.target.checked)}
-                                className="h-4 w-4 accent-indigo-400"
+                        {/* Same switch as every other Settings toggle (owner, 14 Nov 2026) */}
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                            <span id="cloud-backup-label" className="text-xs text-zinc-200">Back up my chats to Imotara&apos;s cloud</span>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={cloudBackup}
+                                aria-labelledby="cloud-backup-label"
                                 aria-describedby="cloud-backup-help"
-                            />
-                            Back up my chats to Imotara&apos;s cloud
-                        </label>
+                                onClick={() => toggleCloudBackup(!cloudBackup)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${cloudBackup ? "bg-sky-500" : "bg-zinc-600"}`}
+                            >
+                                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${cloudBackup ? "translate-x-4" : "translate-x-0"}`} />
+                            </button>
+                        </div>
                         <p id="cloud-backup-help" className="mt-1 text-[11px] text-zinc-500">
                             {cloudBackup ? "On — new chats are backed up." : "Off — nothing is copied to the cloud."}
                         </p>

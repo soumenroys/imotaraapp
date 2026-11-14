@@ -152,8 +152,7 @@ Kolkata, India. Questions: info@imotara.com
 ## Open questions for the owner
 
 1. ~~**Title**~~ — ✅ decided: `Imotara: Mood & Mind Companion`.
-2. **Tele-MANAS 14416** — I have used it because the website's answer pages already name it. Say
-   if you would rather name iCall or Vandrevala instead, which the brand-voice doc mentions.
+2. **Tele-MANAS 14416** — REMOVED (owner, 14 Nov 2026): store listings are read worldwide, so no country-specific helpline here; the app shows the user's own country's helpline.
 3. **"Partnership firm"** — kept verbatim from the current listing. ⚠️ Worth a thought given
    `legal_liability_exposure_plan`: a partnership carries unlimited personal liability, and this
    line states the structure publicly. It is almost certainly required for a Play organisation

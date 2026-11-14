@@ -80,10 +80,10 @@ export default function LocalDataNotice() {
                     </p>
 
                     <p className="leading-snug text-zinc-300">
-                        {/* #127 (11 Nov 2026): history is saved with us by default — never say "on this device" only. */}
-                        Your chat history is <b>saved securely with us</b>, with a copy in this
-                        browser. To reply, your messages are sent to our secure servers. You can
-                        switch to on-device only in Settings.
+                        {/* #94 (owner, 14 Nov 2026): cloud backup is now OPT-IN on the web — history stays in the browser unless the user switches backup on. */}
+                        Your chat history is <b>kept in this browser</b>. To reply, your
+                        messages are sent to our secure servers. Cloud backup is off unless you
+                        switch it on in Settings, where you can also choose on-device only.
                     </p>
                 </div>
 

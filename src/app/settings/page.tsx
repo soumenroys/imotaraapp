@@ -5355,8 +5355,8 @@ export default function SettingsPage() {
                     <SectionToggleHeader title="Data & privacy" open={dataPrivacyOpen} onToggle={toggleDataPrivacyOpen} />
                     {dataPrivacyOpen && (<>
                     <p className="mt-1 text-xs leading-6 text-zinc-400 sm:text-sm">
-                        Your conversations are saved securely in your Imotara account, with a
-                        copy in this browser. To reply, messages go to our service providers.
+                        Your conversations are kept in this browser. Cloud backup is off unless
+                        you switch it on (see Cloud backup above). To reply, messages go to our service providers.
                         No ads, nothing sold — and you can delete your account and everything
                         in it below.
                     </p>

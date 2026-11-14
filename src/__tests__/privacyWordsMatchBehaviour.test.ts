@@ -45,3 +45,30 @@ describe("the AI-assistant landing pages say the same true thing", () => {
     expect(src).toMatch(/<MoodStartRow from="/);
   });
 });
+
+// #94 (owner, 14 Nov 2026): web cloud backup became OPT-IN, so "saved securely
+// with us" is no longer true on the web — it now says history stays in the
+// browser unless backup is switched on.
+describe("web: words follow opt-in cloud backup", () => {
+  it("⛔ no web screen says history is saved with us by default", () => {
+    for (const src of [home, notice, chat]) expect(src).not.toMatch(/saved securely with us/);
+  });
+  it("home, notice and chat details say it stays in the browser unless backup is on", () => {
+    expect(home).toMatch(/stay in this browser unless you switch on cloud backup/);
+    expect(notice).toMatch(/kept in this browser/);
+    expect(notice).toMatch(/Cloud backup is off unless you\s+switch it on/);
+    expect(chat).toMatch(/cloud backup is off unless you switch it on in Settings/);
+  });
+});
+
+describe("#94: no public page says history is saved with us by default", () => {
+  const files = [
+    "src/app/HomeClient.tsx", "src/app/layout.tsx", "src/app/guide/page.tsx", "src/app/about/page.tsx",
+    "src/app/tutorial/page.tsx", "src/app/settings/page.tsx", "src/app/ai-emotional-support/page.tsx",
+    "src/app/ai-mental-wellness/page.tsx", "src/app/mood-tracker-app/page.tsx",
+    "src/components/imotara/OnboardingTour.tsx", "public/llms.txt",
+  ];
+  it.each(files)("%s", (f) => {
+    expect(readFileSync(f, "utf8")).not.toMatch(/saved securely (in|with)/i);
+  });
+});

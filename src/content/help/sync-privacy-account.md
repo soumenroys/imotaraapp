@@ -4,7 +4,7 @@ How cross-device sync works, what Imotara stores (and pointedly does not collect
 
 ## Our privacy promise, in short
 
-- By default, your conversations are **saved securely in your Imotara account**, with a copy on your device, and replies come from our secure servers.
+- **On the website**, your chat history is **kept in your browser**, and **cloud backup is off unless you switch it on** (Settings → Cloud backup, free when signed in). **In the mobile app**, history is backed up to your Imotara account automatically, with a copy on your device. Either way, replies come from our secure servers.
 - You can switch to **on-device only (Local)** at any time — then nothing is sent and nothing is backed up.
 - **No ads. No third-party tracking. No analytics on your emotional content. Your data is never sold.** There are no public profiles and no social feed.
 - Cloud data is encrypted in transit and at rest, and only you can access your own records.
@@ -50,8 +50,8 @@ The Link Key is a private phrase that lets devices share the same chat history �
 
 ## What's stored where
 
-- **Not signed in:** your history is still saved securely in your Imotara account (an anonymous one), and a copy is kept on the device. To reply, messages go to our service providers. Signing in lets you pick up the same history on another device.
-- **Signed in, sync on:** your history and profile are backed up to Imotara's secure cloud so they follow you across devices. Only your account can access your records.
+- **Not signed in:** on the website your history is kept only in this browser. In the mobile app it is saved securely in an anonymous Imotara account, with a copy on the device. To reply, messages go to our service providers.
+- **Signed in, backup on:** your history is backed up to Imotara's secure cloud so it follows you across devices (website: switch on **Settings → Cloud backup**; mobile app: automatic). Only your account can access your records.
 - **Your companion and tone preferences** are stored locally and only shape how Imotara talks to you — they aren't shared.
 
 ## Analysis modes (Auto / Online / Local)
@@ -122,4 +122,4 @@ It takes effect immediately, including for any message already queued to go out.
 
 ## A note on guest data
 
-If you use Imotara without signing in, your history is still saved securely with us, under an anonymous id that belongs to that device or browser — no name, no email. Reinstalling the app or clearing browser storage loses that id, and without it we cannot connect you to that history again. If your history matters to you, sign in so it follows you to any device.
+On the website, a guest's history stays only in that browser — clearing browser storage deletes it. In the mobile app, a guest's history is saved securely with us under an anonymous id that belongs to that device — no name, no email; reinstalling the app loses that id, and without it we cannot connect you to that history again. If your history matters to you, sign in (and on the website switch on cloud backup) so it follows you to any device.

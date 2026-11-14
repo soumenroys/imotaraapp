@@ -36,7 +36,7 @@ const SLIDES: Slide[] = [
   {
     emoji: "🔒",
     title: "Your privacy",
-    body: "Your conversations are saved securely in your Imotara account. To reply, your messages go to our service providers; your profile is never sold or tracked. You can delete everything anytime in Settings.",
+    body: "Your conversations are kept on your device, and any cloud backup is stored securely and is your choice. To reply, your messages go to our service providers; your profile is never sold or tracked. You can delete everything anytime in Settings.",
     cta: "View privacy policy →",
     href: "/privacy",
   },

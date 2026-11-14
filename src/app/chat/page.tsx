@@ -4101,7 +4101,7 @@ export default function ChatPage() {
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-300/90">
                           {remoteAllowed
-                            ? "Your history is saved securely with us, with a copy in this browser, and you can switch to on-device only in Settings. You can "
+                            ? "Your history is kept in this browser — cloud backup is off unless you switch it on in Settings, where you can also choose on-device only. You can "
                             : "Your words stay on-device unless you explicitly allow remote. You can "}
                           <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete your data</Link>{" "}
                           anytime.

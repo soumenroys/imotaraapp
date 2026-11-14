@@ -229,7 +229,7 @@ On mobile all four live together under **Settings → Experience → Voice input
 ### 9a. Turn on cloud sync / back up now
 1. Sign in first (procedure 1b).
 2. **On web:** **Settings → Remote history sync → Back up now** pushes local history to the cloud and pulls records from other devices. Status text appears below.
-3. **On mobile:** sync runs automatically when signed in (unsynced items are batched and pushed after a short debounce, and again when the app returns to the foreground). Set **Analysis Mode** to **Auto** or **Online** (procedure 11) so cloud sync is allowed — **Local** keeps everything on-device and does not sync.
+3. **On mobile (1.7.0+):** sign in, then **Settings → Privacy & safety → Cloud backup** → switch on **Back up my chats to Imotara's cloud**. While on, unsynced items are batched and pushed after a short debounce, and again when the app returns to the foreground. Signing out switches it off and hides your chats from the next person on the phone; they come back when you sign in again. Set **Analysis Mode** to **Auto** or **Online** (procedure 11) so cloud sync is allowed — **Local** keeps everything on-device and does not sync.
 
 ### 9b. Force a sync
 1. **On web:** press **Back up now** (see 9a).

@@ -4,7 +4,7 @@ How cross-device sync works, what Imotara stores (and pointedly does not collect
 
 ## Our privacy promise, in short
 
-- **On the website**, your chat history is **kept in your browser**, and **cloud backup is off unless you switch it on** (Settings → Cloud backup, free when signed in). **In the mobile app**, history is backed up to your Imotara account automatically, with a copy on your device. Either way, replies come from our secure servers.
+- **On the website**, your chat history is **kept in your browser**, and **cloud backup is off unless you switch it on** (Settings → Cloud backup, free when signed in). **In the mobile app** (version 1.7.0 and later) it is the same: your history stays on your phone, and cloud backup is off unless you switch it on (Settings → Privacy & safety → Cloud backup, free when signed in). Either way, replies come from our secure servers.
 - You can switch to **on-device only (Local)** at any time — then nothing is sent and nothing is backed up.
 - **No ads. No third-party tracking. No analytics on your emotional content. Your data is never sold.** There are no public profiles and no social feed.
 - Cloud data is encrypted in transit and at rest, and only you can access your own records.
@@ -31,11 +31,11 @@ If you leave the organisation, the switch goes with it — a personal account is
 ### Turn on cloud backup / back up now
 1. Sign in first (see Getting Started).
 2. **On web:** **Settings → Cloud backup** → tick **Back up my chats to Imotara's cloud**. From then on new chats are copied to the cloud, and **Back up now** pushes your local history and pulls records from your other devices. A status line appears below the button. Untick it to stop — new chats then stay only in this browser (copies already in the cloud stay until you delete them under Privacy). Signing out switches backup off.
-3. **On mobile:** sync runs automatically when you're signed in — new items are pushed shortly after they're created, and again whenever the app returns to the foreground. Make sure **Analysis Mode** is set to **Auto** or **Online** (see below) — **Local** mode keeps everything on-device and intentionally does not sync.
+3. **On mobile:** **Settings → Privacy & safety → Cloud backup** → switch on **Back up my chats to Imotara's cloud** (you need to be signed in). While it is on, new items are backed up shortly after they're created, and again whenever the app returns to the foreground; **Back up now** does it straight away. Switch it off to stop — new chats then stay only on your phone. Make sure **Analysis Mode** is set to **Auto** or **Online** (see below) — **Local** mode keeps everything on-device and intentionally does not sync. Signing out switches backup off.
 
 ### Force a sync
 1. **On web:** press **Back up now**.
-2. **On mobile:** bring the app to the foreground, or leave the chat open briefly — a sync runs on its own.
+2. **On mobile:** with cloud backup on, tap **Back up now**, or bring the app to the foreground — a sync runs on its own.
 
 ### Link devices with a Link Key (optional)
 The Link Key is a private phrase that lets devices share the same chat history — handy if you want to link devices without relying only on account sign-in.
@@ -50,8 +50,8 @@ The Link Key is a private phrase that lets devices share the same chat history �
 
 ## What's stored where
 
-- **Not signed in:** on the website your history is kept only in this browser. In the mobile app it is saved securely in an anonymous Imotara account, with a copy on the device. To reply, messages go to our service providers.
-- **Signed in, backup on:** your history is backed up to Imotara's secure cloud so it follows you across devices (website: switch on **Settings → Cloud backup**; mobile app: automatic). Only your account can access your records.
+- **Not signed in:** on the website your history is kept only in this browser. In the mobile app it is kept on your phone. To reply, messages go to our service providers.
+- **Signed in, backup on:** your history is backed up to Imotara's secure cloud so it follows you across devices (website: **Settings → Cloud backup**; mobile app: **Settings → Privacy & safety → Cloud backup**). Only your account can access your records.
 - **Your companion and tone preferences** are stored locally and only shape how Imotara talks to you — they aren't shared.
 
 ## Analysis modes (Auto / Online / Local)
@@ -120,6 +120,10 @@ If you gave us your name, an email may greet you by it. If we do not have your n
 ### Once you unsubscribe
 It takes effect immediately, including for any message already queued to go out. We keep a record that your address opted out — that record is what stops you being added back by a later import, so it exists for your benefit. Filling in the form again does not undo it: someone at our end has to look at that and decide, precisely because anybody could type your address into a form.
 
+## Signing out and signing in on a shared phone
+
+In the mobile app, signing out keeps your conversations and personal details on the phone but **hides them**: whoever uses the app next starts with an empty chat and cannot see yours. When you sign in again on that phone, they come back. Anything you wrote before signing in moves into your account when you sign in. Signing out also switches cloud backup off.
+
 ## A note on guest data
 
-On the website, a guest's history stays only in that browser — clearing browser storage deletes it. In the mobile app, a guest's history is saved securely with us under an anonymous id that belongs to that device — no name, no email; reinstalling the app loses that id, and without it we cannot connect you to that history again. If your history matters to you, sign in (and on the website switch on cloud backup) so it follows you to any device.
+On the website, a guest's history stays only in that browser — clearing browser storage deletes it. In the mobile app, a guest's history stays on the phone — uninstalling the app deletes it. If your history matters to you, sign in and switch on cloud backup so it follows you to any device.

@@ -72,3 +72,18 @@ describe("#94: no public page says history is saved with us by default", () => {
     expect(readFileSync(f, "utf8")).not.toMatch(/saved securely (in|with)/i);
   });
 });
+
+// #126 (14 Nov 2026): the /for/<audience> pages (which ARE the sales PDFs), the
+// compare pages and the FAQ carried "stays on your device" / "saved securely
+// in your account" / "free forever" — none true on both web and app today.
+describe("#126: audience, compare and FAQ data follow the same truth", () => {
+  const files = ["src/data/audiencePages.ts", "src/data/comparePages.ts", "src/data/faq.ts"];
+  it.each(files)("%s: no device-only, account-by-default or free-forever claims", (f) => {
+    const src = readFileSync(f, "utf8");
+    expect(src).not.toMatch(/stays? on (your|the) (own )?(device|phone)/i);
+    expect(src).not.toMatch(/saved securely (in|with)/i);
+    expect(src).not.toMatch(/on-device by default/i);
+    expect(src).not.toMatch(/free forever/i);
+    expect(src).not.toMatch(/not visible to [^."]*\bus\b/i);
+  });
+});

@@ -101,14 +101,13 @@ Keep a mood timeline, and see how a week actually went rather than how
 you remember it.
 Breathe, when the thinking won't stop.
 Look back at a conversation that mattered.
-Use it on a plane, on a train, with no signal — replies work offline.
 
 
 Your conversations stay yours
 
-Imotara is local-first. Your chat history stays on your device unless
-you switch cloud sync on yourself. To reply, your messages go to our
-secure servers — or you can choose on-device replies in Settings. No ads. No engagement algorithm. No
+Your chat history stays on your phone, and cloud backup is off unless
+you switch it on in Settings (free when you are signed in). To reply,
+your messages go to our secure servers. No ads. No engagement algorithm. No
 social feed. Nothing sold to anyone, ever. You can export or delete
 everything from one screen.
 
@@ -128,7 +127,7 @@ verified human wellness companion, paid by the minute.
 Everywhere you are
 
 Android, iPhone, or your browser at imotara.com. Your history follows
-you across devices when cloud sync is on.
+you across devices when cloud backup is on.
 
 
 Please read this part
@@ -138,8 +137,7 @@ companion for reflection, and it will say so itself rather than pretend
 otherwise.
 
 If you are in danger right now, please contact a qualified professional
-or a crisis helpline. In India, Tele-MANAS is free and open 24 hours on
-14416. Imotara will show you a helpline for your own country when it
+or a crisis helpline. Imotara will show you a helpline for your own country when it
 matters.
 
 
@@ -154,8 +152,7 @@ Kolkata, India. Questions: info@imotara.com
 ## Open questions for the owner
 
 1. ~~**Title**~~ — ✅ decided: `Imotara: Mood & Mind Companion`.
-2. **Tele-MANAS 14416** — I have used it because the website's answer pages already name it. Say
-   if you would rather name iCall or Vandrevala instead, which the brand-voice doc mentions.
+2. **Tele-MANAS 14416** — REMOVED (owner, 14 Nov 2026): store listings are read worldwide, so no country-specific helpline here; the app shows the user's own country's helpline.
 3. **"Partnership firm"** — kept verbatim from the current listing. ⚠️ Worth a thought given
    `legal_liability_exposure_plan`: a partnership carries unlimited personal liability, and this
    line states the structure publicly. It is almost certainly required for a Play organisation

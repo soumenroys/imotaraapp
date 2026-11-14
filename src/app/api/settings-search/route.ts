@@ -45,7 +45,7 @@ const SETTINGS_LIST = [
   { id: "analysis_mode", title: "Analysis Mode", description: "How replies are made: Online (our servers), Local (on-device only), or Auto" },
   { id: "restart_onboarding", title: "Restart onboarding", description: "Show the name and companion-style setup again on the next open" },
   { id: "feature_discovery_cards", title: "Feature discovery cards", description: "Show or reset the cards that introduce app features" },
-  { id: "cloud_sync", title: "Cloud sync", description: "Sync conversations and data across devices" },
+  { id: "cloud_sync", title: "Cloud backup", description: "Off by default — switch on “Back up my chats” to copy your chats to the cloud and see them on other devices (free when signed in)" },
   { id: "export_data", title: "Export data", description: "Export conversation history as JSON or CSV" },
   { id: "clear_history", title: "Clear history", description: "Delete all local conversation history" },
   { id: "delete_account", title: "Delete account", description: "Permanently delete Imotara account and data" },

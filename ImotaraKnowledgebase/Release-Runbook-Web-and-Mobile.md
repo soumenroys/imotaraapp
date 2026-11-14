@@ -1,6 +1,6 @@
 # Imotara — Release Runbook (Web + Mobile)
 
-Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.6.9 / build 169**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
+Operational source-of-truth for shipping Imotara. **Web** = `imotaraapp` (Next.js on Vercel, `www.imotara.com`). **Mobile** = `imotara-mobile` (Expo/EAS, iOS + Android). Both share Supabase project `rfsbvbqtiesswnplslln`. Current release: **v1.7.0 / build 169**. Grounded in the repos' own release docs and scripts (`RELEASE_COMMANDS.md`, `RELEASE_GO_NO_GO.md`, `WEBHOOK_PROD_CHECK.md`, `scripts/bump-version.mjs`, `eas.json`) — do not improvise steps.
 
 ---
 
@@ -117,7 +117,7 @@ Both profiles are `distribution: "store"`, base URL `https://www.imotara.com`, s
 | Setting | `iosTestflight` | `production` |
 |---|---|---|
 | Platforms | iOS only | iOS + Android (`android.buildType: app-bundle`) |
-| `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` | `true` | `true` *(corrected 2026-07-18, was `false`)* |
+| `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` | `true` | `true` *(⚠️ RETIRED in 1.7.0 — nothing reads it; cloud backup is the user's opt-in switch, lib/cloudBackup)* |
 | `EXPO_PUBLIC_RAZORPAY_KEY_ID` | `rzp_test_...` (test) | `rzp_live_...` (**live**) |
 
 > ⚠️ One trap remains: `production` uses the **live** Razorpay key — never ship a store build on the test key.

@@ -1,6 +1,6 @@
 # Imotara — Mobile App Technical Guide
 
-Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.6.9 (build 169)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
+Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.7.0 (build 170)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
 
 ## 1. Stack summary
 
@@ -114,7 +114,9 @@ Local-first with best-effort cloud sync. History is stored in AsyncStorage under
 
 `runSync()` (deduped, throttled 900ms, hydration-guarded) does: (1) push local unsynced → `pushRemoteHistory`; (2) incremental remote pull via `fetchRemoteHistorySince(since)` with an in-memory cursor and a **scope guard** (discard results if `chatLinkKey` changed in-flight); (3) pull remote chat messages (skipped when `analysisMode === "local"`); (4) final dedupe/sort. Merges use `mergeSorted` (O(n+m)) and fingerprint dedup (`from : first-80-chars : 1-min bucket`). FREE-tier history pruning (`HISTORY_DAYS_LIMIT`) **never deletes unsynced items**. Background auto-sync is scheduled `autoSyncDelaySeconds` (clamped 3–60s, default 8) after unsynced changes; foreground resume sync is triggered by `useAppLifecycle`.
 
-**Launch free-cloud-sync override** — `LAUNCH_CLOUD_SYNC_FREE_FOR_ALL`: computed from `EXPO_PUBLIC_IMOTARA_LAUNCH_DATE` (+ `EXPO_PUBLIC_IMOTARA_FREE_DAYS`, default 90). If no launch date is set, it defaults to **`true`** (soft-launch free-for-all, matching web `LICENSE_MODE=off`). When true, cloud push/pull is allowed even for gated tiers. (See §12 — the env var this reads differs from the one named in eas.json.)
+**Cloud backup is OPT-IN (from 1.7.0, owner 14 Nov 2026, #94)** — `src/lib/cloudBackup.ts` (AsyncStorage `imotara.cloudBackup.v1`, absent = off) is the ONE gate: `HistoryContext` syncs only when `cloudBackupOn && status === "authenticated"` (anonymous never counts), and `api/historyClient` refuses pull/push first while it is off. Free for every real account; switched off on ANY loss of a real session (AuthContext). The old `LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` / `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` override is **retired** — nothing reads it (eas.json may still set it; harmless).
+
+**Sign-out = "keep, but hide" (owner, 14 Nov 2026)** — history is stored per real account under `imotara_history_v1:acct:<user id>` (+ threads, remote cursor) via `state/historyScope.ts`; a guest uses the old `<chatLinkKey>` / `local:<id>` key. At sign-in, guest chats MOVE into the account (#135; account copy saved first, guest copy removed after). Other personal stores (companion memories in SecureStore, letters, insights, reactions, last-session topic, open follow-ups) are moved aside at sign-out to `<key>.acct.<user id>` and brought back at that person's next sign-in (`lib/personalData.ts` — ⛔ add any new per-person store to its list). Sign-out also clears name/age/gender/reply style from the tone profile (the server copy refills them at sign-in).
 
 ## 7. Notifications (`src/notifications/checkInReminder.ts`)
 
@@ -140,7 +142,7 @@ Other env: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, `EXPO_PU
 
 ## 10. Storage keys inventory
 
-**AsyncStorage:** `imotara.onboarding.done.v1`, `imotara_history_v1:<scope>`, `imotara_history_remote_since_v1:<scope>`, `imotara_threads_v1:<scope>`, `imotara_license_tier_v1`, `imotara_license_expires_at_v1`, `imotara_settings_v1` (tone context, chatLinkKey, localUserScopeId, analysisMode, sync prefs…), `imotara_org_context_v1`, `imotara.companion.memories.v1` (cleared on sign-out), `imotara.checkin.*` (notification prefs), haptic intensity.
+**AsyncStorage:** `imotara.onboarding.done.v1`, `imotara_history_v1:<scope>` / `:acct:<user id>`, `imotara_history_remote_since_v1:<scope>`, `imotara_threads_v1:<scope>` / `:acct:<user id>`, `imotara.cloudBackup.v1`, `imotara_license_tier_v1`, `imotara_license_expires_at_v1`, `imotara_settings_v1` (tone context, chatLinkKey, localUserScopeId, analysisMode, sync prefs…), `imotara_org_context_v1`, `imotara.companion.memories.v1` (legacy; memories now in SecureStore `imotara.companion.memories.v2`, hidden at sign-out — see above), `imotara.checkin.*` (notification prefs), haptic intensity.
 
 **SecureStore (Keychain/Keystore):** the Supabase session/JWT via `ExpoSecureStoreAdapter`.
 

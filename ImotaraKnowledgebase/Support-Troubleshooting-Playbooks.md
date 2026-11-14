@@ -111,7 +111,8 @@
 **Resolution:**
 - Local mode → switch to Auto/Cloud if the user wants cross-device.
 - Empty scope → sign in on both devices (same account) or set the same sync key.
-- Gated plan → cloud sync availability follows the license gate (`gate("CLOUD_SYNC", tier)`); during the launch phase `LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` overrides it for everyone — if that override is off and the user is FREE, sync is expected to be blocked.
+- "My chats aren't syncing" (app 1.7.0+ / web): cloud backup is **off by default** — check the user is signed in AND has **Settings → Cloud backup** switched on (it switches off at every sign-out). It is free on every plan. With it off, History shows "On this device · cloud backup is off" — that is a choice, not a fault.
+- "My chats disappeared after I signed out" (app 1.7.0+): they are hidden, not deleted — signing in again on that phone shows them.
 - Failing pushes → check connectivity; trigger a manual sync (foreground the app / Settings sync button). Throttle note: manual `runSync` bursts within 900 ms are rejected ("Sync trigger throttled").
 
 **Escalate when…** rows are present in `imotara_chat_messages` for the correct scope but the second device still won't pull after a confirmed non-empty `chatLinkKey`, or the sync strip shows repeated "Sync failed" with a 5xx from `/api/history`.

@@ -55,7 +55,7 @@ const faqs = [
   },
   {
     q: "Is my emotional data private?",
-    a: "Your conversations are saved securely in Imotara's cloud — when you're signed in, they follow you to your other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. No ads, no data selling.",
+    a: "Your history is kept on your device. Any cloud backup is stored securely and is your choice — with it, signed-in users can pick up their history on other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. No ads, no data selling.",
   },
   {
     q: "Can I use Imotara when I feel anxious or overwhelmed?",
@@ -127,7 +127,7 @@ export default function AiEmotionalSupportPage() {
               ["Reflect your patterns", "Over time, Imotara surfaces emotional trends — so you can see how your feelings shift across days and weeks."],
               ["Available anytime", "No appointments, no waiting rooms. Open Imotara whenever you need a quiet space — day or night."],
               ["22 languages supported", "Imotara understands and responds in English, Hindi, Bengali, Tamil, Spanish, French, Arabic, Japanese, and 14 more languages."],
-              ["Private by design", "No ads, no tracking, nothing sold. Your history is saved securely in your account, and you can delete it all anytime in Settings."],
+              ["Private by design", "No ads, no tracking, nothing sold. Your history is kept on your device, any cloud backup is your choice, and you can delete it all anytime in Settings."],
               ["Free to use, no ads", "Imotara is free to use with no subscription required. No ads, no data selling. Imotara Plus is optional."],
             ].map(([title, desc]) => (
               <li key={title as string} className="flex gap-3">

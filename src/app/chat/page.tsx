@@ -69,6 +69,7 @@ function welcomeLang(preferred?: string | null): string {
 }
 import type { Emotion } from "@/types/history";
 import { getUserScopeId as getSharedScopeId } from "@/lib/imotara/userScope";
+import { isCloudBackupOn } from "@/lib/imotara/cloudBackup";
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
@@ -667,6 +668,8 @@ function detectCrisisTier(messages: Message[]): CrisisTier {
  *   • { records: [...] }     -> { records, syncToken, ... }  (new envelope)
  */
 async function fetchRemoteHistory(): Promise<unknown[]> {
+  // #94: with backup off there is no cloud copy of this user's to pull.
+  if (!isCloudBackupOn()) return [];
   try {
     const res = await fetch("/api/history", {
       method: "GET",
@@ -752,6 +755,8 @@ async function pushToRemoteHistory(entry: {
   updatedAt: number;
   source: "user" | "assistant";
 }): Promise<void> {
+  // #94: nothing leaves this browser unless the user switched backup on.
+  if (!isCloudBackupOn()) return;
   try {
     await fetch("/api/history", {
       method: "POST",
@@ -4096,7 +4101,7 @@ export default function ChatPage() {
                         </p>
                         <p className="mt-2 text-xs leading-5 text-zinc-300/90">
                           {remoteAllowed
-                            ? "Your history is saved securely with us, with a copy in this browser, and you can switch to on-device only in Settings. You can "
+                            ? "Your history is kept in this browser — cloud backup is off unless you switch it on in Settings, where you can also choose on-device only. You can "
                             : "Your words stay on-device unless you explicitly allow remote. You can "}
                           <Link href="/privacy" className="underline decoration-indigo-400/60 underline-offset-2 hover:text-indigo-300">download or delete your data</Link>{" "}
                           anytime.

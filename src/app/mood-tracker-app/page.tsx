@@ -54,7 +54,7 @@ const faqs = [
   },
   {
     q: "Does Imotara share my mood data?",
-    a: "No — your mood data is never sold or shared with advertisers. Entries are saved securely in your Imotara account; when you're signed in, they follow you to your other devices. To write replies, your messages go to our service providers. You can delete your account and everything in it anytime in Settings.",
+    a: "No — your mood data is never sold or shared with advertisers. Entries are kept on your device; any cloud backup is stored securely and is your choice, and with it signed-in users can pick them up on other devices. To write replies, your messages go to our service providers. You can delete your account and everything in it anytime in Settings.",
   },
   {
     q: "What does the mood timeline show?",
@@ -120,7 +120,7 @@ export default function MoodTrackerAppPage() {
             },
             {
               title: "Private, with no ads",
-              desc: "Your entries are saved securely in your account and never sold. There is no profile, no public feed, and no algorithms analysing your mood to sell you things.",
+              desc: "Your entries are kept on your device, any cloud backup is your choice, and nothing is ever sold. There is no profile, no public feed, and no algorithms analysing your mood to sell you things.",
               color: "text-indigo-300",
             },
             {

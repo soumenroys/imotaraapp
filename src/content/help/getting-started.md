@@ -39,7 +39,7 @@ You go straight into the conversation — there is no setup to fill in first.
 You don't need to sign up to start. Here's how:
 
 1. Open the app — on web, go to **www.imotara.com**; on mobile, open the Imotara app.
-2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work without signing in — your history is saved securely in your Imotara account. Replies come from our service providers by default.
+2. Tap **Chat** and start typing. Text chat, mood check-ins, History, Trends, Grow, and reflections all work without signing in. On the website your history is kept in your browser; in the mobile app it is saved securely in your Imotara account. Replies come from our service providers by default.
 3. Keep in mind what anonymous use *can't* do: cross-device sync, cloud backup, and unlimited voice aren't available. Read-aloud has a small daily cap (about 15 per day) and voice transcription about 20 per day when you're not signed in.
 4. Cloud-generated features (Companion's Letter, Growth Arc, Year in Review) need an account and an internet connection.
 5. If you reach the free daily limit of 20 cloud replies, Imotara quietly switches to on-device replies — the conversation is never blocked.
@@ -49,11 +49,11 @@ You don't need to sign up to start. Here's how:
 Signing in is what turns on cross-device sync, cloud backup, and unlimited voice.
 
 **On web:**
-1. Go to **Settings** and find the **Remote history sync** card (or use the sign-in entry in the top bar).
+1. Go to **Settings** and find the **Cloud backup** card (or use the sign-in entry in the top bar).
 2. Choose **Continue with Google**, **Continue with Microsoft** (Outlook, Hotmail and many work accounts — if your workplace blocks it, use an email code instead), **Continue with Apple** (the same account as Sign in with Apple on your iPhone) or **Continue with LinkedIn**, or sign in with **any email address**:
    - **Email me a code** — type your email, and we send a one-time code (up to 10 digits) from imotara.com. Type it in and you're signed in. No password needed.
    - **Use a password** — sign in with your email and password. New here? **Create an account** sends a code to confirm your email, then you choose a password. **Forgot password?** works the same way.
-3. Confirm you're signed in: the **Remote history sync** card shows **Signed in as [your email]**.
+3. Confirm you're signed in: the **Cloud backup** card shows **Signed in as [your email]**.
 
 **On mobile:**
 1. Open **Settings** and expand the **Your plan** section.

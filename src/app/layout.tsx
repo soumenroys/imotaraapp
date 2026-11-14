@@ -275,7 +275,7 @@ function JsonLd() {
       "Private companion chat for emotional support",
       "Mood history timeline and trend analysis",
       "22 languages supported",
-      "History saved securely in your Imotara account; delete it anytime in Settings",
+      "History kept on your device; cloud backup is your choice; delete it anytime in Settings",
       "Voice input",
       "No ads, no social feed, no public profiles",
       "Breathing and mindfulness exercises",
@@ -314,7 +314,7 @@ function JsonLd() {
       "Mood history timeline",
       "22 languages supported",
       "No account needed to start",
-      "History saved securely in your Imotara account; delete it anytime in Settings",
+      "History kept on your device; cloud backup is your choice; delete it anytime in Settings",
       "No ads or social feed",
     ],
     offers: {

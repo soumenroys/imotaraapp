@@ -54,7 +54,7 @@ Companions are **not** therapists, counsellors, psychologists or doctors, and ev
 ## Privacy
 
 - No account required
-- Conversations are saved securely in Imotara's cloud (Supabase, Seoul, South Korea); when signed in, they follow the person to their other devices
+- Conversation history is kept on the person's device; cloud backup (Supabase, Seoul, South Korea) is the person's choice — on the website it is off unless switched on — and lets a signed-in person pick up their history on other devices
 - To reply, messages are sent to our service providers
 - Conversations are not used for model training
 - No ads, no engagement algorithm, no social feed, nothing sold

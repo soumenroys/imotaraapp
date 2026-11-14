@@ -171,8 +171,8 @@ export default function Home() {
             <p className="max-w-sm text-xs text-zinc-400">
               {/* #94 (owner, 7 Nov 2026): words match behaviour — new visitors get
                   cloud replies by default (FirstVisitBanner). */}
-              Your conversations are saved securely with us, with a copy in this
-              browser. Replies come from our secure servers — you can switch to on-device only in Settings.
+              Your conversations stay in this browser unless you switch on cloud backup.
+              Replies come from our secure servers — you can switch to on-device only in Settings.
             </p>
           </div>
         </div>
@@ -546,7 +546,7 @@ export default function Home() {
               },
               {
                 q: "Is my data private?",
-                a: "Your conversations are saved securely in Imotara's cloud — when you're signed in, they follow you to your other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. Imotara has no ads, no tracking and never sells your data.",
+                a: "Your history is kept on your device. Any cloud backup is stored securely and is your choice — with it, signed-in users can pick up their history on other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. Imotara has no ads, no tracking and never sells your data.",
               },
               {
                 q: "What languages does Imotara support?",

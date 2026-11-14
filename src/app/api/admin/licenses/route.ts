@@ -10,8 +10,44 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { adminAuthorized } from "@/app/api/admin/_auth";
 import { hasMessageFilter, needsActivityQuery, parseUserListFilters } from "@/lib/admin/userListFilters";
+import { summarisePayments, type PaymentRow } from "@/lib/admin/paymentsSummary";
 
 const MISSING_FN = /Could not find the function|PGRST202|does not exist/i;
+
+/**
+ * #139: add each person's payments (latest amount + date, count, total) to the
+ * page of users. One extra query for the whole page, never one per row.
+ * ⚠️ A failure here must not take the Licenses screen down — the columns then
+ * read "—" and the rest of the list still works.
+ */
+async function withPayments(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  users: Array<Record<string, unknown>>,
+): Promise<Array<Record<string, unknown>>> {
+  const ids: string[] = [];
+  for (const u of users) if (typeof u.user_id === "string") ids.push(u.user_id);
+  if (ids.length === 0) return users;
+  let data: unknown[] | null = null;
+  try {
+    const res = await supabase
+      .from("payment_licenses")
+      .select("user_id, amount_paise, currency, granted_at")
+      .in("user_id", ids);
+    if (res.error) {
+      console.error("[admin/licenses GET payments]", res.error.message);
+      return users;
+    }
+    data = res.data;
+  } catch (e) {
+    console.error("[admin/licenses GET payments]", e instanceof Error ? e.message : e);
+    return users;
+  }
+  const summary = summarisePayments((data ?? []) as PaymentRow[]);
+  return users.map((u) => {
+    const p = typeof u.user_id === "string" ? summary.get(u.user_id) : undefined;
+    return p ? { ...u, payment: p } : u;
+  });
+}
 
 export async function GET(req: NextRequest) {
   if (!await adminAuthorized(req)) {
@@ -56,7 +92,7 @@ export async function GET(req: NextRequest) {
   {
     const v6 = await supabase.rpc("admin_search_users_v6", { ...baseArgs, f_msgs_min: filters.msgMin, f_msgs_max: filters.msgMax });
     if (!v6.error) {
-      const users = v6.data ?? [];
+      const users = await withPayments(supabase, v6.data ?? []);
       const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
       return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable: false });
     }
@@ -71,7 +107,7 @@ export async function GET(req: NextRequest) {
   {
     const v5 = await supabase.rpc("admin_search_users_v5", baseArgs);
     if (!v5.error) {
-      const users = v5.data ?? [];
+      const users = await withPayments(supabase, v5.data ?? []);
       const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
       return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable });
     }
@@ -112,7 +148,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const users = data ?? [];
+  const users = await withPayments(supabase, data ?? []);
   // total_count rides on every row (count(*) over ()). Absent on the fallback
   // path, in which case the UI pages by "did we get a full page?" instead.
   const total = users.length > 0 && typeof users[0]?.total_count === "number"

@@ -45,6 +45,8 @@ interface UserLicense {
   message_count?: number | null;
   last_active_at?: string | null;
   platform?: string | null;
+  // #139 — the person's payments (absent = never paid: free / grandfathered / manual).
+  payment?: PaymentSummary;
 }
 
 interface UserDetail {
@@ -100,6 +102,7 @@ import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { CronHealth } from "@/app/admin/_components/CronHealth";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
 import { MESSAGE_RANGES, formatIST } from "@/lib/admin/userListFilters";
+import { formatMoney, type PaymentSummary } from "@/lib/admin/paymentsSummary";
 
 const SESSION_KEY = "imotara_admin_token";
 
@@ -797,6 +800,19 @@ function UserLicenseRow({
               {user.platform && ` · ${PLATFORM_LABEL[user.platform] ?? user.platform}`}
             </p>
           )}
+          {/* #139 (owner, 14 Nov 2026): what the customer paid, in their currency, and when (latest). */}
+          <p className="mt-0.5 text-[10px] text-zinc-500" data-testid="license-payment">
+            {user.payment ? (
+              <>
+                <span className="text-emerald-400/90">Amount paid {formatMoney(user.payment.lastAmountMinor, user.payment.lastCurrency)}</span>
+                {` · Payment date ${fmtDate(user.payment.lastPaidAt)}`}
+                {user.payment.count > 1 &&
+                  ` · ${user.payment.count} payments${user.payment.totalMinor != null ? `, total ${formatMoney(user.payment.totalMinor, user.payment.lastCurrency)}` : ""}`}
+              </>
+            ) : (
+              "Amount paid — · Payment date —"
+            )}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${tierBadge(user.tier)}`}>

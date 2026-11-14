@@ -375,7 +375,7 @@ function BannerPrivacy() {
         <p className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Privacy & Safety</p>
         <p className="text-zinc-200 text-sm leading-relaxed">Full control over your data — choose what&apos;s analysed, what&apos;s synced, what&apos;s exported, and what&apos;s deleted. No data is ever sold.</p>
         <div className="mt-3 space-y-1">
-          {["🔒 Kept on your device; backup is your choice", "🚫 No ads, nothing sold", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
+          {["🔒 Kept on your device; backup off by default", "🚫 No ads, nothing sold", "📤 Export in 3 formats", "🗑 Delete anytime"].map(f => (
             <p key={f} className="text-[11px] text-zinc-400">{f}</p>
           ))}
         </div>

@@ -54,7 +54,7 @@ const faqs = [
   },
   {
     q: "Is Imotara safe and private?",
-    a: "Your history is kept on your device. Any cloud backup is stored securely and is your choice — with it, signed-in users can pick up their history on other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. No ads, no data selling.",
+    a: "Your history is kept on your device. Cloud backup is off unless you switch it on (it is stored securely when it is on) — with it, signed-in users can pick up their history on other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. No ads, no data selling.",
   },
   {
     q: "What languages does Imotara support?",

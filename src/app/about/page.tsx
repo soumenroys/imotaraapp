@@ -115,9 +115,9 @@ export default function AboutPage() {
                   for you to delete, export, or move anywhere.
                 </li>
                 <li>
-                  Your history is kept on your device, and any cloud backup is stored
-                  securely and is your choice (you can delete your account and everything
-                  in it in Settings). To reply,
+                  Your history is kept on your device, and cloud backup is off unless
+                  you switch it on (it is stored securely when it is on; you can delete
+                  your account and everything in it in Settings). To reply,
                   your messages go to our service providers — or choose simpler
                   replies made on your phone in Settings.
                 </li>

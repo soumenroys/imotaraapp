@@ -85,5 +85,10 @@ describe("#126: audience, compare and FAQ data follow the same truth", () => {
     expect(src).not.toMatch(/on-device by default/i);
     expect(src).not.toMatch(/free forever/i);
     expect(src).not.toMatch(/not visible to [^."]*\bus\b/i);
+    expect(src).not.toMatch(/stays? on (the|their|your|the person’s|the student’s) own phone/i);
+    expect(src).not.toMatch(/(on|in) your own device by default/i);
+    expect(src).not.toMatch(/available offline|offline too|when the internet drops/i);
+    expect(src).not.toMatch(/neither can we/i);
+    expect(src).not.toMatch(/children under 13, please install/i);
   });
 });

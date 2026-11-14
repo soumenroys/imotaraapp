@@ -134,7 +134,7 @@ export const FAQ: FaqItem[] = [
         id: "does-it-remember",
         section: "Using it",
         q: "Does Imotara remember what I told it before?",
-        a: "Yes, within your own history. It can refer back to what you have said and show you how your mood has moved over weeks and months. If you are signed in, that history follows you between your phone and your computer; if you are not, it stays on the one device.",
+        a: "Yes, within your own history. It can refer back to what you have said and show you how your mood has moved over weeks and months. If you are signed in with cloud backup on, that history follows you between your phone and your computer; otherwise it stays on the one device.",
     },
     {
         id: "works-offline",

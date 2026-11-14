@@ -340,7 +340,7 @@ export const COMPARE_PAGES: Record<CompareSlug, ComparePage> = {
             },
             {
                 criterion: "Where do conversations live?",
-                imotara: "On your own device by default. No ads, no data selling, no tracking.",
+                imotara: "History kept on your device; any cloud backup is your choice. No ads, no data selling, no tracking.",
                 other: "If this is hard to find, assume the answer is not the one you want.",
             },
             {

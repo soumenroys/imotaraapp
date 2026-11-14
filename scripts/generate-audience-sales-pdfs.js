@@ -74,6 +74,24 @@ const PRINT_CSS = `
 
   const browser = await chromium.launch();
   const page    = await browser.newPage();
+
+  // 🔴 14 Nov 2026 (#126): the first-visit WELCOME/consent window, the privacy
+  // notice and the companion prompt were printed ON TOP of every page — a
+  // headless browser is always a first-time visitor. Mark them as already seen
+  // before any page script runs. The terms version is READ from the code so a
+  // future terms change cannot silently bring the window back into the PDFs.
+  const termsSrc = fs.readFileSync(path.resolve(__dirname, '../src/lib/legal/termsVersion.ts'), 'utf8');
+  const termsVersion = (termsSrc.match(/TERMS_VERSION\s*=\s*"([^"]+)"/) || [])[1];
+  const termsKey = (termsSrc.match(/TERMS_ACCEPTANCE_KEY\s*=\s*"([^"]+)"/) || [])[1];
+  if (!termsVersion || !termsKey) throw new Error('could not read TERMS_VERSION / TERMS_ACCEPTANCE_KEY from termsVersion.ts');
+  await page.addInitScript(([key, version]) => {
+    try {
+      localStorage.setItem(key, JSON.stringify({ version, acceptedAt: new Date().toISOString(), locale: 'en', surface: 'web' }));
+      localStorage.setItem('imotara.onboarded.v1', '1');
+      localStorage.setItem('imotara.localNotice.v1', 'dismissed');
+      localStorage.setItem('imotara.tour.v1', '1');
+    } catch { /* storage blocked: the check below still catches an overlay */ }
+  }, [termsKey, termsVersion]);
   let failed    = 0;
 
   for (const slug of slugs) {
@@ -85,6 +103,14 @@ const PRINT_CSS = `
 
       await page.addStyleTag({ content: PRINT_CSS });
       await page.waitForTimeout(1200);
+
+      // ⛔ Refuse to print a page with a first-visit window on top (#126).
+      const overlay = await page.evaluate(() => {
+        const t = document.body.innerText;
+        return ['Welcome to Imotara', 'How Imotara handles your words', 'Want to personalize your companion', 'Want to personalise your companion', 'Skip tour']
+          .filter((s) => t.includes(s));
+      });
+      if (overlay.length) throw new Error(`a first-visit window is still showing: ${overlay.join(', ')}`);
 
       await page.pdf({
         path: pdfPath,

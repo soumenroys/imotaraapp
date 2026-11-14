@@ -136,8 +136,7 @@ companion for reflection, and it will say so itself rather than pretend
 otherwise.
 
 If you are in danger right now, please contact a qualified professional
-or a crisis helpline. In India, Tele-MANAS is free and open 24 hours on
-14416. Imotara will show you a helpline for your own country when it
+or a crisis helpline. Imotara will show you a helpline for your own country when it
 matters.
 
 

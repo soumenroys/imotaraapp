@@ -38,9 +38,11 @@ const TRUE = [
 ];
 
 describe("the facts the writers are given", () => {
-  // 🔄 #127 (11 Nov 2026): history is SAVED in the account by default — not device-only.
-  it("say history is SAVED in the account, and that each message is sent for the reply", () => {
-    expect(FACTS).toMatch(/SAVED in the person's Imotara account/);
+  // 🔄 #94 (14 Nov 2026): web backup is opt-in, the app still backs up automatically
+  // until its next release ⇒ the writers make NO storage claim at all.
+  it("forbid any claim about where history is stored, and say each message is sent for the reply", () => {
+    expect(FACTS).toMatch(/Make NO claim about WHERE chat history is stored/);
+    expect(FACTS).not.toMatch(/SAVED in the person's Imotara account/);
     expect(FACTS).not.toMatch(/STORED on the device by default/);
     expect(FACTS).toMatch(/sent to\s+an AI service/);
     expect(FACTS).not.toMatch(/Conversations stay on the device by default/);

@@ -121,11 +121,14 @@ WHAT IS TRUE ABOUT IMOTARA, and nothing beyond this
 - A private companion for saying how you actually feel. You can type or speak.
 - 22 languages, eleven of them Indian: Hindi, Bengali, Tamil, Telugu, Marathi,
   Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu.
-- Conversations are SAVED in the person's Imotara account on secure servers,
-  by default (web and app) — when signed in, they follow the person to their
-  other devices; a copy is also kept on the device. They can delete the
-  account and everything in it anytime in Settings. The privacy policy names
-  every processor. (Corrected 11 Nov 2026 — history is NOT device-only.)
+- ⛔ Make NO claim about WHERE chat history is stored — not "on your phone",
+  not "in the cloud", not "backup is your choice". (#94, owner 14 Nov 2026:
+  on the website cloud backup is now off unless the person switches it on,
+  while the app still backs up automatically until its next release — so any
+  one sentence about storage is false somewhere.) What IS safe: conversations
+  are private, never sold, never shown to an employer or school, and the
+  person can delete their account and everything in it anytime in Settings.
+  The privacy policy names every processor.
 - To write a reply, the text of each message is sent to an AI service
   (a main provider and a backup). ⛔ Never NAME the providers (owner,
   11 Nov 2026). ⛔ Never say nothing leaves the

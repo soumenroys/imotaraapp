@@ -133,7 +133,7 @@ const institutionPlans = (seatLine: string, seatCost: string): PlanRow[] => [
 ];
 
 const SHARED_PRIVACY =
-    "Conversations stay on your own device by default. No ads, no data selling, no tracking. What you say is not visible to your family, your employer, or us.";
+    "Your history is kept on your device, and any cloud backup is stored securely and is your choice. No ads, no data selling, no tracking. What you say is never shown to your family or your employer.";
 
 const SHARED_LIMITS =
     "Not therapy, and it does not diagnose. If something feels truly heavy, it gently shares a helpline and encourages you to reach a real person. Prefer a human? Imotara Connect offers verified companions by the minute.";
@@ -148,7 +148,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A private wellbeing companion for the days when there is something on your mind and no one to tell.",
     metaTitle: "Someone to talk to, in your own language — Imotara",
     metaDescription:
-      "A private wellbeing companion for the days when something is on your mind and there is no one to tell. 22 languages, no ads, no tracking. Free forever.",
+      "A private wellbeing companion for the days when something is on your mind and there is no one to tell. 22 languages, no ads, no tracking. Free to start.",
     keywords: [
       "someone to talk to", "private wellbeing companion", "emotional support in my language",
       "free companion app India", "talk about feelings privately", "mental wellness app 22 languages",
@@ -233,7 +233,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A private companion for the in-between years — in whichever language your thoughts arrive in.",
     metaTitle: "For the nights you say “I’m fine” — Imotara for young adults",
     metaDescription:
-      "A private companion for the in-between years. Work, comparison spirals, the parents asking “so, when?”. Private by default, 22 languages, free forever.",
+      "A private companion for the in-between years. Work, comparison spirals, the parents asking “so, when?”. Private by default, 22 languages, free to start.",
     keywords: [
       "loneliness in your twenties", "private companion", "app for work stress India",
       "someone to talk to after work", "emotional support app young adults", "mental wellness app 20s 30s",
@@ -244,7 +244,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "Why people keep it on their phone",
     cards: [
-      { title: "Private in a way social media never is", body: "Your conversations are saved securely in your own account. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
+      { title: "Private in a way social media never is", body: "Your history is kept on your device, and any cloud backup is stored securely and is your choice. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
       { title: "Built for the in-between", body: "Not a breakdown, not a breakthrough — just a Wednesday when work was brutal and there’s no one to tell. You don’t need a “real problem” to open it." },
       { title: "Yours to shape", body: "Name your companion and give it a personality — a calm older sibling, a straight-talking friend, a coach — and change it as your life changes." },
       { title: "Knows its limits", body: SHARED_LIMITS },
@@ -276,7 +276,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     standfirst: "A private, patient companion for the years when you carry everyone.",
     metaTitle: "You are the one everyone leans on. Who listens to you? — Imotara",
     metaDescription:
-      "A private companion for the years when you carry everyone — ageing parents, teenage children, health, money. Listens with patience, in 22 languages. Free forever.",
+      "A private companion for the years when you carry everyone — ageing parents, teenage children, health, money. Listens with patience, in 22 languages. Free to start.",
     keywords: [
       "sandwich generation stress", "caring for ageing parents emotional support",
       "midlife anxiety app", "private companion for adults India", "someone to talk to at 40",
@@ -333,7 +333,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       { title: "Someone to talk to at any hour", body: "In the long afternoon, or at 3 a.m. when sleep will not come. Always there, never tired — even when the internet is down." },
       { title: "A voice, in the language of your childhood", body: "Speak instead of typing; listen instead of reading. Not the English of forms — the words you think and remember in. Kind to tired eyes." },
       { title: "Comfort from familiar roots", body: "Stories, wisdom and verses from the traditions you grew up with, gentle breathing, and simple daily check-ins that ask how you are — and mean it." },
-      { title: "Completely private", body: "What you say stays on your own device. No advertisements, no selling of your information, nothing shared with anyone — not your children, not us." },
+      { title: "Completely private", body: "Your conversations are private. No advertisements, no selling of your information, and nothing is ever shown to your family. Your history is kept on your device, and any cloud backup is your choice." },
     ],
     afterCards:
       "Imotara is not a doctor and does not replace one. If you ever say something that worries it, it will gently share a helpline number and encourage you to speak with someone you trust. If you would rather talk to a real person, Imotara Connect offers a verified companion, paid by the minute.",
@@ -511,7 +511,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       { title: "Patients and their families", body: "Pre-surgery anxiety, long admissions, chronic-illness fatigue, the caregiver on a plastic chair at 2 a.m. A companion in their own language, at any hour — offline too." },
       { title: "Nurses, doctors and residents", body: "The people who give the most are often the last to be heard. A private space to decompress after a hard shift — with no HR record and no stigma." },
       { title: "Medical and nursing students", body: "Exam pressure, first deaths on the ward, life away from home. Tone adapts for young adults; students can be grouped by batch or hostel with a companion tone per group." },
-      { title: "Privacy your compliance team will appreciate", body: "On-device by default; cloud sync only with explicit consent. No ads, no data selling, no tracking. Admins see anonymised aggregate trends — never an individual’s words." },
+      { title: "Privacy your compliance team will appreciate", body: "History is kept on the device; any cloud backup is stored securely and is the person’s choice. No ads, no data selling, no tracking. Admins see anonymised aggregate trends — never an individual’s words." },
     ],
     afterCards:
       "Grounded in evidence-informed approaches including CBT, DBT, ACT and mindfulness. In a moment of crisis, Imotara gently surfaces local helplines — with care, not alarm — and can point people back to your counselling desk.",

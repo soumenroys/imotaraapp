@@ -82,7 +82,7 @@ export const FAQ: FaqItem[] = [
         id: "is-it-private",
         section: "Privacy",
         q: "Is Imotara private?",
-        a: "Yes. Your conversations are saved securely in your Imotara account — signing in simply lets you continue on another device. To reply, your messages go to our service providers. You can delete your account and everything in it anytime in Settings. There are no ads in Imotara, so nothing about you is worth selling.",
+        a: "Yes. Your history is kept on your device, and any cloud backup is stored securely and is your choice — signing in with backup on lets you continue on another device. To reply, your messages go to our service providers. You can delete your account and everything in it anytime in Settings. There are no ads in Imotara, so nothing about you is worth selling.",
     },
     {
         id: "can-anyone-read-it",

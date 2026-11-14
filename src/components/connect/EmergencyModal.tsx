@@ -11,7 +11,10 @@ const CRISIS_LINES: Record<string, Array<{ name: string; number?: string; url?: 
     { name: "Snehi",                number: "044-24640050" },
   ],
   US: [{ name: "988 Suicide & Crisis Lifeline", number: "988" }],
-  GB: [{ name: "Samaritans",           number: "116 123"    }],
+  GB: [
+    { name: "Samaritans",           number: "116 123"   },
+    { name: "Childline (under 19)", number: "0800 1111" }, // #143
+  ],
   AU: [{ name: "Lifeline Australia",   number: "13 11 14"   }],
   CA: [{ name: "Crisis Services Canada", number: "1-833-456-4566" }],
 };

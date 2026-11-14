@@ -69,6 +69,7 @@ function welcomeLang(preferred?: string | null): string {
 }
 import type { Emotion } from "@/types/history";
 import { getUserScopeId as getSharedScopeId } from "@/lib/imotara/userScope";
+import { isCloudBackupOn } from "@/lib/imotara/cloudBackup";
 import { buildTeenInsight } from "@/lib/imotara/buildTeenInsight";
 import ReplyOriginBadge from "@/components/imotara/ReplyOriginBadge";
 import { getChatToneCopy } from "@/lib/imotara/chatTone";
@@ -667,6 +668,8 @@ function detectCrisisTier(messages: Message[]): CrisisTier {
  *   • { records: [...] }     -> { records, syncToken, ... }  (new envelope)
  */
 async function fetchRemoteHistory(): Promise<unknown[]> {
+  // #94: with backup off there is no cloud copy of this user's to pull.
+  if (!isCloudBackupOn()) return [];
   try {
     const res = await fetch("/api/history", {
       method: "GET",
@@ -752,6 +755,8 @@ async function pushToRemoteHistory(entry: {
   updatedAt: number;
   source: "user" | "assistant";
 }): Promise<void> {
+  // #94: nothing leaves this browser unless the user switched backup on.
+  if (!isCloudBackupOn()) return;
   try {
     await fetch("/api/history", {
       method: "POST",

@@ -26,11 +26,11 @@ If you leave the organisation, the switch goes with it — a personal account is
 
 ## Cross-device sync
 
-Signing in is what turns on cloud backup and sync.
+**Cloud backup is off by default.** Your chat history stays on your device until you switch backup on. It is free for everyone who is signed in.
 
-### Turn on cloud sync / back up now
+### Turn on cloud backup / back up now
 1. Sign in first (see Getting Started).
-2. **On web:** **Settings → Remote history sync → Back up now** pushes your local history to the cloud and pulls records from your other devices. A status line appears below the button.
+2. **On web:** **Settings → Cloud backup** → tick **Back up my chats to Imotara's cloud**. From then on new chats are copied to the cloud, and **Back up now** pushes your local history and pulls records from your other devices. A status line appears below the button. Untick it to stop — new chats then stay only in this browser (copies already in the cloud stay until you delete them under Privacy). Signing out switches backup off.
 3. **On mobile:** sync runs automatically when you're signed in — new items are pushed shortly after they're created, and again whenever the app returns to the foreground. Make sure **Analysis Mode** is set to **Auto** or **Online** (see below) — **Local** mode keeps everything on-device and intentionally does not sync.
 
 ### Force a sync

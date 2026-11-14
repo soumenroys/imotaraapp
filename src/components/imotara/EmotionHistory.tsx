@@ -10,6 +10,7 @@ import type { EmotionRecord } from "@/types/history";
 import { getHistory } from "@/lib/imotara/history";
 import { saveHistory } from "@/lib/imotara/historyPersist";
 import { getUserScopeId } from "@/lib/imotara/userScope";
+import { isCloudBackupOn } from "@/lib/imotara/cloudBackup";
 import {
   pushAllLocalToApi,
   pushPendingToApi,
@@ -384,8 +385,9 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
           );
         }
 
-        // Auto-seed: if localStorage has no records, pull from server silently
-        if (!cancelled && list.filter((r) => !(r as any).deleted).length === 0) {
+        // Auto-seed: if localStorage has no records, pull from server silently.
+        // #94: only when the user has switched cloud backup on.
+        if (!cancelled && isCloudBackupOn() && list.filter((r) => !(r as any).deleted).length === 0) {
           try {
             const scope = getUserScopeId();
             const res = await fetch("/api/history", {
@@ -534,6 +536,15 @@ export default function EmotionHistory({ searchFilter = "", onResultCount }: { s
 
   // Manual “Sync now” (now offline-aware)
   async function manualSync() {
+    // #94: syncing means sending history to the cloud — only with backup on.
+    if (!isCloudBackupOn()) {
+      setState("idle");
+      setLastError(null);
+      setPushInfo(
+        "Cloud backup is off — your history stays in this browser. You can turn it on in Settings → Cloud backup.",
+      );
+      return;
+    }
     // Offline guard: keep changes local, schedule auto-retry
     if (
       typeof window !== "undefined" &&

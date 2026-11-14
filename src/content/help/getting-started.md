@@ -49,11 +49,11 @@ You don't need to sign up to start. Here's how:
 Signing in is what turns on cross-device sync, cloud backup, and unlimited voice.
 
 **On web:**
-1. Go to **Settings** and find the **Remote history sync** card (or use the sign-in entry in the top bar).
+1. Go to **Settings** and find the **Cloud backup** card (or use the sign-in entry in the top bar).
 2. Choose **Continue with Google**, **Continue with Microsoft** (Outlook, Hotmail and many work accounts — if your workplace blocks it, use an email code instead), **Continue with Apple** (the same account as Sign in with Apple on your iPhone) or **Continue with LinkedIn**, or sign in with **any email address**:
    - **Email me a code** — type your email, and we send a one-time code (up to 10 digits) from imotara.com. Type it in and you're signed in. No password needed.
    - **Use a password** — sign in with your email and password. New here? **Create an account** sends a code to confirm your email, then you choose a password. **Forgot password?** works the same way.
-3. Confirm you're signed in: the **Remote history sync** card shows **Signed in as [your email]**.
+3. Confirm you're signed in: the **Cloud backup** card shows **Signed in as [your email]**.
 
 **On mobile:**
 1. Open **Settings** and expand the **Your plan** section.

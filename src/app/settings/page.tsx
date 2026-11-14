@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAnalysisConsent } from "@/hooks/useAnalysisConsent";
 import { saveHistory } from "@/lib/imotara/historyPersist";
+import { isCloudBackupOn, setCloudBackupOn } from "@/lib/imotara/cloudBackup";
 import { OPEN_SECTION_EVENT } from "@/data/settingsSections";
 import SettingsSearch from "@/components/imotara/SettingsSearch";
 import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance";
@@ -1455,6 +1456,7 @@ export default function SettingsPage() {
                 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
             );
             await sb.auth.signOut();
+            setCloudBackupOn(false); setCloudBackup(false); // #94: backup belongs to the signed-in user
             setSbEmail(null);
         } catch { /* ignore */ } finally {
             setSigningOut(false);
@@ -1941,9 +1943,25 @@ export default function SettingsPage() {
     // ─── Remote History Sync ─────────────────────────────────────────────────
     const [syncBusy, setSyncBusy] = useState(false);
     const [syncMsg, setSyncMsg] = useState<string | null>(null);
+    // #94 (owner, 14 Nov 2026): cloud backup is OPT-IN, free for every
+    // signed-in user. Off until the user switches it on — one source of truth
+    // in lib/imotara/cloudBackup.
+    const [cloudBackup, setCloudBackup] = useState(false);
+    useEffect(() => { setCloudBackup(isCloudBackupOn()); }, []);
+    function toggleCloudBackup(on: boolean) {
+        setCloudBackupOn(on);
+        setCloudBackup(on);
+        setSyncMsg(on
+            ? "Cloud backup is on — new chats are copied to Imotara's secure cloud."
+            : "Cloud backup is off — new chats stay only in this browser. Copies already in the cloud are kept; you can delete them under Privacy.");
+    }
 
     async function handleSyncNow() {
         if (syncBusy) return;
+        if (!isCloudBackupOn()) {
+            setSyncMsg("Turn cloud backup on first.");
+            return;
+        }
         setSyncBusy(true);
         setSyncMsg(null);
         try {
@@ -2814,7 +2832,7 @@ export default function SettingsPage() {
                     clearAllLocalImotaraData();
                     setSbEmail(null);
                     setDeleteAccountMsg("Account deleted. All your data has been removed.");
-                    try { await sb.auth.signOut(); } catch { /* already gone */ }
+                    try { await sb.auth.signOut(); } catch { /* already gone */ } setCloudBackupOn(false); // #94
                 } else {
                     const json = await res.json().catch(() => null);
                     setDeleteAccountMsg(
@@ -4636,20 +4654,33 @@ export default function SettingsPage() {
 
                 {/* ── Remote History Sync ─────────────────────────────── */}
                 <section className="imotara-glass-soft rounded-2xl px-4 py-4 sm:px-5 sm:py-5">
-                    <SectionToggleHeader title="Remote history sync" open={remoteSyncOpen} onToggle={toggleRemoteSyncOpen} />
+                    <SectionToggleHeader title="Cloud backup" open={remoteSyncOpen} onToggle={toggleRemoteSyncOpen} />
                     {remoteSyncOpen && (<>
                     {sbEmail && (
                         <p className="mt-1 text-[11px] text-emerald-400">Signed in as {sbEmail}</p>
                     )}
                     <p className="mt-1 text-xs leading-5 text-zinc-400">
-                        Push your local history to the Imotara cloud and pull any records from other devices. Requires being signed in.
+                        Off by default. When it is on, your chats are copied to Imotara&apos;s secure cloud so you can restore them or see them on another device. When it is off, your chat history stays only in this browser. Free for everyone who is signed in.
                     </p>
-                    {sbEmail ? (
+                    {sbEmail ? (<>
+                        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-200">
+                            <input
+                                type="checkbox"
+                                checked={cloudBackup}
+                                onChange={(e) => toggleCloudBackup(e.target.checked)}
+                                className="h-4 w-4 accent-indigo-400"
+                                aria-describedby="cloud-backup-help"
+                            />
+                            Back up my chats to Imotara&apos;s cloud
+                        </label>
+                        <p id="cloud-backup-help" className="mt-1 text-[11px] text-zinc-500">
+                            {cloudBackup ? "On — new chats are backed up." : "Off — nothing is copied to the cloud."}
+                        </p>
                         <div className="mt-3 flex flex-wrap gap-2">
                             <button
                                 type="button"
                                 onClick={handleSyncNow}
-                                disabled={syncBusy}
+                                disabled={syncBusy || !cloudBackup}
                                 className="rounded-xl border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-xs font-medium text-indigo-200 transition hover:bg-indigo-500/20 disabled:opacity-50"
                             >
                                 {syncBusy ? "Saving…" : "Back up now"}
@@ -4663,9 +4694,9 @@ export default function SettingsPage() {
                                 {signingOut ? "Signing out…" : "Sign out"}
                             </button>
                         </div>
-                    ) : (
+                    </>) : (
                         <p className="mt-2 text-[11px] text-zinc-500">
-                            Use the <strong className="text-zinc-400">Sign in</strong> section at the top of this page.
+                            To use cloud backup, sign in using the <strong className="text-zinc-400">Sign in</strong> section at the top of this page.
                         </p>
                     )}
                     {syncMsg && <p className="mt-2 text-[11px] text-zinc-400">{syncMsg}</p>}

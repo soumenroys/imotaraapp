@@ -709,7 +709,7 @@ const FEATURES: Record<string, Feature[]> = {
       long: "You don't need a Google account to use Imotara. All core features work locally without login. To enable cloud sync, access your history from multiple devices, or make a purchase, tap 'Sign in' — on the website you can use Google or any email address (a one-time code, or a password); the apps offer Google, and Apple on iPhone, with email coming in their next update.",
       steps: [
         "Open Settings (gear icon, bottom right).",
-        "Scroll to 'Remote history sync' or tap 'Sign in' when prompted during cloud sync.",
+        "Scroll to 'Cloud backup' or tap 'Sign in' when prompted.",
         "Website: choose Continue with Google, Continue with Microsoft, Continue with Apple, Continue with LinkedIn, Email me a code, or Use a password. Apps: Google, or Apple on iPhone.",
         "Finish in the sign-in window — or type the code we email you from imotara.com.",
         "You're signed in — your history begins syncing to the cloud.",
@@ -1728,9 +1728,9 @@ const FEATURES: Record<string, Feature[]> = {
     },
     {
       icon: "🔄",
-      title: "Remote History Sync",
-      short: "Manually trigger a sync of your history between device and cloud.",
-      long: "Sync happens automatically in the background, but you can also trigger it manually from Settings. The sync result shows how many new records were pulled from the server or pushed from your device.",
+      title: "Cloud Backup",
+      short: "Off by default — switch it on to copy your chats to Imotara's secure cloud.",
+      long: "Your chat history stays on your device unless you switch cloud backup on (free for everyone who is signed in). On the web: Settings → Cloud backup → 'Back up my chats to Imotara's cloud'. With it on, new chats are backed up and 'Back up now' syncs with your other devices; switch it off and new chats stay only on this device. Signing out switches it off.",
       steps: [
         "Sign in first (Google, Apple, or your email).",
         "Go to Settings → Privacy & safety → Remote history backup.",

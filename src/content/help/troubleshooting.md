@@ -33,7 +33,7 @@ Work through these in order:
 1. **Check your Analysis Mode isn't set to Local.** Local mode keeps everything on-device and intentionally never syncs — that's its whole point. Switch to **Auto** or **Online** (**Settings → Privacy & safety → Analysis Mode** on mobile; the analysis toggle on the Chat page on web) if you want cross-device sync.
 2. **Make sure both devices are signed in to the same account** — same Google/email/Apple identity. A guest device has nothing to sync to.
 3. **If you use a Link Key, it must be identical on both devices** (**Settings → Sync with another device** on web; **Settings → Privacy & safety → Link this device** on mobile).
-4. **Force a sync:** on web press **Back up now** (**Settings → Remote history sync**); on mobile, bring the app to the foreground and give it a moment.
+4. **Force a sync:** on web make sure **Settings → Cloud backup** is ticked, then press **Back up now**; on mobile, bring the app to the foreground and give it a moment.
 5. Check the sync status line in Settings — it tells you whether the last sync succeeded.
 
 ## "AI replies feel generic / the AI stopped replying properly"

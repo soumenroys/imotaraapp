@@ -101,14 +101,13 @@ Keep a mood timeline, and see how a week actually went rather than how
 you remember it.
 Breathe, when the thinking won't stop.
 Look back at a conversation that mattered.
-Use it on a plane, on a train, with no signal — replies work offline.
 
 
 Your conversations stay yours
 
-Imotara is local-first. Your chat history stays on your device unless
-you switch cloud sync on yourself. To reply, your messages go to our
-secure servers — or you can choose on-device replies in Settings. No ads. No engagement algorithm. No
+Your chat history stays on your phone, and cloud backup is off unless
+you switch it on in Settings (free when you are signed in). To reply,
+your messages go to our secure servers. No ads. No engagement algorithm. No
 social feed. Nothing sold to anyone, ever. You can export or delete
 everything from one screen.
 
@@ -128,7 +127,7 @@ verified human wellness companion, paid by the minute.
 Everywhere you are
 
 Android, iPhone, or your browser at imotara.com. Your history follows
-you across devices when cloud sync is on.
+you across devices when cloud backup is on.
 
 
 Please read this part

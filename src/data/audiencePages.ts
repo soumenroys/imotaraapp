@@ -133,7 +133,7 @@ const institutionPlans = (seatLine: string, seatCost: string): PlanRow[] => [
 ];
 
 const SHARED_PRIVACY =
-    "Your history is kept on your device, and any cloud backup is stored securely and is your choice. No ads, no data selling, no tracking. What you say is never shown to your family or your employer.";
+    "Your history is kept on your device, and cloud backup is off unless you switch it on (it is stored securely when it is on). No ads, no data selling, no tracking. What you say is never shown to your family or your employer.";
 
 const SHARED_LIMITS =
     "Not therapy, and it does not diagnose. If something feels truly heavy, it gently shares a helpline and encourages you to reach a real person. Prefer a human? Imotara Connect offers verified companions by the minute.";
@@ -244,7 +244,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "Why people keep it on their phone",
     cards: [
-      { title: "Private in a way social media never is", body: "Your history is kept on your device, and any cloud backup is stored securely and is your choice. No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
+      { title: "Private in a way social media never is", body: "Your history is kept on your device, and cloud backup is off unless you switch it on (it is stored securely when it is on). No ads, no data selling, no tracking. Nothing you say ends up in a feed, a group chat or an HR file." },
       { title: "Built for the in-between", body: "Not a breakdown, not a breakthrough — just a Wednesday when work was brutal and there’s no one to tell. You don’t need a “real problem” to open it." },
       { title: "Yours to shape", body: "Name your companion and give it a personality — a calm older sibling, a straight-talking friend, a coach — and change it as your life changes." },
       { title: "Knows its limits", body: SHARED_LIMITS },
@@ -333,7 +333,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       { title: "Someone to talk to at any hour", body: "In the long afternoon, or at 3 a.m. when sleep will not come. Always there, never tired — even when the internet is down." },
       { title: "A voice, in the language of your childhood", body: "Speak instead of typing; listen instead of reading. Not the English of forms — the words you think and remember in. Kind to tired eyes." },
       { title: "Comfort from familiar roots", body: "Stories, wisdom and verses from the traditions you grew up with, gentle breathing, and simple daily check-ins that ask how you are — and mean it." },
-      { title: "Completely private", body: "Your conversations are private. No advertisements, no selling of your information, and nothing is ever shown to your family. Your history is kept on your device, and any cloud backup is your choice." },
+      { title: "Completely private", body: "Your conversations are private. No advertisements, no selling of your information, and nothing is ever shown to your family. Your history is kept on your device, and cloud backup is off unless you switch it on." },
     ],
     afterCards:
       "Imotara is not a doctor and does not replace one. If you ever say something that worries it, it will gently share a helpline number and encourage you to speak with someone you trust. If you would rather talk to a real person, Imotara Connect offers a verified companion, paid by the minute.",

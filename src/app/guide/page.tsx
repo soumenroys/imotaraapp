@@ -58,7 +58,7 @@ const STEPS = [
     bg: "bg-emerald-500/10",
     icon: "🔒",
     title: "Your data, your control",
-    body: "Your history is kept on your device, and any cloud backup is stored securely and is your choice. To reply, your messages go to our service providers — or choose simpler replies made on your phone in Settings. Nothing is sold. You can export your history, or delete your account and everything in it, anytime from Settings.",
+    body: "Your history is kept on your device, and cloud backup is off unless you switch it on (it is stored securely when it is on). To reply, your messages go to our service providers — or choose simpler replies made on your phone in Settings. Nothing is sold. You can export your history, or delete your account and everything in it, anytime from Settings.",
   },
 ];
 

@@ -546,7 +546,7 @@ export default function Home() {
               },
               {
                 q: "Is my data private?",
-                a: "Your history is kept on your device. Any cloud backup is stored securely and is your choice — with it, signed-in users can pick up their history on other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. Imotara has no ads, no tracking and never sells your data.",
+                a: "Your history is kept on your device. Cloud backup is off unless you switch it on (it is stored securely when it is on) — with it, signed-in users can pick up their history on other devices. You can delete your account and everything in it anytime in Settings. To reply, messages go to our service providers. Imotara has no ads, no tracking and never sells your data.",
               },
               {
                 q: "What languages does Imotara support?",

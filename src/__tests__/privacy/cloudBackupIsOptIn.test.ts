@@ -105,6 +105,16 @@ describe("every cloud write/pull on the web asks the switch first", () => {
         expect(help).toMatch(/signing out keeps your conversations and personal details on the phone but \*\*hides them\*\*/);
     });
 
+    it("#147 (owner OK, 14 Nov): policy no longer says the app backs up automatically; pages say 'off unless you switch it on'", () => {
+        const policy = readFileSync("src/app/privacy/page.tsx", "utf8");
+        expect(policy).not.toMatch(/the mobile app, which backs up automatically/);
+        expect(policy).toMatch(/cloud backup is off unless you switch it on \(website:/);
+        expect(policy).toMatch(/Versions of\s+the mobile app before 1\.7\.0 back up automatically/);
+        for (const f of ["src/app/layout.tsx","src/app/guide/page.tsx","src/app/HomeClient.tsx","src/app/ai-emotional-support/page.tsx","src/app/ai-mental-wellness/page.tsx","src/app/about/page.tsx","src/app/mood-tracker-app/page.tsx","src/app/tutorial/page.tsx","src/components/imotara/OnboardingTour.tsx","src/data/comparePages.ts","src/data/faq.ts","src/data/audiencePages.ts"]) {
+            expect(readFileSync(f, "utf8")).not.toMatch(/is your choice/);
+        }
+    });
+
     it("Settings: signing out switches backup off", () => {
         expect(settings).toMatch(/await sb\.auth\.signOut\(\);\s*setCloudBackupOn\(false\)/);
     });

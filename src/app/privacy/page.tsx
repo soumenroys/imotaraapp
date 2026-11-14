@@ -254,12 +254,13 @@ export default function PrivacyPage() {
           <section className="imotara-glass-soft rounded-2xl p-6 shadow-md backdrop-blur-md">
             <h2 className="text-xl font-medium text-zinc-50">Your Account Copy</h2>
             <p className="mt-3 text-sm leading-7 text-zinc-300">
-              On the website, your conversation history is kept in your browser, and cloud backup is
-              off unless you switch it on (Settings → Cloud backup). If you switch it on — or when you
-              use the mobile app, which backs up automatically — Imotara keeps a private copy of your
-              conversations and related data on secure servers so it is backed up and, when you are
-              signed in, available on your other devices. You can delete your account and everything in
-              it at any time from Settings.
+              Your conversation history is kept on your device — in your browser on the website, and on
+              your phone in the mobile app — and cloud backup is off unless you switch it on (website:
+              Settings → Cloud backup; app: Settings → Privacy &amp; safety → Cloud backup). Versions of
+              the mobile app before 1.7.0 back up automatically. When backup is on, Imotara keeps a
+              private copy of your conversations and related data on secure servers so it is backed up
+              and, when you are signed in, available on your other devices. You can delete your account
+              and everything in it at any time from Settings.
             </p>
 
             <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-zinc-300">

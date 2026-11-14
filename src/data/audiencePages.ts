@@ -221,7 +221,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "Free is not a trial. Most people never need more than Free — and you can upgrade or cancel any time from inside the app.",
     closing: {
       title: "For parents and guardians",
-      body: "Imotara was created by two mothers who wanted a safe, judgement-free space for young people to speak their feelings. It is not therapy and does not diagnose. It adapts its tone for teenagers — extra-sensitive, careful, never romantic or adult — always encourages talking to a trusted adult, and surfaces local helplines if a conversation turns serious. Conversations are private to your child; you will not be able to read them, and neither can we. Imotara is for ages 13 and over; anyone under 18 should use it with a parent's or guardian's knowledge and agreement.",
+      body: "Imotara was created by two mothers who wanted a safe, judgement-free space for young people to speak their feelings. It is not therapy and does not diagnose. It adapts its tone for teenagers — extra-sensitive, careful, never romantic or adult — always encourages talking to a trusted adult, and surfaces local helplines if a conversation turns serious. Conversations are private to your child; you will not be able to read them, and they are never shown to anyone else. Imotara is for ages 13 and over; anyone under 18 should use it with a parent's or guardian's knowledge and agreement.",
     },
     pullQuote: ["You don’t have to carry everything alone.", "Sometimes just saying it out loud — to someone who actually listens — is the first step."],
     institutional: false,
@@ -293,7 +293,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       { title: "Honest about its limits", body: SHARED_LIMITS },
     ],
     afterCards:
-      "Practical, not just consoling: two-minute breathing before a difficult conversation, a mood record that shows your own patterns across a month, and gentle check-ins that notice when you have gone quiet. Available offline — on a night flight, in a hospital waiting room, at your parents’ home with no signal.",
+      "Practical, not just consoling: two-minute breathing before a difficult conversation, a mood record that shows your own patterns across a month, and gentle check-ins that notice when you have gone quiet. Ready at any hour — after a late shift, in a hospital waiting room, at your parents’ home after everyone is asleep.",
     momentsHeading: "When people use it",
     moments: [
       ["After the hospital visit,", "when a parent’s report has changed the shape of the year and there is no one to tell how frightened you are."],
@@ -374,7 +374,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     cardsHeading: "What we want you, as a parent, to know",
     cards: [
       { title: "Made for teenagers", body: "Imotara adapts its tone for young people — extra-sensitive, patient, never preachy, and never romantic or adult. Exams, friendships, feeling left out, who they are becoming." },
-      { title: "Private — and that is the point", body: "Your child’s conversations stay on their own phone. No ads, no data selling, no tracking. You will not be able to read their chats, and neither can we. A teenager only opens up somewhere that is truly theirs." },
+      { title: "Private — and that is the point", body: "Your child’s conversations are private. No ads, no data selling, no tracking. You will not be able to read their chats, and they are never shown to anyone else. A teenager only opens up somewhere that is truly theirs." },
       { title: "It points them back to you", body: "Imotara consistently encourages young people to talk to a trusted adult — a parent, a teacher, an elder. It is a bridge to real people, not a replacement for them." },
       { title: "Safe by design — and not therapy", body: "If a conversation turns serious, Imotara gently shares a helpline and urges them to reach out to someone they trust. It does not diagnose and does not replace a counsellor or doctor." },
     ],
@@ -392,7 +392,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "Free is not a trial, and there is nothing to buy to keep your child safe — every safety feature is in the free companion. Paid plans are easy to stop from inside the app.",
     closing: {
       title: "For you, too",
-      body: "Parenting a teenager is hard on you as well — the worry, the guilt, the arguments you replay at midnight. Imotara is there for your own 11 p.m. thoughts too, on your own phone, in your own language, just as privately. And when you would rather talk to a person, Imotara Connect offers verified wellness companions by the minute. For children under 13, please install and set up Imotara together.",
+      body: "Parenting a teenager is hard on you as well — the worry, the guilt, the arguments you replay at midnight. Imotara is there for your own 11 p.m. thoughts too, on your own phone, in your own language, just as privately. And when you would rather talk to a person, Imotara Connect offers verified wellness companions by the minute. Imotara is for ages 13 and up; teenagers under 18 should use it with a parent’s or guardian’s knowledge.",
     },
     pullQuote: ["You cannot be inside your child’s head.", "But you can make sure that when they need to say something out loud, there is a kind, safe place to say it — and that place keeps pointing them home."],
     institutional: false,
@@ -416,7 +416,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "Why NGOs choose Imotara",
     cards: [
-      { title: "Works where your people are", body: "Conversations stay on the person’s own phone by default. When the internet drops, an on-device companion keeps them company — it never goes silent on someone who needs it." },
+      { title: "Works where your people are", body: "It works on the phones your people already own, in their own language, at any hour — by typing or simply speaking. Their history is kept on their device, and any cloud backup is their choice." },
       { title: "Truly in their language", body: "Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu, English and ten more — with natural, correctly gendered replies, not translated English." },
       { title: "Safe by design", body: "No ads, no data selling, no tracking. In a moment of crisis, Imotara gently surfaces local helplines — with care, not alarm. Tone adapts for teens and elders." },
       { title: "Simple for you to run", body: "An organisation dashboard lets you invite beneficiaries, staff or volunteers and see anonymised wellbeing trends across your community — never anyone’s private words." },
@@ -463,7 +463,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     cardsHeading: "Why institutions choose Imotara",
     cards: [
       { title: "Made for young people", body: "Imotara adapts its tone for teenagers — extra-sensitive, patient, never preachy — and speaks naturally to young adults facing exams, placements and life away from home." },
-      { title: "Student privacy comes first", body: "Conversations stay on the student’s own phone by default. No ads, no data selling, no tracking — and no one, not even your admin, can read an individual student’s conversations." },
+      { title: "Student privacy comes first", body: "A student’s history is kept on their device, and any cloud backup is their choice. No ads, no data selling, no tracking — and no one, not even your admin, can read an individual student’s conversations." },
       { title: "Classroom-ready cohorts", body: "Group students by class, hostel or batch and set a companion tone for each — mentor for final-years, calm companion for exam season. Anonymised trends per cohort guide your counsellors." },
       { title: "Safe, in every language", body: "22 languages including every major Indian language. In a moment of crisis, Imotara gently surfaces local helplines — with care, not alarm." },
     ],
@@ -508,7 +508,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     cardsHeading: "Where hospitals and medical colleges use Imotara",
     cards: [
-      { title: "Patients and their families", body: "Pre-surgery anxiety, long admissions, chronic-illness fatigue, the caregiver on a plastic chair at 2 a.m. A companion in their own language, at any hour — offline too." },
+      { title: "Patients and their families", body: "Pre-surgery anxiety, long admissions, chronic-illness fatigue, the caregiver on a plastic chair at 2 a.m. A companion in their own language, at any hour." },
       { title: "Nurses, doctors and residents", body: "The people who give the most are often the last to be heard. A private space to decompress after a hard shift — with no HR record and no stigma." },
       { title: "Medical and nursing students", body: "Exam pressure, first deaths on the ward, life away from home. Tone adapts for young adults; students can be grouped by batch or hostel with a companion tone per group." },
       { title: "Privacy your compliance team will appreciate", body: "History is kept on the device; any cloud backup is stored securely and is the person’s choice. No ads, no data selling, no tracking. Admins see anonymised aggregate trends — never an individual’s words." },

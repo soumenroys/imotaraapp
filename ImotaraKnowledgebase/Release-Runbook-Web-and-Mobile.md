@@ -117,7 +117,7 @@ Both profiles are `distribution: "store"`, base URL `https://www.imotara.com`, s
 | Setting | `iosTestflight` | `production` |
 |---|---|---|
 | Platforms | iOS only | iOS + Android (`android.buildType: app-bundle`) |
-| `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` | `true` | `true` *(corrected 2026-07-18, was `false`)* |
+| `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` | `true` | `true` *(⚠️ RETIRED in 1.7.0 — nothing reads it; cloud backup is the user's opt-in switch, lib/cloudBackup)* |
 | `EXPO_PUBLIC_RAZORPAY_KEY_ID` | `rzp_test_...` (test) | `rzp_live_...` (**live**) |
 
 > ⚠️ One trap remains: `production` uses the **live** Razorpay key — never ship a store build on the test key.

@@ -54,7 +54,7 @@ export const ADMIN_TUTORIALS: Record<string, Tutorial> = {
       { do: "Search the person's email address.", then: "Exact or partial — it matches on the address, not the name." },
       {
         do: "Or narrow the list with the filters — plan, status, platform, last active, number of messages (e.g. 1–5, or a custom range), joined dates — and sort it.",
-        then: "Each row shows how many messages the person has sent and when they were last active, in India time (IST). Chats kept only on a phone are not counted.",
+        then: "Each row shows how many messages the person has sent and when they were last active, in India time (IST). Chats kept only on a phone are not counted. It also shows the amount they last paid, in their own currency, and the payment date — with the number of payments and the total when there were several. Free, grandfathered and manually granted plans show '—', because a plan is not a payment.",
       },
       {
         do: "Open their row to see the tier they are on and how they got it.",

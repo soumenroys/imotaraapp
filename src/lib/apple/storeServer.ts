@@ -8,6 +8,7 @@
 
 import { createSign, createVerify, createPublicKey } from "crypto";
 import { verifyAppleCertChain } from "@/lib/apple/appleCertChain";
+import { recordAppleChainVerdict } from "@/lib/apple/chainEvidence";
 
 export const APPLE_BUNDLE_ID = "com.imotara.imotara";
 
@@ -94,6 +95,17 @@ export function verifyAppleJWS(jws: string): boolean {
     }
 }
 
+/** The chain verdict alone, for the written record (#80). Never throws. */
+export function chainVerdictOf(jws: string): { ok: boolean; reason?: string } {
+    try {
+        const header = JSON.parse(Buffer.from(jws.split(".")[0], "base64url").toString("utf8")) as { x5c?: string[] };
+        if (!Array.isArray(header.x5c) || header.x5c.length === 0) return { ok: false, reason: "no x5c in header" };
+        return verifyAppleCertChain(header.x5c);
+    } catch (e) {
+        return { ok: false, reason: `unreadable header: ${(e as Error).message}` };
+    }
+}
+
 /** "report" (default) logs a bad chain and still accepts; "enforce" rejects it. */
 export function appleChainMode(): "report" | "enforce" {
     return (process.env.APPLE_JWS_CHAIN_MODE ?? "").trim().toLowerCase() === "enforce" ? "enforce" : "report";
@@ -152,6 +164,8 @@ export async function verifyAppleTransaction(transactionId: string): Promise<{
 
         // Verify the ES256 signature using the x5c leaf certificate from the JWS header.
         // This ensures the payload was signed by Apple and was not tampered with.
+        // #80: the chain verdict is also written down (logs last one day) — see chainEvidence.ts.
+        await recordAppleChainVerdict(chainVerdictOf(jws), appleChainMode());
         if (!verifyAppleJWS(jws)) {
             console.error("[verify-apple-purchase] JWS signature verification failed for transaction", transactionId);
             return { ok: false, error: "Apple JWS signature verification failed" };

@@ -101,9 +101,11 @@ export function returnedAuthMessage(code: string | null | undefined): string {
 
 /** `path` plus `auth_error=code`, whether or not `path` already has a query (it used to gain a second “?”). */
 export function withAuthError(path: string, code: string): string {
-  const u = new URL(path, "https://x.invalid");
-  u.searchParams.set("auth_error", code);
-  return `${u.pathname}${u.search}${u.hash}`;
+  const [beforeHash, hash = ""] = path.split("#", 2);
+  const [pathname, query = ""] = beforeHash.split("?", 2);
+  const params = new URLSearchParams(query);
+  params.set("auth_error", code);
+  return `${pathname}?${params.toString()}${hash ? `#${hash}` : ""}`;
 }
 
 /** Pages that explain a returned sign-in error themselves — the panel stays out of their way. */

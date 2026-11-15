@@ -16,7 +16,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cronAuthorised } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
-import { postingIsPaused } from "@/lib/social/store";
+import { loadOverlay, postingIsPaused } from "@/lib/social/store";
+import { gateNowFor } from "@/lib/social/gateNow";
 import { loadChannelCredential, loadCredentialFor } from "@/lib/social/channelCredentials";
 import { pageAccessToken, publishToFacebook, publishVideoToFacebook } from "@/lib/social/adapters/facebook";
 import { publishShortToYouTube, youtubeTitleFrom, TITLE_MAX } from "@/lib/social/adapters/youtube";
@@ -172,9 +173,38 @@ export async function GET(req: NextRequest) {
   const { data: accounts } = await db.from("social_accounts").select("id, platform, status");
 
   const outcomes: Outcome[] = [];
+  // ⚠️ One read per run, like the channels. Fails closed (see loadOverlay).
+  const overlay = await loadOverlay();
 
   for (const post of due) {
     const platform = post.platform as string;
+
+    /**
+     * 🔴 RE-CHECKED AGAINST TODAY'S RULES BEFORE IT GOES OUT (15 Nov 2026).
+     *
+     * An approval is a verdict on words under the rules of THAT day. On
+     * 11 Nov a rule was added against "history stays on your phone"; five
+     * posts approved before it still said exactly that, and only a manual
+     * sweep held them. Nothing here would have stopped them.
+     * ⇒ a post the word check now refuses goes back to "Waiting for you",
+     * where the review card shows the reason (gateNow). ⛔ Never published,
+     * never silently dropped. Same text the approve route checks.
+     */
+    const today = gateNowFor({ status: "approved", subject: post.subject, body: post.body, language: post.language }, overlay);
+    if (today && !today.ok) {
+      const why =
+        `Sent back before publishing: today's word check refuses ` +
+        today.findings.map((f) => `“${f.matched}”`).join(", ") +
+        `. It was approved under older rules — change the words, then approve again.`;
+      await db
+        .from("social_posts")
+        .update({ status: "needs_review", reviewed_by: null, reviewed_at: null, last_error: why, updated_at: now.toISOString() })
+        .eq("id", post.id)
+        // ⛔ Only a post nobody else has claimed — a guard, like the claim below.
+        .eq("status", "approved");
+      outcomes.push({ id: post.id as string, platform, language: post.language as string, result: "held", detail: why });
+      continue;
+    }
 
     /**
      * ⚠️ ASKED OF platforms.ts RATHER THAN HARD-CODED. This was

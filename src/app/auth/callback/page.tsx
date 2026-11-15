@@ -18,6 +18,7 @@ import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { gaEventBeforeLeaving, signInKind } from "@/lib/analytics/gaEvent";
+import { withAuthError } from "@/lib/auth/signInOptions";
 
 // Module-level client — created once regardless of Strict Mode re-renders.
 // detectSessionInUrl:true (default) starts the PKCE exchange on first creation.
@@ -39,12 +40,14 @@ function CallbackHandler() {
                 : "/chat";
 
         // Fast-fail: Supabase itself returned an OAuth error.
-        const oauthError = searchParams.get("error");
+        // ⚠️ A provider/Supabase may put the error after "#" instead of "?" — read both (15 Nov 2026).
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const oauthError = searchParams.get("error") ?? hashParams.get("error");
         if (oauthError) {
-            const desc = searchParams.get("error_description") || oauthError;
+            const desc = searchParams.get("error_description") || hashParams.get("error_description") || oauthError;
             if (!navigated) {
                 navigated = true;
-                window.location.href = `${redirectTo}?auth_error=${encodeURIComponent(desc)}`;
+                window.location.href = withAuthError(redirectTo, desc);
             }
             return;
         }
@@ -99,14 +102,14 @@ function CallbackHandler() {
                         navigate(redirectTo);
                     }
                 } else {
-                    navigate(`${redirectTo}?auth_error=no_session`);
+                    navigate(withAuthError(redirectTo, "no_session"));
                 }
             }
         });
 
         // Safety net: redirect after 10 s even if the exchange never fires.
         const fallback = setTimeout(() => {
-            navigate(`${redirectTo}?auth_error=timeout`);
+            navigate(withAuthError(redirectTo, "timeout"));
         }, 10_000);
 
         // Only unsubscribe when the component actually unmounts (navigation done).

@@ -18,7 +18,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import Modal from "@/components/ui/Modal";
 import {
   CODE_MAX, CODE_MIN, EMAIL_RX, MIN_PASSWORD, OPEN_SIGN_IN_EVENT,
-  callbackUrl, enabledEmail, enabledOAuth, friendlyAuthError, safeTarget,
+  EXPLAINS_OWN_AUTH_ERROR, callbackUrl, enabledEmail, enabledOAuth, friendlyAuthError, returnedAuthMessage, safeTarget,
   type OAuthOption,
 } from "@/lib/auth/signInOptions";
 import { gaEventBeforeLeaving, signInKind } from "@/lib/analytics/gaEvent";
@@ -99,6 +99,41 @@ export default function SignInPanel() {
     return () => clearTimeout(t);
   }, [open, step.kind]);
 
+  /**
+   * 🔴 15 Nov 2026 (owner): "tried Apple, cancelled, the sign-in screen is stuck".
+   * A provider button sets busy ("Opening…", every button and the × disabled) and leaves for the
+   * provider. Coming BACK — the browser's back button, or a provider's cancel that goes back in
+   * history — restores this page from the back/forward cache exactly as it was left: still busy,
+   * nothing able to unlock it. ⇒ unlock whenever the page is shown again, and when the tab
+   * becomes visible again after a redirect that never happened.
+   */
+  // A sign-in that came back without succeeding (cancelled at the provider, timed out): say so,
+  // and offer the ways in again — instead of landing silently where they started.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("auth_error");
+    if (!code || EXPLAINS_OWN_AUTH_ERROR.includes(url.pathname)) return;
+    url.searchParams.delete("auth_error");
+    window.history.replaceState(window.history.state, "", url.toString());
+    reset();
+    setTarget(safeTarget(`${url.pathname}${url.search}`));
+    setError(returnedAuthMessage(code));
+    setOpen(true);
+  }, [reset]);
+
+  useEffect(() => {
+    const unlock = (e: PageTransitionEvent) => { if (e.persisted) setBusy(null); };
+    window.addEventListener("pageshow", unlock);
+    return () => window.removeEventListener("pageshow", unlock);
+  }, []);
+  const redirectGuard = useRef<number | null>(null);
+  /** If we are still here well after leaving for a provider, the redirect did not happen: unlock. */
+  const guardRedirect = useCallback(() => {
+    if (redirectGuard.current) window.clearTimeout(redirectGuard.current);
+    redirectGuard.current = window.setTimeout(() => { setBusy(null); redirectGuard.current = null; }, 15000);
+  }, []);
+  useEffect(() => () => { if (redirectGuard.current) window.clearTimeout(redirectGuard.current); }, []);
+
   /** Signed in here, without leaving the page: count it like the OAuth callback does, then go on. */
   const finish = useCallback(async (createdAt: string | undefined, method: string) => {
     await gaEventBeforeLeaving(signInKind(createdAt), { method });
@@ -112,7 +147,8 @@ export default function SignInPanel() {
         provider: o.id,
         options: { redirectTo: callbackUrl(window.location.origin, target), scopes: o.scopes, queryParams: o.queryParams },
       });
-      if (err) { setError(friendlyAuthError(err.message)); setBusy(null); }
+      if (err) { setError(friendlyAuthError(err.message)); setBusy(null); return; }
+      guardRedirect();
     } catch { setError(friendlyAuthError(null)); setBusy(null); }
   }
 
@@ -139,6 +175,7 @@ export default function SignInPanel() {
       });
       if (err || !data?.url) { setBusy(null); setError("Your organisation's sign-in isn't answering just now. Please try again, or use “Email me a code”."); return; }
       window.location.href = data.url;
+      guardRedirect();
     } catch { setBusy(null); setError(friendlyAuthError(null)); }
   }
 

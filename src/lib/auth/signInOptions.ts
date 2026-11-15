@@ -83,6 +83,34 @@ export function friendlyAuthError(message: string | null | undefined): string {
   return "Something went wrong. Please try again.";
 }
 
+/**
+ * 15 Nov 2026 (owner): a sign-in that comes BACK without succeeding — cancelled at Google /
+ * Microsoft / Apple / LinkedIn / the company's sign-in, or the exchange timing out — returned to
+ * the page with `?auth_error=…` that almost no page read: the person landed where they started with
+ * no word about what happened. The panel now reopens with one of these sentences.
+ */
+export function returnedAuthMessage(code: string | null | undefined): string {
+  const c = (code ?? "").toLowerCase();
+  if (/cancel|denied|access_denied|user_cancelled|consent_required|interaction_required/.test(c)) {
+    return "Sign-in was cancelled — nothing has changed. You can try again, or choose another way below.";
+  }
+  if (c === "timeout") return "Signing in took too long to finish. Please try again.";
+  if (c === "no_session") return "We couldn't finish signing you in. Please try again, or use “Email me a code”.";
+  return friendlyAuthError(code);
+}
+
+/** `path` plus `auth_error=code`, whether or not `path` already has a query (it used to gain a second “?”). */
+export function withAuthError(path: string, code: string): string {
+  const [beforeHash, hash = ""] = path.split("#", 2);
+  const [pathname, query = ""] = beforeHash.split("?", 2);
+  const params = new URLSearchParams(query);
+  params.set("auth_error", code);
+  return `${pathname}?${params.toString()}${hash ? `#${hash}` : ""}`;
+}
+
+/** Pages that explain a returned sign-in error themselves — the panel stays out of their way. */
+export const EXPLAINS_OWN_AUTH_ERROR = ["/upgrade", "/connect/register"];
+
 /** The window event every "Sign in" button fires; the one panel in the layout listens. */
 export const OPEN_SIGN_IN_EVENT = "imotara:open-sign-in";
 export function openSignIn(target?: string, start?: { intent: "signin" | "create" | "reset"; email?: string }): void {

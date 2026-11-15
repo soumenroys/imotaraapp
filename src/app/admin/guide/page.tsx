@@ -1309,8 +1309,12 @@ function SocialSection() {
         <ul className="space-y-1.5 text-xs text-zinc-400">
           <li><strong className="text-zinc-300">Clinical claims</strong> — therapist, counsellor, diagnose, heal, &ldquo;therapy alternative&rdquo;. This product is not therapy and must never imply it is.</li>
           <li><strong className="text-zinc-300">Abuse and profanity</strong> — in the post&rsquo;s own language, in its script and in Latin letters.</li>
+          <li><strong className="text-zinc-300">Privacy claims</strong> (English) — &ldquo;nothing leaves your phone&rdquo;, &ldquo;history stays on your phone/device&rdquo;, &ldquo;local-first&rdquo;, offline sold next to replies. Each is false somewhere, so none may be said.</li>
           <li><strong className="text-zinc-300">Careless language</strong> — <em>crazy</em>, <em>insane</em>, <em>psycho</em> used loosely; &ldquo;commit suicide&rdquo;; urgency and streak language; guilt. 🔴 This is the list an ordinary profanity filter does not have, and the one most likely to be tripped by a well-meant sentence.</li>
         </ul>
+        <p className="text-xs text-zinc-500">
+          🔁 The check is run again with <strong className="text-zinc-300">today&rsquo;s rules</strong> every time a draft is shown and again when you press Approve — a draft written before a rule was added shows a red note and its Approve button is greyed out until the words are changed.
+        </p>
         <p className="text-xs text-zinc-500">
           ⛔ No check can read whether a post is gentle, whether it leaves the reader something to
           think, or how it would land on somebody having a bad day. That is why a draft waits for you.

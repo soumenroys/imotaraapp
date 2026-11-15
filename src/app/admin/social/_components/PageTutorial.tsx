@@ -29,11 +29,11 @@ export const TUTORIALS: Record<string, { title: string; steps: Step[]; footnote?
       },
       {
         do: "Press “Read it” on a draft to open the words, the picture and the checks.",
-        then: "You see what the word check ran, and the three questions no check can answer.",
+        then: "You see today's word check (run again with today's rules), and the three questions no check can answer. A red note means a rule was added since it was written — change the words before approving.",
       },
       {
         do: "Press Approve, or Change the words if something is off.",
-        then: "Editing puts it back in the queue — approving belongs to the words, not the row.",
+        then: "The answer appears right under the buttons (a picture can take up to a minute). Editing puts it back in the queue — approving belongs to the words, not the row.",
       },
       {
         do: "No drafts yet? Go to Schedules and make one.",

@@ -109,7 +109,8 @@ describe("every cloud write/pull on the web asks the switch first", () => {
         const policy = readFileSync("src/app/privacy/page.tsx", "utf8");
         expect(policy).not.toMatch(/the mobile app, which backs up automatically/);
         expect(policy).toMatch(/cloud backup is off unless you switch it on \(website:/);
-        expect(policy).toMatch(/Versions of\s+the mobile app before 1\.7\.0 back up automatically/);
+        // #145 (15 Nov 2026): iOS 1.7.0 live on the App Store ⇒ the transition sentence goes (owner pre-approved).
+        expect(policy).not.toMatch(/before 1\.7\.0 back up automatically/);
         for (const f of ["src/app/layout.tsx","src/app/guide/page.tsx","src/app/HomeClient.tsx","src/app/ai-emotional-support/page.tsx","src/app/ai-mental-wellness/page.tsx","src/app/about/page.tsx","src/app/mood-tracker-app/page.tsx","src/app/tutorial/page.tsx","src/components/imotara/OnboardingTour.tsx","src/data/comparePages.ts","src/data/faq.ts","src/data/audiencePages.ts"]) {
             expect(readFileSync(f, "utf8")).not.toMatch(/is your choice/);
         }

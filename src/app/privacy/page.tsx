@@ -256,8 +256,7 @@ export default function PrivacyPage() {
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Your conversation history is kept on your device — in your browser on the website, and on
               your phone in the mobile app — and cloud backup is off unless you switch it on (website:
-              Settings → Cloud backup; app: Settings → Privacy &amp; safety → Cloud backup). Versions of
-              the mobile app before 1.7.0 back up automatically. When backup is on, Imotara keeps a
+              Settings → Cloud backup; app: Settings → Privacy &amp; safety → Cloud backup). When backup is on, Imotara keeps a
               private copy of your conversations and related data on secure servers so it is backed up
               and, when you are signed in, available on your other devices. You can delete your account
               and everything in it at any time from Settings.
@@ -515,7 +514,7 @@ export default function PrivacyPage() {
               here and, when appropriate, notify you in-app or via email.
             </p>
             <p className="mt-2 text-xs text-zinc-400">
-              Effective date: Nov 1, 2025 • Last updated: Nov 14, 2026
+              Effective date: Nov 1, 2025 • Last updated: Nov 15, 2026
             </p>
           </section>
 

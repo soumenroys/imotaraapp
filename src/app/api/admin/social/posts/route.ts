@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireSocialAdmin } from "@/app/api/admin/social/_guard";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { gateNowFor, RECHECKED_STATUSES } from "@/lib/social/gateNow";
+import { loadOverlay } from "@/lib/social/store";
 
 const VIEWS: Record<string, string[]> = {
   queue: ["needs_review"],
@@ -54,9 +56,27 @@ export async function GET(req: NextRequest) {
   const scheduleNames: Record<string, string> = {};
   for (const s of schedules.data ?? []) scheduleNames[s.id as string] = s.name as string;
 
+  /**
+   * 🔴 #154 (15 Nov 2026): THE STORED VERDICT IS FROM THE DAY THE POST WAS
+   * WRITTEN. A draft written on 4 Nov showed "privacy ✓", but the rule against
+   * "chat history stays on your phone" arrived on 11 Nov — so pressing Approve
+   * was refused by the server (which re-checks the text) while the card still
+   * said it had passed. The owner saw a button that "does nothing".
+   * ⇒ every post that can still be approved or published is checked again
+   * here, against today's rules, and the screen shows THAT result.
+   * ⚠️ Pure string checks — no network per post, one overlay read per request.
+   */
+  const rows = (posts.data ?? []) as unknown as Record<string, unknown>[];
+  const needsNow = rows.some((r) => RECHECKED_STATUSES.includes(r.status as (typeof RECHECKED_STATUSES)[number]));
+  const overlay = needsNow ? await loadOverlay() : undefined;
+  const withNow = rows.map((r) => {
+    const gateNow = overlay ? gateNowFor(r, overlay) : undefined;
+    return gateNow ? { ...r, gateNow } : r;
+  });
+
   return NextResponse.json({
     view,
-    posts: posts.data ?? [],
+    posts: withNow,
     byStatus,
     scheduleNames,
     actorRole: guard.actor.role,

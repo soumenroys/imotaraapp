@@ -42,6 +42,17 @@ type Post = {
   media_kind: string;
   visual_recipe: Record<string, unknown> | null;
   gate_result: GateResult | null;
+  /**
+   * #154: today's word check on the text as it stands, from the list route.
+   * ⚠️ `gate_result` is the verdict from the day it was WRITTEN — rules added
+   * since are not in it, and approving re-checks against today's rules.
+   */
+  gateNow?: {
+    ok: boolean;
+    findings: { list?: string; matched: string; because: string }[];
+    listsRun: string[];
+    listsUnavailable: string[];
+  };
   created_at: string;
   last_error?: string | null;
   attempts?: number;
@@ -173,7 +184,15 @@ export default function Today() {
   const [scheduleNames, setScheduleNames] = useState<Record<string, string>>({});
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [busy, setBusy] = useState("");
+  /** Which action is running, so the pressed button can say "Approving…". */
+  const [busyAction, setBusyAction] = useState("");
   const [message, setMessage] = useState("");
+  /**
+   * 🔴 #154: the outcome of a button, shown WHERE IT WAS PRESSED. The only
+   * message used to sit at the top of the page; a reviewer scrolled down to the
+   * card saw nothing happen when the server refused, and read it as a dead button.
+   */
+  const [result, setResult] = useState<{ id: string; ok: boolean; text: string } | null>(null);
   const [open, setOpen] = useState<string>(() =>
     typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("open") ?? "");
   const [draft, setDraft] = useState<{ subject: string; body: string } | null>(null);
@@ -199,7 +218,9 @@ export default function Today() {
 
   async function act(id: string, action: string, payload?: Record<string, unknown>) {
     setBusy(id);
+    setBusyAction(action);
     setMessage("");
+    setResult(null);
     try {
       const res = await fetch(`/api/admin/social/posts/${id}`, {
         method: "PATCH",
@@ -207,17 +228,43 @@ export default function Today() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ action, ...payload }),
       });
-      const json = await res.json();
-      setMessage(res.ok ? json.note ?? "Done." : json.error ?? "That did not work.");
+      // ⚠️ A timeout or a signed-out session can answer with a page, not JSON —
+      // that used to throw here and the button simply went quiet.
+      const json = (await res.json().catch(() => null)) as { note?: string; error?: string; hint?: string } | null;
+      if (res.status === 401) {
+        setAuthed(false);
+        return;
+      }
       if (res.ok) {
+        const text = json?.note ?? "Done.";
+        setMessage(text);
+        setResult({ id, ok: true, text });
         setDraft(null);
         setOpen("");
         await load();
+      } else {
+        const text =
+          [json?.error, json?.hint].filter(Boolean).join(" ") ||
+          `That did not work (the server answered ${res.status}). Nothing was changed.`;
+        setMessage(text);
+        setResult({ id, ok: false, text });
       }
+    } catch (e) {
+      const text = `That did not reach the server (${(e as Error).message}). Nothing was changed — try again.`;
+      setMessage(text);
+      setResult({ id, ok: false, text });
     } finally {
       setBusy("");
+      setBusyAction("");
     }
   }
+
+  // A success note fades after a few seconds; a refusal stays until the next press.
+  useEffect(() => {
+    if (!result?.ok) return;
+    const t = setTimeout(() => setResult(null), 6000);
+    return () => clearTimeout(t);
+  }, [result]);
 
   const waiting = byStatus.needs_review ?? 0;
 
@@ -243,6 +290,13 @@ export default function Today() {
         <>
           <PageTutorial id="today" {...TUTORIALS.today} />
           <PostFlow waiting={waiting} />
+
+          {/* #154: a success closes the card, so its answer appears where the eye is — the bottom of the screen. */}
+          {result?.ok && (
+            <div role="status" className="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-md rounded-xl border border-emerald-800 bg-emerald-950/95 p-4 text-sm text-emerald-100 shadow-xl">
+              ✅ {result.text}
+            </div>
+          )}
 
           {message && (
             <div className="rounded-xl border border-indigo-900 bg-indigo-950/30 p-4 text-sm text-indigo-200">
@@ -433,20 +487,33 @@ export default function Today() {
 
                         <div className="grid gap-4 md:grid-cols-2">
                           <div className="space-y-2">
-                            <div className="text-xs font-semibold text-zinc-400">The word check</div>
+                            <div className="text-xs font-semibold text-zinc-400">
+                              The word check{post.gateNow ? " — today's rules" : ""}
+                            </div>
+                            {post.gateNow && !post.gateNow.ok && (
+                              <p className="rounded-lg border border-rose-900/60 bg-rose-950/30 p-3 text-xs leading-relaxed text-rose-200">
+                                ⛔ Today&apos;s word check refuses these words, so Approve cannot work. It
+                                passed when it was written, but a rule was added since. Change the words, or
+                                skip it.
+                              </p>
+                            )}
                             <div className="flex flex-wrap gap-1.5">
-                              {(gate.listsRun ?? []).map((l) => (
+                              {/* #154: today's result when there is one; the stored one only for posts that can no longer change. */}
+                              {(post.gateNow?.listsRun ?? gate.listsRun ?? [])
+                                // ⛔ never a green tick on the list that just objected
+                                .filter((l) => !(post.gateNow?.findings ?? []).some((f) => f.list === l))
+                                .map((l) => (
                                 <Chip key={l} tone="green">{LIST_LABEL[l] ?? l} ✓</Chip>
                               ))}
-                              {(gate.listsUnavailable ?? []).map((l) => (
+                              {(post.gateNow?.listsUnavailable ?? gate.listsUnavailable ?? []).map((l) => (
                                 <Chip key={l} tone="amber" title={`There is no word list for ${post.language}.`}>
                                   {LIST_LABEL[l] ?? l} — not run
                                 </Chip>
                               ))}
                             </div>
-                            {(gate.findings ?? []).length > 0 && (
+                            {(post.gateNow?.findings ?? gate.findings ?? []).length > 0 && (
                               <ul className="space-y-1 text-xs text-rose-300">
-                                {(gate.findings ?? []).map((f, i) => (
+                                {(post.gateNow?.findings ?? gate.findings ?? []).map((f, i) => (
                                   <li key={i}>“{f.matched}” — {f.because}</li>
                                 ))}
                               </ul>
@@ -505,10 +572,12 @@ export default function Today() {
                               </>
                             ) : (
                               <>
-                                <button type="button" disabled={busy === post.id}
+                                <button type="button"
+                                  disabled={busy === post.id || post.gateNow?.ok === false}
+                                  title={post.gateNow?.ok === false ? "Today's word check refuses these words — change them first." : undefined}
                                   onClick={() => void act(post.id, "approve")}
                                   className="min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-semibold hover:bg-indigo-500 disabled:opacity-50">
-                                  Approve
+                                  {busy === post.id && busyAction === "approve" ? "Approving… (can take up to a minute)" : "Approve"}
                                 </button>
                                 <button type="button"
                                   onClick={() => setDraft({ subject: post.subject, body: post.body })}
@@ -573,6 +642,15 @@ export default function Today() {
                             </button>
                           )}
                         </div>
+
+                        {/* #154: the answer to the button, next to the button. */}
+                        {result?.id === post.id && (
+                          <p role="status" className={`rounded-lg border p-3 text-xs leading-relaxed ${result.ok
+                            ? "border-emerald-900/60 bg-emerald-950/30 text-emerald-200"
+                            : "border-rose-900/60 bg-rose-950/30 text-rose-200"}`}>
+                            {result.ok ? "✅ " : "⛔ "}{result.text}
+                          </p>
+                        )}
 
                       {when?.id === post.id && (
                         <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">

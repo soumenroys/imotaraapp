@@ -83,3 +83,26 @@ describe("#154 the answer to a button appears where it was pressed", () => {
     expect(page).toMatch(/filter\(\(l\) => !\(post\.gateNow\?\.findings \?\? \[\]\)\.some\(\(f\) => f\.list === l\)\)/);
   });
 });
+
+describe("publishing re-checks the words against today's rules (15 Nov 2026)", () => {
+  const cron = readFileSync("src/app/api/cron/social-publish/route.ts", "utf8");
+
+  it("the check runs in the loop BEFORE the claim, so a refused post is never sent", () => {
+    const check = cron.indexOf("const today = gateNowFor(");
+    const claim = cron.indexOf('status: "publishing"');
+    expect(check).toBeGreaterThan(0);
+    expect(claim).toBeGreaterThan(check);
+  });
+
+  it("a refused post goes back to Waiting for you with the reason, only if still approved", () => {
+    const block = cron.slice(cron.indexOf("const today = gateNowFor("), cron.indexOf('status: "publishing"'));
+    expect(block).toMatch(/status: "needs_review"/);
+    expect(block).toMatch(/last_error: why/);
+    expect(block).toMatch(/\.eq\("status", "approved"\)/);
+    expect(block).toMatch(/continue;/);
+  });
+
+  it("an approved post saying the 11 Nov false claim would be refused by that check", () => {
+    expect(gateNowFor({ ...REFUSED_TODAY, status: "approved" })?.ok).toBe(false);
+  });
+});

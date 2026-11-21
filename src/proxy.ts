@@ -5,6 +5,7 @@ import type { NextRequest } from "next/server";
 // effects, so it is safe to pull into Edge middleware. See that file for why
 // httpOnly must NOT be reintroduced.
 import { SUPABASE_COOKIE_OPTIONS } from "@/lib/supabase/cookieOptions";
+import { canonicalRedirect } from "@/lib/seo/canonicalHost";
 
 
 function isProd() {
@@ -12,6 +13,10 @@ function isProd() {
 }
 
 export async function middleware(req: NextRequest) {
+    // #167: one address for the site's PAGES (never /api) ⇒ lib/seo/canonicalHost.
+    const to = canonicalRedirect(req.headers.get("host"), req.method, req.nextUrl.pathname, req.nextUrl.search);
+    if (to) return NextResponse.redirect(to, 308);
+
     // Block internal/dev-only routes in production (defense-in-depth).
     if (isProd()) {
         const { pathname } = req.nextUrl;

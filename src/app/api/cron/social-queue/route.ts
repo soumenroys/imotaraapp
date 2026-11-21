@@ -47,6 +47,7 @@ async function trendsFor(): Promise<TrendNote[]> {
   return notes;
 }
 import { sendQueueAlert } from "@/lib/social/alert";
+import { refusalVerdict } from "@/lib/social/queueHealth";
 import { pickRecipe, headlineFor } from "@/lib/social/visualRecipe";
 import { postsWantingACard, attachCard, type CardUpgrade } from "@/lib/social/store";
 
@@ -105,6 +106,9 @@ type Outcome = {
   language?: string;
   result: "queued" | "approved" | "refused" | "skipped" | "already-written";
   detail?: string;
+  /** 🔑 The slot a refusal was for, and its attempt count ⇒ refusalVerdict. */
+  scheduledFor?: string;
+  attempt?: number;
 };
 
 export async function GET(req: NextRequest) {
@@ -231,6 +235,8 @@ export async function GET(req: NextRequest) {
         schedule: schedule.name,
         platform,
         result: "refused",
+        scheduledFor: want.scheduledFor,
+        attempt: soFar + 1,
         detail: (e as Error).message,
       });
       continue;
@@ -272,7 +278,7 @@ export async function GET(req: NextRequest) {
          */
         const detail = failureDetail(prepared.reason, prepared.rejected);
         await failed(detail);
-        outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail });
+        outcomes.push({ schedule: schedule.name, platform, language, result: "refused", detail, scheduledFor: want.scheduledFor, attempt: soFar + 1 });
         continue;
       }
       const saved = await savePreparedPost(prepared.post, { scheduledFor: want.scheduledFor });
@@ -337,6 +343,8 @@ export async function GET(req: NextRequest) {
         platform,
         language,
         result: "refused",
+        scheduledFor: want.scheduledFor,
+        attempt: soFar + 1,
         detail: (e as Error).message,
       });
     }
@@ -387,16 +395,32 @@ export async function GET(req: NextRequest) {
    * ⛔ Never fails the run. An alert that cannot send must not cost the posts
    * that DID get written.
    */
-  const refused = outcomes.filter((o) => o.result === "refused");
+  /**
+   * 🔴 ONLY THE REFUSALS THAT PUT A SLOT AT RISK — 21 Nov 2026 (#131).
+   * ⛔ A slot ten days out that is refused once is retried on its own; mailing
+   * "the slot will pass" about it was false twice (16 + 19 Nov — both
+   * published on time) ⇒ queueHealth.refusalVerdict.
+   */
+  const refused = outcomes
+    .filter((o) => o.result === "refused")
+    .map((o) => ({
+      o,
+      verdict: o.scheduledFor ? refusalVerdict(o.scheduledFor, o.attempt ?? 1, now) : null,
+    }))
+    .filter(({ verdict }) => verdict === null || verdict.alert);
   let alerted = false;
   if (refused.length > 0) {
     try {
       alerted = await sendQueueAlert(
-        refused.map((o) => ({
+        refused.map(({ o, verdict }) => ({
           schedule: o.schedule,
           platform: o.platform,
           language: o.language,
           why: o.detail ?? "No reason was recorded.",
+          scheduledFor: o.scheduledFor,
+          attempt: o.attempt,
+          nextTry: verdict?.nextTry,
+          willPass: verdict ? verdict.willPass : true,
         })),
       );
     } catch (e) {

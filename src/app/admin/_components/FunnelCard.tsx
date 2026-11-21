@@ -13,6 +13,8 @@ const LABEL: Record<string, string> = {
   landing_send: "Landing box → Send pressed", landing_sent: "Landing message sent in chat",
   app_handoff_shown: "App invite shown (after 3rd message)", app_handoff_click: "App invite → store link", app_header_click: "Header \"App\" → store link",
   get_app_android: "imotara.com/get-app → Google Play", get_app_ios: "imotara.com/get-app → App Store", get_app_web: "imotara.com/get-app → website (computer)",
+  get_app_from_fb_button: "get-app ← Facebook Page button", get_app_from_fb_pinned: "get-app ← Facebook pinned post",
+  get_app_from_fb_story: "get-app ← Facebook Story", get_app_from_ig_story: "get-app ← Instagram Story", get_app_from_other: "get-app ← other / untagged link",
 };
 const rate = (v: number | null) => (v === null ? "—" : `${v}%`);
 

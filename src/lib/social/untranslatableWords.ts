@@ -246,8 +246,51 @@ const NON_LATIN = /[\p{Script=Bengali}\p{Script=Devanagari}\p{Script=Tamil}\p{Sc
  * have been caught by the script check — but "The Tamil word urchagam means…"
  * with no native script would not, and that is the easier mistake to make.
  */
-const LANGUAGE_WORDS =
-  /\b(Bengali|Bangla|Hindi|Tamil|Telugu|Marathi|Gujarati|Punjabi|Kannada|Malayalam|Odia|Oriya|Urdu|Assamese|Sanskrit|Nepali|Sinhala)\s+(word|term|expression|phrase)\b/i;
+const LANGUAGES =
+  "Bengali|Bangla|Hindi|Tamil|Telugu|Marathi|Gujarati|Punjabi|Kannada|Malayalam|Odia|Oriya|Urdu|Assamese|Sanskrit|Nepali|Sinhala";
+const NOUN = "word|term|expression|phrase|saying|idiom|proverb";
+
+/**
+ * 🔴 EVERY WAY A POST CAN CLAIM A WORD — widened 21 Nov 2026 (#131).
+ *
+ * ⛔ THE GAP. The one pattern here was `Tamil word|phrase…` — the adjective
+ * order only. On 21 Nov a LinkedIn draft said
+ *     "There is a word in Tamil — ‘solamal puriyum’ — for what someone
+ *      understands without it being said."
+ * and passed: "a word IN Tamil" is the same claim in the other order. It was
+ * misspelt (the reviewer caught it by reading). The corrected phrase was then
+ * refused — the gate was strict on the right spelling and blind to the wrong one.
+ *
+ * 🔑 So each pattern below is a way of saying "this language has this word",
+ * in either order. ⚠️ And NOT the mere mention of a language: "speak or type in
+ * Hindi, Bengali, Tamil" and "If you think in Tamil" are our own real posts
+ * and must still pass ⇒ the test pins both sides.
+ */
+const LANGUAGE_CLAIMS: RegExp[] = [
+  // "a Tamil word", "the Bengali phrase" — singular, as before
+  new RegExp(`\\b(${LANGUAGES})\\s+(?:${NOUN})\\b`, "i"),
+  // "a word in Tamil", "the phrase from Bengali" — ⚠️ needs the article, so
+  // "your own words in Tamil" (a product line) is NOT a claim
+  new RegExp(`\\b(?:a|an|the|one|this|that)\\s+(?:${NOUN})\\s+(?:in|from)\\s+(${LANGUAGES})\\b`, "i"),
+  // "Tamil has a word", "Bengali has its own word"
+  new RegExp(`\\b(${LANGUAGES})\\s+(?:has|have|uses|gives\\s+us)\\s+(?:a|an|one|its\\s+own|this)\\s+(?:[a-z]+\\s+)?(?:${NOUN})\\b`, "i"),
+  // "in Tamil, we say", "in Bengali people call it"
+  new RegExp(`\\bin\\s+(${LANGUAGES})\\s*,?\\s+(?:people|we|they|speakers)\\s+(?:say|says|call|calls|would\\s+say)\\b`, "i"),
+  // "Tamil speakers say", "Bengalis call it" is left to the script check
+  new RegExp(`\\b(${LANGUAGES})\\s+speakers\\s+(?:say|call)\\b`, "i"),
+  // "what we call in Tamil", "as they say in Hindi" — ⚠️ NOT "say it in Tamil",
+  // which is how a product post invites someone to write in their language
+  new RegExp(`\\b(?:what|as)\\s+(?:we|they|people)\\s+(?:call|say)\\s+(?:it\\s+)?in\\s+(${LANGUAGES})\\b`, "i"),
+];
+
+/** The language a post claims a word in, or null. Exported for tests. */
+export function claimedLanguage(body: string): string | null {
+  for (const re of LANGUAGE_CLAIMS) {
+    const m = body.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
 
 export type WordClaim = { ok: true } | { ok: false; problem: string };
 
@@ -286,7 +329,7 @@ export function checkWordClaim(body: string, language: string): WordClaim {
     };
   }
 
-  const named = body.match(LANGUAGE_WORDS);
+  const named = claimedLanguage(body);
   if (named) {
     const mentionsVetted = vetted.some(
       (w) => body.includes(w.word) || body.toLowerCase().includes(w.roman.toLowerCase()),
@@ -295,7 +338,7 @@ export function checkWordClaim(body: string, language: string): WordClaim {
       return {
         ok: false,
         problem:
-          `This post explains a ${named[1]} ${named[2]} that is not in the confirmed word table. ` +
+          `This post claims a ${named} word or phrase that is not in the confirmed word table. ` +
           `⛔ Refused for the same reason as above — a romanised word is no easier to check than a ` +
           `word in its own script, and it is the easier mistake to make.`,
       };

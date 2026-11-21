@@ -20,6 +20,8 @@
 // 🔑 It happened the day this was written: Instagram's 11:30Z slot passed with
 // a finished post in `needs_review` and nothing said a word.
 
+import { backoffMinutes, BACKOFF_MINUTES } from "./horizon";
+
 /** The shape this needs from a post row. ⚠️ Deliberately minimal, so the
  *  check can be tested without a database. */
 export type QueueRow = {
@@ -237,4 +239,66 @@ export function unapprovedSoonSummary(soon: UpcomingUnapproved[]): string {
   return soon.length === 1
     ? `A post goes out in ${when} and is waiting for your approval`
     : `${soon.length} posts are waiting for your approval — the first in ${when}`;
+}
+
+/**
+ * 🔴 IS A REFUSED SLOT ACTUALLY AT RISK? — added 21 Nov 2026 (#131).
+ *
+ * ⛔ THE ALARM THAT CRIED WOLF. The queue writes up to TEN DAYS ahead and
+ * retries a refused slot on a rising back-off (5, 15, 60, 180, 360 min). But
+ * `sendQueueAlert` fired on the FIRST refusal and said "the slot will simply
+ * pass". Measured: "Nothing written for instagram" (16 Nov) and "Nothing
+ * written for x" (19 Nov 00:01) — both slots were retried, written and
+ * PUBLISHED on time (IG 19 Nov 14:30Z, X 20 Nov 13:30Z). Both refusals were the
+ * repetition check doing its job (3 titles too close to ones already used).
+ * And the mail never said WHICH slot, so nobody could check.
+ *
+ * 🔑 THE RULE. Mail only when somebody can still act and needs to:
+ *   • the slot is within ALERT_WITHIN_HOURS — inside that, the owner also
+ *     needs time to read and approve the post, so a refusal now matters; or
+ *   • the slot has failed so often it reached the back-off cap — a real
+ *     problem with the brief, said ONCE (at exactly the cap), not every 6 h.
+ * Further out, a refusal is routine: it is retried and recorded on
+ * /admin/social. ⛔ Never silent near the slot ⇒ the original 19 Oct gap stays closed.
+ */
+export const ALERT_WITHIN_HOURS = 24;
+
+export type RefusalVerdict = {
+  alert: boolean;
+  /** When the queue will try this slot again (ISO). */
+  nextTry: string;
+  /** True when no retry can happen before the slot — it really will pass. */
+  willPass: boolean;
+};
+
+/** ⛔ PURE, takes `now` — same reason as `missedSlots`. */
+export function refusalVerdict(
+  scheduledFor: string,
+  attemptsAfterThis: number,
+  now: Date,
+  withinHours = ALERT_WITHIN_HOURS,
+): RefusalVerdict {
+  const at = new Date(scheduledFor).getTime();
+  const next = now.getTime() + backoffMinutes(attemptsAfterThis) * 60_000;
+  const willPass = !Number.isFinite(at) || next >= at;
+  const near = !Number.isFinite(at) || at - now.getTime() <= withinHours * 3_600_000;
+  const atCap = attemptsAfterThis === BACKOFF_MINUTES.length;
+  return { alert: willPass || near || atCap, nextTry: new Date(next).toISOString(), willPass };
+}
+
+/** "Fri 20 Nov, 19:00 IST" — the slot named the way the schedule names it. */
+export function istLabel(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return iso;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(d);
+  const g = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${g("weekday")} ${g("day")} ${g("month")}, ${g("hour")}:${g("minute")} IST`;
 }

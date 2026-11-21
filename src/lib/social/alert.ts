@@ -6,6 +6,7 @@
 // reading when they are thinking about social ⇒ feedback_social_media_uses_the_social_mailbox.
 
 import { sendOne, isResendConfigured, fromAddress } from "@/lib/broadcast/resendClient";
+import { istLabel } from "./queueHealth";
 
 const TO = "social@imotara.com";
 
@@ -94,7 +95,20 @@ export async function sendChannelAlert(
  * message. At one or two slots a day that is rare by construction.
  */
 export async function sendQueueAlert(
-  refused: { schedule: string; platform: string; language?: string; why: string }[],
+  refused: {
+    schedule: string;
+    platform: string;
+    language?: string;
+    why: string;
+    /** 🔑 WHICH slot (ISO). ⛔ Until 21 Nov the mail never said, so nobody could check it. */
+    scheduledFor?: string;
+    /** How many times this slot has now been refused. */
+    attempt?: number;
+    /** When the queue tries again (ISO) ⇒ queueHealth.refusalVerdict. */
+    nextTry?: string;
+    /** True only when no retry can land before the slot. */
+    willPass?: boolean;
+  }[],
 ): Promise<boolean> {
   if (refused.length === 0) return false;
 
@@ -104,8 +118,18 @@ export async function sendQueueAlert(
   }
 
   const lines = refused
-    .map((r) => `• ${r.platform}${r.language ? ` (${r.language})` : ""} — “${r.schedule}”\n  ${r.why}`)
+    .map((r) => {
+      const slot = r.scheduledFor ? `\n  Slot: ${istLabel(r.scheduledFor)}` : "";
+      const tries = r.attempt ? ` · refused ${r.attempt} time${r.attempt === 1 ? "" : "s"} so far` : "";
+      const next =
+        r.willPass || !r.nextTry
+          ? "\n  ⛔ No retry can land before the slot — it will pass unless someone writes a post by hand."
+          : `\n  ↻ Tried again automatically at ${istLabel(r.nextTry)} — this slot can still be filled.`;
+      return `• ${r.platform}${r.language ? ` (${r.language})` : ""} — “${r.schedule}”${slot}${tries}${next}\n  ${r.why}`;
+    })
     .join("\n\n");
+  // 🔑 "will pass" ONLY when it is true ⇒ the 16 + 19 Nov mails said it about slots that then published.
+  const anyWillPass = refused.some((r) => r.willPass || !r.nextTry);
 
   const text = [
     "A schedule was due and wrote nothing.",
@@ -113,7 +137,9 @@ export async function sendQueueAlert(
     lines,
     "",
     "⚠️ Nothing is broken at the platform end — the channel and its token are fine. What failed is",
-    "the WRITING, so there is no post waiting for that slot and the slot will simply pass.",
+    anyWillPass
+      ? "the WRITING, so there is no post waiting for that slot and the slot will simply pass."
+      : "the WRITING. The queue keeps retrying on its own; you only need to act if this repeats.",
     "",
     "The attempts and the reason each one was refused are on",
     "https://www.imotara.com/admin/social",
@@ -123,10 +149,13 @@ export async function sendQueueAlert(
 
   const from = fromAddress();
 
+  const one = refused[0];
   const subject =
     refused.length === 1
-      ? `Nothing written for ${refused[0].platform} — the slot will pass`
-      : `${refused.length} schedules were due and wrote nothing`;
+      ? one.willPass || !one.nextTry
+        ? `Nothing written for ${one.platform}${one.scheduledFor ? ` (${istLabel(one.scheduledFor)})` : ""} — the slot will pass`
+        : `Nothing written yet for ${one.platform}${one.scheduledFor ? ` (${istLabel(one.scheduledFor)})` : ""} — retrying`
+      : `${refused.length} schedules wrote nothing${anyWillPass ? " — a slot will pass" : " yet — retrying"}`;
 
   const outcome = await sendOne({
     from,

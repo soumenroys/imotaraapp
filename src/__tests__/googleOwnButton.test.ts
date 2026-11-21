@@ -35,7 +35,7 @@ describe("Google's own button", () => {
         expect(panel).toMatch(/<GoogleIdButton[^>]*fallback=\{old\}/);
         expect(panel).toMatch(/withProvider\(o\)/);
         const btn = read("src/components/auth/GoogleIdButton.tsx");
-        expect(btn).toMatch(/\{!ready && fallback\}/);
+        expect(btn).toMatch(/phase === "fallback" && fallback/);
     });
 
     it("the CSP lets Google's button load — and only its /gsi/ path", () => {
@@ -45,5 +45,13 @@ describe("Google's own button", () => {
         expect(cfg).toMatch(/connect-src[^"]*https:\/\/accounts\.google\.com\/gsi\//);
         expect(cfg).toMatch(/frame-src[^"]*https:\/\/accounts\.google\.com\/gsi\//);
         expect(cfg).not.toMatch(/https:\/\/accounts\.google\.com[ ";]/);
+    });
+
+    it("🔴 the old button never sits in the slot WHILE Google's loads (the 21 Nov pkce sign-in)", () => {
+        const btn = read("src/components/auth/GoogleIdButton.tsx");
+        expect(btn).toMatch(/useState<"waiting" \| "ready" \| "fallback">\("waiting"\)/);
+        expect(btn).toMatch(/phase === "waiting" &&/);
+        const panel = read("src/components/auth/SignInPanel.tsx");
+        expect(panel).toMatch(/setTimeout\(preloadGis/);
     });
 });

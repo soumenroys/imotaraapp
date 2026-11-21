@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import Modal from "@/components/ui/Modal";
-import GoogleIdButton from "@/components/auth/GoogleIdButton";
+import GoogleIdButton, { preloadGis } from "@/components/auth/GoogleIdButton";
 import {
   CODE_MAX, CODE_MIN, EMAIL_RX, MIN_PASSWORD, OPEN_SIGN_IN_EVENT,
   EXPLAINS_OWN_AUTH_ERROR, callbackUrl, enabledEmail, enabledOAuth, friendlyAuthError, returnedAuthMessage, safeTarget,
@@ -55,6 +55,14 @@ export default function SignInPanel() {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   const oauth = enabledOAuth();
+
+  // #169: fetch Google's button script once the page is idle, so it is ready the moment
+  // the panel opens (a quick click used to land on the old button while it loaded).
+  useEffect(() => {
+    if (!enabledOAuth().some((o) => o.id === "google")) return;
+    const t = window.setTimeout(preloadGis, 1500);
+    return () => window.clearTimeout(t);
+  }, []);
   const emailMethods = enabledEmail();
 
   const reset = useCallback(() => {

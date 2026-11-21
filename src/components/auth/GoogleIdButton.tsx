@@ -32,8 +32,15 @@ export const GOOGLE_WEB_CLIENT_ID = "425826097896-980pi64uoif2o4jflm68chlf39lsdb
 export const GIS_HOSTS = new Set(["www.imotara.com", "imotara.com", "localhost"]);
 
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
-/** Give Google this long to draw its button before we keep the old one. */
-const LOAD_BUDGET_MS = 4000;
+/**
+ * Give Google this long to draw its button before the old one takes its place.
+ * 🔴 21 Nov 2026: the owner's first live sign-in went through the OLD redirect
+ * (Supabase logged grant_type=pkce, not id_token) — the old button used to sit in
+ * this slot WHILE Google's loaded, and a quick click landed on it. Now the slot
+ * shows a quiet placeholder while waiting, and the script is preloaded with the
+ * page (preloadGis) so the wait is normally nil.
+ */
+const LOAD_BUDGET_MS = 2500;
 
 type Gis = {
     accounts: {
@@ -79,6 +86,12 @@ function randomNonce(): string {
     return Array.from(a, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+/** Start fetching Google's script early (page idle), so the panel's button is ready when opened. */
+export function preloadGis(): void {
+    if (typeof window === "undefined" || !canUseGis(window.location.hostname)) return;
+    loadGis().catch(() => {});
+}
+
 /** Pure — may this page use Google's button at all? */
 export function canUseGis(hostname: string): boolean {
     return GIS_HOSTS.has(hostname);
@@ -95,14 +108,17 @@ type Props = {
 
 export default function GoogleIdButton({ onToken, fallback, disabled }: Props) {
     const holder = useRef<HTMLDivElement>(null);
-    const [ready, setReady] = useState(false);
+    // waiting: Google's button is loading (placeholder, nothing clickable) ·
+    // ready: Google's button · fallback: the old button (blocked, slow, or not our host)
+    const [phase, setPhase] = useState<"waiting" | "ready" | "fallback">("waiting");
+    const ready = phase === "ready";
     const onTokenRef = useRef(onToken);
     onTokenRef.current = onToken;
 
     useEffect(() => {
-        if (!canUseGis(window.location.hostname)) return;
+        if (!canUseGis(window.location.hostname)) { setPhase("fallback"); return; }
         let alive = true;
-        const giveUp = window.setTimeout(() => { alive = false; }, LOAD_BUDGET_MS);
+        const giveUp = window.setTimeout(() => { alive = false; setPhase((p) => (p === "ready" ? p : "fallback")); }, LOAD_BUDGET_MS);
         (async () => {
             try {
                 const raw = randomNonce();
@@ -134,9 +150,11 @@ export default function GoogleIdButton({ onToken, fallback, disabled }: Props) {
                     width,
                 });
                 window.clearTimeout(giveUp);
-                if (alive) setReady(true);
+                if (alive) setPhase("ready");
             } catch {
-                // blocked / offline / Google down — the old button stays
+                // blocked / offline / Google down — the old button takes the slot
+                window.clearTimeout(giveUp);
+                if (alive) setPhase("fallback");
             }
         })();
         return () => {
@@ -156,7 +174,14 @@ export default function GoogleIdButton({ onToken, fallback, disabled }: Props) {
                 aria-hidden={!ready}
                 className={ready ? `flex w-full justify-center ${disabled ? "pointer-events-none opacity-50" : ""}` : "absolute h-0 w-full overflow-hidden opacity-0"}
             />
-            {!ready && fallback}
+            {phase === "waiting" && (
+                <div
+                    role="status"
+                    aria-label="Loading Google sign-in"
+                    className="h-11 w-full animate-pulse rounded-full border border-white/10 bg-white/5"
+                />
+            )}
+            {phase === "fallback" && fallback}
         </div>
     );
 }

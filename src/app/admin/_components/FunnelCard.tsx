@@ -12,6 +12,7 @@ const LABEL: Record<string, string> = {
   purchase_ok: "Payment done", purchase_cancel: "Checkout closed / failed", quota_hit: "Daily free limit reached",
   landing_send: "Landing box → Send pressed", landing_sent: "Landing message sent in chat",
   app_handoff_shown: "App invite shown (after 3rd message)", app_handoff_click: "App invite → store link", app_header_click: "Header \"App\" → store link",
+  get_app_android: "imotara.com/get-app → Google Play", get_app_ios: "imotara.com/get-app → App Store", get_app_web: "imotara.com/get-app → website (computer)",
 };
 const rate = (v: number | null) => (v === null ? "—" : `${v}%`);
 

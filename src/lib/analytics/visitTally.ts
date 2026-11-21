@@ -38,6 +38,10 @@ export const FUNNEL_STEPS = {
     app_handoff_shown: 15,
     app_handoff_click: 16,
     app_header_click: 17,
+    // #162 (owner 21 Nov 2026): imotara.com/get-app (Facebook "Use app" button, bios) — which way it sent the visitor
+    get_app_android: 18,
+    get_app_ios: 19,
+    get_app_web: 20,
 } as const;
 export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];

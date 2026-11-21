@@ -16,6 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import Modal from "@/components/ui/Modal";
+import GoogleIdButton from "@/components/auth/GoogleIdButton";
 import {
   CODE_MAX, CODE_MIN, EMAIL_RX, MIN_PASSWORD, OPEN_SIGN_IN_EVENT,
   EXPLAINS_OWN_AUTH_ERROR, callbackUrl, enabledEmail, enabledOAuth, friendlyAuthError, returnedAuthMessage, safeTarget,
@@ -152,6 +153,16 @@ export default function SignInPanel() {
     } catch { setError(friendlyAuthError(null)); setBusy(null); }
   }
 
+  /** #169: Google's own button handed us an ID token — sign in here, no redirect. */
+  async function withGoogleToken(idToken: string, rawNonce: string) {
+    setBusy("google"); setError("");
+    try {
+      const { data, error: err } = await client().auth.signInWithIdToken({ provider: "google", token: idToken, nonce: rawNonce });
+      if (err) { setError(friendlyAuthError(err.message)); setBusy(null); return; }
+      await finish(data.user?.created_at, "google");
+    } catch { setError(friendlyAuthError(null)); setBusy(null); }
+  }
+
   // As they type an email, ask (POST, never in a URL) whether its domain uses company sign-in.
   useEffect(() => {
     if (!open || !["code-email", "password", "sso"].includes(step.kind)) return;
@@ -271,11 +282,18 @@ export default function SignInPanel() {
 
         {step.kind === "choose" && (
           <div className="space-y-2.5">
-            {oauth.map((o) => (
-              <button key={o.id} type="button" disabled={!!busy} onClick={() => void withProvider(o)} className={btn}>
-                {busy === o.id ? "Opening…" : o.label}
-              </button>
-            ))}
+            {oauth.map((o) => {
+              const old = (
+                <button key={o.id} type="button" disabled={!!busy} onClick={() => void withProvider(o)} className={btn}>
+                  {busy === o.id ? "Opening…" : o.label}
+                </button>
+              );
+              // #169: Google's own button — its pop-up names imotara.com, not our database host.
+              // The old button stays as the fallback wherever Google's cannot load.
+              return o.id === "google"
+                ? <GoogleIdButton key={o.id} disabled={!!busy} onToken={withGoogleToken} fallback={old} />
+                : old;
+            })}
             {emailMethods.length > 0 && (
               <>
                 <div className="flex items-center gap-3 py-1 text-[11px] uppercase tracking-wider text-zinc-500">

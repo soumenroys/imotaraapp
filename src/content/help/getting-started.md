@@ -53,14 +53,15 @@ Signing in is what turns on cross-device sync, cloud backup, and unlimited voice
 2. Choose **Continue with Google**, **Continue with Microsoft** (Outlook, Hotmail and many work accounts — if your workplace blocks it, use an email code instead), **Continue with Apple** (the same account as Sign in with Apple on your iPhone) or **Continue with LinkedIn**, or sign in with **any email address**:
    - **Email me a code** — type your email, and we send a one-time code (up to 10 digits) from imotara.com. Type it in and you're signed in. No password needed.
    - **Use a password** — sign in with your email and password. New here? **Create an account** sends a code to confirm your email, then you choose a password. **Forgot password?** works the same way.
+   - **Google's own button:** on imotara.com the Google option is Google's own button. If you are already signed in to Google in that browser it may read **Continue as [your name]** — the small arrow beside it lets you pick a different Google account. Google's window names **imotara.com**.
 3. Confirm you're signed in: the **Cloud backup** card shows **Signed in as [your email]**.
 
 **On mobile:**
 1. Open **Settings** and expand the **Your plan** section.
-2. Tap **Sign in to restore your plan** — mobile supports **Google** sign-in, and **Sign in with Apple** on iOS.
+2. Tap **Sign in to restore your plan** for **Google**, **Continue with Apple** on iPhone, or **Use email instead** for any email address (a code or a password — app version 1.7.1 on iPhone, 1.7.2 on Android, and later).
 3. Once signed in, the **Your plan** card stops showing the sign-in prompt.
 
-> Note: signing in with an email code or password is on the **website** for now; the apps will get it in their next update. Until then, on the phone please use Google, or Apple on iPhone.
+> Google on the phone: in the next app update, Google opens its own account chooser ("Choose an account — to continue to Imotara") instead of a web page. On iPhone, iOS first asks whether Imotara may use **accounts.google.com** to sign in — that is Apple's standard question for any Google sign-in; tap **Continue**.
 
 ## Getting the app on your phone
 

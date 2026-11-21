@@ -23,9 +23,9 @@ const CSP = [
   // requested after the visitor grants consent (see components/analytics), but
   // the CSP has to permit it up front or the browser blocks the script SILENTLY
   // — GA would look installed and simply never report.
-  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com",
+  "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdn.razorpay.com https://www.googletagmanager.com https://accounts.google.com/gsi/client",
   // Tailwind + Next.js inject inline styles
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/style",
   // Supabase REST + realtime WebSocket (browser-side auth/subscribe calls)
   // GA4 posts measurement hits to google-analytics.com and the regional
   // *.analytics.google.com endpoints; googletagmanager.com is also contacted for
@@ -33,12 +33,13 @@ const CSP = [
   // ad_storage denied and google signals off, matching the privacy policy's
   // "no ad-tech" line, and the same reasoning that keeps lumberjack.razorpay.com
   // out of this list.
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com/gsi/ https://www.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com",
   "img-src 'self' data: blob: https:",
   "font-src 'self'",
   "media-src 'self' blob:",
-  // Razorpay checkout opens an iframe
-  "frame-src https://api.razorpay.com https://checkout.razorpay.com",
+  // Razorpay checkout opens an iframe · #169 Google's own sign-in button draws in an
+  // accounts.google.com/gsi/ iframe (script + style + connect above, the same path only)
+  "frame-src https://api.razorpay.com https://checkout.razorpay.com https://accounts.google.com/gsi/",
   // Belt-and-suspenders with X-Frame-Options: DENY
   "frame-ancestors 'none'",
   // PWA service worker

@@ -71,3 +71,13 @@ describe("every place that INVITES people to Connect follows the switch", () => 
     expect(s).toContain("handleShowConnectToggle(!showConnectTab)");
   });
 });
+
+describe("privacy page: 'Contact us' goes to the contact page (owner OK 22 Nov 2026)", () => {
+  it("links /contact, never /connect", () => {
+    const p = src("src/app/privacy/page.tsx");
+    const at = p.indexOf("Have a privacy question or request?");
+    const block = p.slice(at, at + 400);
+    expect(block).toContain('href="/contact"');
+    expect(block).not.toContain('href="/connect"');
+  });
+});

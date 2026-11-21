@@ -524,7 +524,7 @@ export default function PrivacyPage() {
             <p className="mt-3 text-sm leading-7 text-zinc-300">
               Have a privacy question or request?{" "}
               <Link
-                href="/connect"
+                href="/contact"
                 className="underline decoration-emerald-300/70 underline-offset-4 hover:text-emerald-200"
               >
                 Contact us

@@ -25,6 +25,7 @@ const SETTINGS_LIST = [
   { id: "dark_mode", title: "Dark mode / Light mode", description: "Switch between dark and light theme" },
   { id: "text_size", title: "Text size", description: "Increase or decrease the font size" },
   { id: "companion_reactions", title: "Companion reactions", description: "Enable/disable Imotara reacting to messages with emoji" },
+  { id: "show_connect", title: "Show Connect", description: "Show or hide the Connect tab (book a session with a human wellness companion). Off by default" },
   { id: "show_sync_badge", title: "Show sync status badge", description: "Show or hide the Local/Cloud badge on messages" },
   { id: "mood_glimpse", title: "Mood glimpse card", description: "Show or hide the mood snapshot card in chat" },
   { id: "tts_auto_read", title: "Auto-read new messages", description: "Automatically read Imotara's responses aloud (text-to-speech)" },

@@ -9,6 +9,7 @@ import GlobalSearch from "@/components/imotara/GlobalSearch";
 import { APP_ROUTES } from "@/lib/appRoutes";
 import useLicense from "@/hooks/useLicense";
 import { prettyTier } from "@/types/license";
+import { readShowConnect, SHOW_CONNECT_EVENT, SHOW_CONNECT_KEY } from "@/lib/imotara/connectVisibility";
 
 // Primary nav — always visible on desktop (daily actions only)
 const PRIMARY_LINKS = [
@@ -74,6 +75,22 @@ export default function SiteHeader() {
   const license = useLicense();
   const [orgHref, setOrgHref] = useState<string | null>(null);
   const sbRef = useRef<any>(null);
+
+  // #108 (owner 22 Nov 2026): the Connect tab shows only when the person switched it on in
+  // Settings → Appearance. OFF by default. Follows the switch live (same tab + other tabs).
+  const [showConnect, setShowConnect] = useState(false);
+  useEffect(() => {
+    setShowConnect(readShowConnect());
+    const onChange = () => setShowConnect(readShowConnect());
+    const onStorage = (e: StorageEvent) => { if (e.key === SHOW_CONNECT_KEY) onChange(); };
+    window.addEventListener(SHOW_CONNECT_EVENT, onChange);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(SHOW_CONNECT_EVENT, onChange);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  const primaryLinks = PRIMARY_LINKS.filter((l) => l.href !== "/connect" || showConnect);
 
   useEffect(() => {
     setMounted(true);
@@ -224,7 +241,7 @@ export default function SiteHeader() {
           <nav className={NAV_CLASS} aria-label="Main navigation">
             {/* Render nav links only after hydration to prevent structural mismatches
                 caused by stale Turbopack SSR cache during development. */}
-            {mounted && PRIMARY_LINKS.map((l) => {
+            {mounted && primaryLinks.map((l) => {
               const active =
                 l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
               const accentInactive = l.accent
@@ -433,7 +450,7 @@ export default function SiteHeader() {
           <div className="border-t border-white/10 bg-white/90 px-4 py-3 backdrop-blur-xl dark:bg-zinc-900/95 sm:hidden">
             <nav className="flex flex-col gap-0.5" aria-label="Mobile navigation">
               {/* Primary links */}
-              {PRIMARY_LINKS.map((l) => {
+              {primaryLinks.map((l) => {
                 const active = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href);
                 return (
                   <Link key={l.href} href={l.href} onClick={() => setMobileOpen(false)}

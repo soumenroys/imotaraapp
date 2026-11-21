@@ -129,6 +129,9 @@ const PROCESSORS_NOT_YET_DISCLOSED: Record<string, string> = {
 const BENIGN_HOSTS = new Set([
     // ours
     "imotara.com", "www.imotara.com", "staging.imotara.com", "soumenroy.com",
+    // ours: Vercel's own address for the same production site (#167 canonicalHost —
+    // named only to redirect its pages to www.imotara.com; no data is sent there)
+    "imotaraapp.vercel.app",
     // markup + store/social links we render
     "schema.org", "play.google.com", "apps.apple.com", "findahelpline.com",
     "x.com", "twitter.com", "www.linkedin.com", "www.instagram.com",

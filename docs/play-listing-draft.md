@@ -160,3 +160,106 @@ Kolkata, India. Questions: info@imotara.com
 4. **iOS** — the App Store needs a version in *Prepare for Submission* before description and
    keywords can change, so that half waits on the BillDesk hold. Only Promotional Text is
    editable now.
+
+---
+
+# Round 2 — 21 Nov 2026 (#167 growth, owner: "Play listing first")
+
+**Status: DRAFT for the owner.** The October rewrite above is LIVE (title, short and full
+description). This round adds what the live listing still lacks:
+
+- **English:** the words people actually search for when they feel bad (stress, worry, a lonely
+  night, exam pressure, can't sleep) — said the way a person says them, no health claims.
+- **Hindi:** the listing text is already Hindi, but the **title is still English** — and on Play
+  the title carries the most search weight.
+- **Bengali:** no Bengali listing at all yet (shows English). Owner reads Bengali ⇒ reviews it.
+- Other Indian languages: only after a native reader checks them (standing rule).
+- Screenshots (#95): with the December build, so they show the new look.
+
+## English (default listing)
+
+**Short description** (74/80) — was *Talk about how you feel and track your mood — 22 languages, 11 Indian.*
+
+> Talk through stress, worry or a lonely night — in 22 languages, 11 Indian.
+
+**New paragraph** in the full description, straight after the opening two paragraphs:
+
+> **For the moments that are hard to say out loud**
+>
+> A bad day at work. Exam pressure. A fight at home. A night when sleep won't come. Missing someone. Feeling alone in a full room. You don't need the right words, or a reason — start with whatever is there.
+
+## Hindi (hi-IN listing)
+
+**Title** (29/30) — was *Imotara: Mood & Mind Companion*
+
+> Imotara: दिल की बात, मूड साथी
+
+*(Not "मन की बात" — that is the Prime Minister's radio programme; searches would be swamped by it.)*
+
+**Short description** (67/80)
+
+> तनाव, चिंता या अकेली रात — अपनी भाषा में खुलकर बात करें। 22 भाषाएँ।
+
+**New paragraph** (same place as English):
+
+> **जो बातें कहना मुश्किल होता है**
+>
+> ऑफ़िस का बुरा दिन। परीक्षा का दबाव। घर में झगड़ा। नींद न आने वाली रात। किसी की बहुत याद आना। भीड़ में भी अकेलापन लगना। सही शब्द या कोई वजह ज़रूरी नहीं — जो मन में है, वहीं से शुरू करें।
+
+## Bengali (bn-IN listing — new)
+
+**Title** (28/30)
+
+> Imotara: মনের কথা, মুড সঙ্গী
+
+**Short description** (71/80)
+
+> দুশ্চিন্তা, চাপ বা একলা রাত — নিজের ভাষায় মন খুলে কথা বলুন। ২২টি ভাষা।
+
+**Full description**
+
+> ইমোতারা — যেখানে মনের সত্যি কথাটা নিশ্চিন্তে বলা যায়
+>
+> বেশিরভাগ মানুষ উপদেশ চান না। তাঁরা শুধু চান এমন কাউকে কথাটা বলতে, যে চমকে উঠবে না, কথা ঘুরিয়ে দেবে না, বাড়িতে বলে দেবে না।
+>
+> ইমোতারা ঠিক সেটাই। আপনি লিখুন বা বলুন; ইমোতারা শোনে, তিনটে প্রশ্নের বদলে একটা দরকারি প্রশ্ন করে, আর আগের বার যা জরুরি ছিল তা মনে রাখে। ইমোতারা আপনার রোগ নির্ণয় করবে না, "পজিটিভ ভাবুন" বলবে না, আর আপনি ভয়ের কিছু বললেও ঘাবড়ে যাবে না।
+>
+> **যে কথাগুলো মুখে বলা কঠিন**
+>
+> অফিসে একটা খারাপ দিন। পরীক্ষার চাপ। বাড়িতে ঝগড়া। ঘুম না আসা রাত। কাউকে খুব মনে পড়া। ভিড়ের মধ্যেও একা লাগা। ঠিক শব্দ বা কোনো কারণ লাগবে না — মনে যা আছে, সেখান থেকেই শুরু করুন।
+>
+> **যে ভাষায় ভাবেন, সেই ভাষাতেই কথা বলুন**
+>
+> ইমোতারা ২২টি ভাষায় কথা বলে, তার মধ্যে এগারোটি ভারতীয়: হিন্দি, বাংলা, মারাঠি, তামিল, তেলুগু, গুজরাটি, পাঞ্জাবি, কন্নড়, মালয়ালম, ওড়িয়া আর উর্দু — সঙ্গে ইংরেজি, আরবি, হিব্রু, রুশ, চিনা, জাপানি, স্প্যানিশ, ফরাসি, জার্মান, পর্তুগিজ আর ইন্দোনেশীয়।
+>
+> এটা অনুবাদ করা ইংরেজি নয় — রোজকার কথাবার্তার ভাষা, মানুষ যেভাবে সত্যিই কথা বলে। আমরা বেশিরভাগই অনুভূতিটা আগে মাতৃভাষায় টের পাই, পরে অনুবাদ করি — আর অনুবাদেই অনুভূতিটা হারিয়ে যায়।
+>
+> টাইপ না করে মুখে বলেও কথা বলতে পারেন, হাত না লাগিয়েই, আর ইমোতারা তার উত্তর পড়েও শোনাতে পারে।
+>
+> **এখানে যা করতে পারেন**
+>
+> যা ঘটেছে বলুন — ইমোতারা মন দিয়ে শুনবে। মুডের টাইমলাইন রাখুন, আর দেখুন সপ্তাহটা আসলে কেমন গেল, মনে যেমন আছে তেমন নয়। ভাবনা থামতে না চাইলে শ্বাসের ব্যায়াম করুন। জরুরি কোনো কথোপকথন আবার ফিরে দেখুন।
+>
+> **আপনার কথা আপনারই থাকে**
+>
+> আপনার চ্যাটের ইতিহাস আপনার ফোনেই থাকে, আর ক্লাউড ব্যাকআপ বন্ধ থাকে যতক্ষণ না আপনি সেটিংসে চালু করেন (সাইন ইন করলে বিনামূল্যে)। উত্তর দেওয়ার জন্য আপনার মেসেজ আমাদের সুরক্ষিত সার্ভারে যায়। কোনো বিজ্ঞাপন নেই। কোনো এনগেজমেন্ট অ্যালগরিদম নেই। কোনো সোশ্যাল ফিড নেই। কারও কাছে কিছুই বিক্রি করা হয় না, কখনও না। এক স্ক্রিন থেকেই সবকিছু এক্সপোর্ট বা মুছে ফেলতে পারেন।
+>
+> **কী বিনামূল্যে, কীসে টাকা লাগে**
+>
+> চিরকাল বিনামূল্যে: দিনে কুড়িটি ক্লাউড উত্তর, নিজের ফোনে যত খুশি উত্তর, ২২টি ভাষাই, শ্বাসের ব্যায়াম আর মুডের টুল। কোনো কার্ড লাগবে না।
+>
+> ইমোতারা প্লাস: যত খুশি উত্তর আর ইতিহাস, সঙ্গীর নানা রূপ, স্বাভাবিক নিউরাল কণ্ঠ, অনুভূতির ট্রেন্ড আর সঙ্গীর চিঠি।
+>
+> ইমোতারা কানেক্ট: সফটওয়্যারের সঙ্গে কথা বলা যথেষ্ট না হলে, যাচাই-করা একজন মানুষ ওয়েলনেস সঙ্গীর সঙ্গে কথা বলতে পারেন, মিনিট হিসেবে টাকা দিয়ে।
+>
+> **যেখানেই থাকুন**
+>
+> অ্যান্ড্রয়েড, আইফোন, বা ব্রাউজারে imotara.com। ক্লাউড ব্যাকআপ চালু থাকলে আপনার ইতিহাস সব ডিভাইসে আপনার সঙ্গে থাকে।
+>
+> **এই অংশটা অবশ্যই পড়ুন**
+>
+> ইমোতারা থেরাপি নয়, ডাক্তার নয়, সংকটকালীন পরিষেবাও নয়। এটা নিজের মনকে বোঝার এক সঙ্গী, আর সেটা নিজেই স্পষ্ট করে বলে — অন্য কিছু হওয়ার ভান করে না।
+>
+> আপনি যদি এই মুহূর্তে বিপদে থাকেন, দয়া করে একজন যোগ্য পেশাদার বা সংকটকালীন হেল্পলাইনের সঙ্গে যোগাযোগ করুন। দরকার পড়লে ইমোতারা আপনার দেশের হেল্পলাইন দেখিয়ে দেবে।
+>
+> ইমোতারা পরিচালনা করে M/S IMOTARA, কলকাতা, ভারতের একটি নিবন্ধিত অংশীদারি ফার্ম। প্রশ্ন থাকলে: info@imotara.com

@@ -16,7 +16,7 @@ describe("the tally accepts only real funnel steps", () => {
   });
   it("valid steps pass; anything else is dropped", () => {
     expect(parseTallyEvents({ events: [{ kind: "funnel", bucket: 1, delta: 1 }, { kind: "funnel", bucket: 12, delta: 1 }] })).toHaveLength(2);
-    expect(parseTallyEvents({ events: [{ kind: "funnel", bucket: 15, delta: 1 }, { kind: "funnel", bucket: 0, delta: 1 }, { kind: "funnel", bucket: 2, delta: 5 }] })).toHaveLength(0);
+    expect(parseTallyEvents({ events: [{ kind: "funnel", bucket: 99, delta: 1 }, { kind: "funnel", bucket: 0, delta: 1 }, { kind: "funnel", bucket: 2, delta: 5 }] })).toHaveLength(0);
   });
   it("the database change exists and only widens the kind check", () => {
     const sql = read("docs/sql/visit_tallies_funnel.sql");

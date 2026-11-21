@@ -121,6 +121,12 @@ import {
 import { returningFeeling, returningLangOf, returningLine, type FeelingDetectors } from "@/lib/imotara/returningLine";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent, tallyFunnel } from "@/lib/analytics/visitTallyClient";
+// Web → app handoff (owner 21 Nov 2026, options A + B). Store links match the
+// site's structured data (lib/broadcast/markup.ts) minus the /in/ storefront,
+// because public pages are read worldwide.
+const HANDOFF_APPSTORE_URL = "https://apps.apple.com/app/imotara/id6756697569";
+const HANDOFF_PLAY_URL = "https://play.google.com/store/apps/details?id=com.imotara.imotara";
+const HANDOFF_SEEN_KEY = "imotara.appHandoff.v1";
 import { takeLandingDraft } from "@/lib/imotara/landingDraft";
 import { TERMS_ACCEPTANCE_KEY, hasAcceptedCurrentTerms, parseAcceptance } from "@/lib/legal/termsVersion";
 import { noteFirstMessageForGa } from "@/lib/analytics/gaEvent";
@@ -1007,6 +1013,10 @@ export default function ChatPage() {
   const [quotaCardShown, setQuotaCardShown] = useState(false);
   // #163: true while replies are simpler because today's free replies are used.
   const [quotaLimited, setQuotaLimited] = useState(false);
+  // A: one quiet "on your phone" line under the reply after the visitor's 3rd
+  // message — once per visitor (localStorage), dismissible. B: header "App" link.
+  const [handoffMsgId, setHandoffMsgId] = useState<string | null>(null);
+  const [showAppLinks, setShowAppLinks] = useState(false);
   // 🌙 The one-time check-in invite ⇒ lib/imotara/checkInInviteStrings. Its language when shown.
   const [inviteLang, setInviteLang] = useState<string | null>(null);
   // 🌿 #16 C: the "Welcome back" card for this visit (decided once, on arrival).
@@ -1822,6 +1832,23 @@ export default function ChatPage() {
     () => threads.find((t) => t.id === activeId) ?? null,
     [threads, activeId],
   );
+
+  // Web → app handoff A: decide once, when the 3rd message has its reply.
+  useEffect(() => {
+    if (handoffMsgId || !activeThread) return;
+    // Never stack invitations: while the check-in invite is on screen, wait for a later reply.
+    if (inviteLang) return;
+    const msgs = activeThread.messages ?? [];
+    const userCount = msgs.filter((m) => m.role === "user").length;
+    const last = msgs[msgs.length - 1];
+    if (userCount < 3 || !last || last.role !== "assistant" || last.isQuotaNotice || !last.content) return;
+    try {
+      if (localStorage.getItem(HANDOFF_SEEN_KEY)) return;
+      localStorage.setItem(HANDOFF_SEEN_KEY, new Date().toISOString().slice(0, 10));
+    } catch { return; } // no storage ⇒ we could not keep "once", so do not show it at all
+    setHandoffMsgId(last.id);
+    tallyFunnel("app_handoff_shown");
+  }, [activeThread, handoffMsgId, inviteLang]);
 
   // #91 (7 Nov 2026): a mood tapped on the home page arrives already written in
   // the box, in the person's language — they only press send. Never sent for
@@ -3844,7 +3871,7 @@ export default function ChatPage() {
         {/* Main */}
         <main className="flex flex-1 flex-col min-w-0">
           {/* HEADER — 3-level collapsible */}
-          <header className="px-3 pt-2 sm:px-4 sm:pt-3">
+          <header className="relative z-40 px-3 pt-2 sm:px-4 sm:pt-3">
             <div className="imotara-glass-card px-3 py-2">
 
               {/* ── LEVEL 0: always-visible slim bar ── */}
@@ -3874,6 +3901,24 @@ export default function ChatPage() {
                 <p className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-100">
                   <span suppressHydrationWarning>{mounted ? (companionDisplayName || "Imotara") : ""}</span>
                 </p>
+                {/* Web → app handoff B — a quiet "App" link; opens the two store links. */}
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowAppLinks((v) => !v)}
+                    aria-expanded={showAppLinks}
+                    title="Get the app"
+                    className="inline-flex h-7 shrink-0 items-center rounded-xl border border-white/10 bg-white/5 px-2 text-[11px] font-medium text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+                  >
+                    App
+                  </button>
+                  {showAppLinks && (
+                    <div className="absolute end-0 top-full z-50 mt-1 min-w-[170px] rounded-xl border py-1 shadow-xl" style={{ backgroundColor: "#ffffff", borderColor: "rgba(0,0,0,0.12)", color: "#27272a" }}>
+                      <a href={HANDOFF_APPSTORE_URL} target="_blank" rel="noopener noreferrer" onClick={() => { tallyFunnel("app_header_click"); setShowAppLinks(false); }} className="block w-full px-3 py-2 text-start text-xs transition hover:bg-black/5" style={{ color: "#27272a" }}>iPhone (App Store)</a>
+                      <a href={HANDOFF_PLAY_URL} target="_blank" rel="noopener noreferrer" onClick={() => { tallyFunnel("app_header_click"); setShowAppLinks(false); }} className="block w-full px-3 py-2 text-start text-xs transition hover:bg-black/5" style={{ color: "#27272a" }}>Android (Google Play)</a>
+                    </div>
+                  )}
+                </div>
                 {/* Search */}
                 <button
                   type="button"
@@ -4481,7 +4526,7 @@ export default function ChatPage() {
                         <div className="absolute start-0 top-8 z-50 min-w-[180px] overflow-hidden rounded-xl border border-white/10 bg-zinc-900 shadow-xl im-dropdown-menu">
                           <button type="button" onClick={() => { setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Dismiss for now</button>
                           <button type="button" onClick={() => { try { localStorage.setItem("imotara.session.greeting.show.v1", "0"); } catch {} setSessionGreeting(null); setOpenCapsuleMenu(null); }} className="w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Don&apos;t show again</button>
-                          <a href="/settings" className="block w-full px-3 py-2 text-start text-xs text-zinc-300 hover:bg-white/5 transition">Settings</a>
+                          <a href="/settings" className="block w-full px-3 py-2 text-start text-xs transition hover:bg-black/5" style={{ color: "#27272a" }}>Settings</a>
                         </div>
                       )}
                     </div>
@@ -4574,6 +4619,17 @@ export default function ChatPage() {
                     onDelete={() => handleDeleteMessage(m.id)}
                   />
                 ))}
+
+                {/* Web → app handoff A — under the reply it was offered for, until the next reply arrives. */}
+                {handoffMsgId && activeThread?.messages?.[activeThread.messages.length - 1]?.id === handoffMsgId && (
+                  <div className="flex items-center gap-2 px-1 ps-10 text-[12px] text-zinc-500 dark:text-zinc-400">
+                    <span>Want me with you on your phone?</span>
+                    <a href={HANDOFF_APPSTORE_URL} target="_blank" rel="noopener noreferrer" onClick={() => tallyFunnel("app_handoff_click")} className="font-medium text-indigo-500 hover:underline dark:text-indigo-300">iPhone</a>
+                    <span aria-hidden="true">·</span>
+                    <a href={HANDOFF_PLAY_URL} target="_blank" rel="noopener noreferrer" onClick={() => tallyFunnel("app_handoff_click")} className="font-medium text-indigo-500 hover:underline dark:text-indigo-300">Android</a>
+                    <button type="button" onClick={() => setHandoffMsgId(null)} aria-label="Dismiss" className="ms-1 rounded px-1 text-zinc-400 hover:text-zinc-200">×</button>
+                  </div>
+                )}
 
                 {/* 🌙 One-time check-in invite — under the replies, never inside one */}
                 {inviteLang && (

@@ -62,6 +62,10 @@ Signing in is what turns on cross-device sync, cloud backup, and unlimited voice
 
 > Note: signing in with an email code or password is on the **website** for now; the apps will get it in their next update. Until then, on the phone please use Google, or Apple on iPhone.
 
+## Getting the app on your phone
+
+Imotara also has an app for iPhone and Android. On the website chat, tap **App** at the top to open the App Store or Google Play. After your third message you may also see one quiet line — "Want me with you on your phone?" — with the same two links; it appears once, and **×** hides it.
+
 ## Signing in on a second device
 
 1. On the second device, sign in with the **same** account (same Google, email, or Apple identity).

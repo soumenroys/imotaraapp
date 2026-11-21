@@ -34,6 +34,10 @@ export const FUNNEL_STEPS = {
     // #130 D (11 Nov 2026): typed on a landing page and pressed send · that text then sent in the chat
     landing_send: 13,
     landing_sent: 14,
+    // Web → app handoff (owner 21 Nov 2026, options A + B): the line under the 3rd reply · its links · the header "App" link
+    app_handoff_shown: 15,
+    app_handoff_click: 16,
+    app_header_click: 17,
 } as const;
 export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];

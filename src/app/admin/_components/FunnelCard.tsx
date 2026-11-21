@@ -11,6 +11,7 @@ const LABEL: Record<string, string> = {
   checkin_opened: "Check-in reminder opened", upgrade_view: "Upgrade page viewed", checkout_start: "Checkout started",
   purchase_ok: "Payment done", purchase_cancel: "Checkout closed / failed", quota_hit: "Daily free limit reached",
   landing_send: "Landing box → Send pressed", landing_sent: "Landing message sent in chat",
+  app_handoff_shown: "App invite shown (after 3rd message)", app_handoff_click: "App invite → store link", app_header_click: "Header \"App\" → store link",
 };
 const rate = (v: number | null) => (v === null ? "—" : `${v}%`);
 

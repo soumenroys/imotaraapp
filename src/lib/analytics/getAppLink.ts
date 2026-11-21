@@ -28,6 +28,15 @@ export function cleanFrom(from: string | null | undefined): string {
   return /^[a-z][a-z0-9_]{0,19}$/.test(f) ? f : "direct";
 }
 
+/** #162: the links we hand out. Any other label still redirects normally, but is counted as "other". */
+export const GET_APP_SOURCES = ["fb_button", "fb_pinned", "fb_story", "ig_story"] as const;
+export type GetAppSource = (typeof GET_APP_SOURCES)[number] | "other";
+
+export function sourceOf(from: string | null | undefined): GetAppSource {
+  const f = cleanFrom(from);
+  return (GET_APP_SOURCES as readonly string[]).includes(f) ? (f as GetAppSource) : "other";
+}
+
 export function getAppTarget(ua: string | null | undefined, from: string | null | undefined): { device: Device; url: string } {
   const source = cleanFrom(from);
   const tags = `utm_source=${source}&utm_medium=social&utm_campaign=get_app`;

@@ -42,6 +42,13 @@ export const FUNNEL_STEPS = {
     get_app_android: 18,
     get_app_ios: 19,
     get_app_web: 20,
+    // #162 (22 Nov 2026): WHICH link brought them — so the 6 Dec readout can compare the button, the pinned post and Stories.
+    // Counted alongside the device step above (two tallies per visit, still nothing about who). ⇒ getAppLink.ts GET_APP_SOURCES
+    get_app_from_fb_button: 21,
+    get_app_from_fb_pinned: 22,
+    get_app_from_fb_story: 23,
+    get_app_from_ig_story: 24,
+    get_app_from_other: 25,
 } as const;
 export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];

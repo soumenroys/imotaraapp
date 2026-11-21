@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getAppTarget, deviceOf, cleanFrom, PLAY_URL, APP_STORE_URL } from "@/lib/analytics/getAppLink";
+import { getAppTarget, deviceOf, cleanFrom, sourceOf, GET_APP_SOURCES, PLAY_URL, APP_STORE_URL } from "@/lib/analytics/getAppLink";
 import { FUNNEL_STEPS } from "@/lib/analytics/visitTally";
 
 const ANDROID_FB = "Mozilla/5.0 (Linux; Android 14; SM-A256E Build/UP1A) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/131.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/490.0]";
@@ -78,4 +78,29 @@ describe("counted anonymously, never at the cost of the redirect", () => {
     expect(keys).toEqual(["p_platform", "p_kind", "p_bucket", "p_delta"]);
   });
 
+});
+
+describe("#162 (22 Nov 2026): which link brought them is counted too", () => {
+  const route = readFileSync(join(process.cwd(), "src/app/get-app/route.ts"), "utf8");
+
+  it("the four links we hand out are told apart; anything else is 'other'", () => {
+    expect([...GET_APP_SOURCES]).toEqual(["fb_button", "fb_pinned", "fb_story", "ig_story"]);
+    for (const s of GET_APP_SOURCES) expect(sourceOf(s)).toBe(s);
+    expect(sourceOf("FB_Button")).toBe("fb_button");
+    for (const other of [null, "", "facebook", "instagram", "<script>", "fb button"]) expect(sourceOf(other)).toBe("other");
+  });
+
+  it("source steps are appended after 20, never renumbered", () => {
+    expect(FUNNEL_STEPS.get_app_from_fb_button).toBe(21);
+    expect(FUNNEL_STEPS.get_app_from_fb_pinned).toBe(22);
+    expect(FUNNEL_STEPS.get_app_from_fb_story).toBe(23);
+    expect(FUNNEL_STEPS.get_app_from_ig_story).toBe(24);
+    expect(FUNNEL_STEPS.get_app_from_other).toBe(25);
+  });
+
+  it("every source has a step, and the route counts BOTH the device and the source", () => {
+    for (const s of [...GET_APP_SOURCES, "other"]) expect(route).toMatch(new RegExp(`${s}: FUNNEL_STEPS\\.get_app_from_${s}`));
+    expect(route).toMatch(/\[STEP\[device\], source\]\.map/);
+    expect(route).toContain('sourceOf(req.nextUrl.searchParams.get("from"))');
+  });
 });

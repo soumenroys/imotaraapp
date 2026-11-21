@@ -982,8 +982,8 @@ export default function UpgradePage() {
                 </div>
             </div>
 
-            {/* Token packs */}
-            <div className="mt-12">
+            {/* Token packs — #163: the chat's "Top up credits" links here (#credits). */}
+            <div id="credits" className="mt-12 scroll-mt-24">
                 <h2 className="text-base font-semibold mb-1">Token packs</h2>
                 <p className="mb-5 text-sm text-zinc-400">
                     One-time top-ups that never expire. Use them on top of your daily limit.

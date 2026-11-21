@@ -1005,6 +1005,8 @@ export default function ChatPage() {
   const [showTrialBanner, setShowTrialBanner] = useState(false);
   // Quota-hit card — shown once per session when cloud daily limit is reached
   const [quotaCardShown, setQuotaCardShown] = useState(false);
+  // #163: true while replies are simpler because today's free replies are used.
+  const [quotaLimited, setQuotaLimited] = useState(false);
   // 🌙 The one-time check-in invite ⇒ lib/imotara/checkInInviteStrings. Its language when shown.
   const [inviteLang, setInviteLang] = useState<string | null>(null);
   // 🌿 #16 C: the "Welcome back" card for this visit (decided once, on arrival).
@@ -2833,8 +2835,10 @@ export default function ChatPage() {
             respEmotionIntensity = (resp as any)?.meta?.emotion?.intensity ?? 0;
 
             aiMetaFrom = "openai";
+            setQuotaLimited(false); // #163: a full reply came back
           } else if ((resp as any)?.meta?.from === "quota_exceeded") {
             cloudQuotaHit = true;
+            setQuotaLimited(true); // #163
             tallyFunnel("quota_hit"); // #129 anonymous funnel count
           }
         } catch (err) {
@@ -4367,6 +4371,16 @@ export default function ChatPage() {
                   </div>
                 )}
 
+                {/* #163 (owner, 21 Nov 2026): while today's free replies are used up, say so where the person types. */}
+                {quotaLimited && (
+                  <div className="mx-auto mb-2 flex w-full max-w-3xl flex-wrap items-center gap-2 rounded-xl border border-violet-500/30 bg-violet-50/90 px-3 py-2 text-[12px] text-zinc-600 dark:bg-violet-500/10 dark:text-zinc-300">
+                    <span>Simpler replies until your free replies reset</span>
+                    <a href="/upgrade#credits" className="font-semibold text-violet-600 hover:underline dark:text-violet-300">Top up</a>
+                    <span aria-hidden="true">·</span>
+                    <a href="/upgrade" className="font-semibold text-violet-600 hover:underline dark:text-violet-300">Get Plus</a>
+                  </div>
+                )}
+
                 {/* Trial countdown banner — once per day, ≤14 days before free trial ends */}
                 {activeTier2Banner === "trialCountdown" && license.expiresAt && (() => {
                   const daysLeft = Math.ceil((new Date(license.expiresAt).getTime() - Date.now()) / 86_400_000);
@@ -4488,17 +4502,26 @@ export default function ChatPage() {
                     <div className="im-quota-card w-full max-w-[82%] rounded-2xl border border-violet-500/25 bg-zinc-100 dark:bg-[#1e1028] p-4 shadow-lg">
                       <div className="mb-2 flex items-center gap-2">
                         <span aria-hidden="true">✨</span>
-                        <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">I&apos;ve used my 20 replies for today</span>
+                        <span className="text-[13px] font-medium text-zinc-800 dark:text-zinc-200">You&apos;ve used today&apos;s 20 free replies</span>
                       </div>
                       <p className="mb-3 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                        I&apos;m still here. My responses now come from on-device mode — a little simpler, but present.
+                        I&apos;m still here, but until your free replies reset, my replies come from this browser and will be simpler. For full replies now, top up or try Plus.
                       </p>
-                      <a
-                        href="/upgrade"
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:opacity-90"
-                      >
-                        Upgrade for unlimited replies →
-                      </a>
+                      {/* #163 (owner, 21 Nov 2026, option 1): both ways back, named plainly. */}
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href="/upgrade#credits"
+                          className="inline-flex items-center rounded-xl border border-violet-500/50 px-4 py-2 text-[12px] font-semibold text-zinc-800 transition hover:bg-violet-500/10 dark:text-zinc-100"
+                        >
+                          Top up credits
+                        </a>
+                        <a
+                          href="/upgrade"
+                          className="inline-flex items-center rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-4 py-2 text-[12px] font-semibold text-white transition hover:opacity-90"
+                        >
+                          Get Plus
+                        </a>
+                      </div>
                     </div>
                   </div>
                   ) : (

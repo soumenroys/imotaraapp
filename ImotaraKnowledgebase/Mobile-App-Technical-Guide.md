@@ -1,6 +1,6 @@
 # Imotara — Mobile App Technical Guide
 
-Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.7.0 (build 170)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
+Imotara Mobile is the Expo / React Native client for Imotara. This build is **v1.7.1 (build 171)**. Mobile and web share one backend (`www.imotara.com` + Supabase project `rfsbvbqtiesswnplslln`). Repo: `github.com/soumenroys/imotara-mobile`. This guide is grounded in the actual source.
 
 ## 1. Stack summary
 
@@ -113,6 +113,8 @@ Local-first with best-effort cloud sync. History is stored in AsyncStorage under
 - `scopedKey(base, chatLinkKey, localUserScopeId)` → `${base}:${chatLinkKey}` when a cross-device **`chatLinkKey`** exists, else `${base}:local:${localUserScopeId}` (device-local), with a legacy fallback for migration. Bases: `imotara_history_v1`, `imotara_history_remote_since_v1`, `imotara_threads_v1`.
 
 `runSync()` (deduped, throttled 900ms, hydration-guarded) does: (1) push local unsynced → `pushRemoteHistory`; (2) incremental remote pull via `fetchRemoteHistorySince(since)` with an in-memory cursor and a **scope guard** (discard results if `chatLinkKey` changed in-flight); (3) pull remote chat messages (skipped when `analysisMode === "local"`); (4) final dedupe/sort. Merges use `mergeSorted` (O(n+m)) and fingerprint dedup (`from : first-80-chars : 1-min bucket`). FREE-tier history pruning (`HISTORY_DAYS_LIMIT`) **never deletes unsynced items**. Background auto-sync is scheduled `autoSyncDelaySeconds` (clamped 3–60s, default 8) after unsynced changes; foreground resume sync is triggered by `useAppLifecycle`.
+
+**1.7.1 (21 Nov 2026):** (1) **Replies stream word by word** — `api/aiClient.streamChatReply` uses Expo's streaming `expo/fetch` (lazy, guarded; without it the whole reply still arrives at once); streamed and final text share `lib/chat/replyPunctuation`. (2) **A used-up daily limit is said plainly** — card "You've used today's 20 free replies" with Top up credits / Get Plus, a strip above the composer while replies are simpler, and bubble labels by reason (quota / offline / connection) instead of a blanket "Offline mode". (3) **Sign-in never stays stuck after a cancel** (Apple and every provider).
 
 **Cloud backup is OPT-IN (from 1.7.0, owner 14 Nov 2026, #94)** — `src/lib/cloudBackup.ts` (AsyncStorage `imotara.cloudBackup.v1`, absent = off) is the ONE gate: `HistoryContext` syncs only when `cloudBackupOn && status === "authenticated"` (anonymous never counts), and `api/historyClient` refuses pull/push first while it is off. Free for every real account; switched off on ANY loss of a real session (AuthContext). The old `LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` / `EXPO_PUBLIC_LAUNCH_CLOUD_SYNC_FREE_FOR_ALL` override is **retired** — nothing reads it (eas.json may still set it; harmless).
 

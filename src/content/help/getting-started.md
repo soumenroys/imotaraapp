@@ -66,6 +66,8 @@ Signing in is what turns on cross-device sync, cloud backup, and unlimited voice
 
 Imotara also has an app for iPhone and Android. On the website chat, tap **App** at the top to open the App Store or Google Play. After your third message you may also see one quiet line — "Want me with you on your phone?" — with the same two links; it appears once, and **×** hides it.
 
+One link works on any phone: **imotara.com/get-app** opens Google Play on Android, the App Store on iPhone and iPad, and this website on a computer.
+
 ## Signing in on a second device
 
 1. On the second device, sign in with the **same** account (same Google, email, or Apple identity).

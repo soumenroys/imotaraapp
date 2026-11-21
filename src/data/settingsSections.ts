@@ -57,7 +57,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "mindset-analysis", title: "Mindset Analysis",
       synonyms: ["mindset", "psychological analysis", "patterns"] },
     { id: "appearance", title: "Appearance",
-      synonyms: ["theme", "dark mode", "light mode", "text size", "font size", "colour", "color", "accent"] },
+      synonyms: ["theme", "dark mode", "light mode", "text size", "font size", "colour", "color", "accent", "connect", "show connect", "connect tab", "menu", "wellness companion booking"] },
     { id: "emotion-analysis-mode", title: "Emotion analysis mode",
       synonyms: ["emotion analysis", "on device", "remote analysis", "accuracy"] },
     { id: "safety-crisis", title: "Safety & crisis resources",

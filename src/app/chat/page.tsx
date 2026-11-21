@@ -121,6 +121,7 @@ import {
 import { returningFeeling, returningLangOf, returningLine, type FeelingDetectors } from "@/lib/imotara/returningLine";
 import { detectAdultContent, buildAdultSafetyRefusal } from "@/lib/safety/adultContentGuard";
 import { noteMessageSent, tallyFunnel } from "@/lib/analytics/visitTallyClient";
+import { readShowConnect } from "@/lib/imotara/connectVisibility";
 // Web → app handoff (owner 21 Nov 2026, options A + B). Store links match the
 // site's structured data (lib/broadcast/markup.ts) minus the /in/ storefront,
 // because public pages are read worldwide.
@@ -2047,7 +2048,8 @@ export default function ChatPage() {
     try {
       if (localStorage.getItem(DISCOVERY_CARDS_ENABLED_KEY) === "0") return;
       const dismissed: DiscoveryCardId[] = JSON.parse(localStorage.getItem(DISCOVERY_CARDS_KEY) ?? "[]");
-      const next = DISCOVERY_CARD_ORDER.find((id) => !dismissed.includes(id)) ?? null;
+      // #108: no tip pointing at Connect unless the person switched Connect on (Settings → Appearance).
+      const next = DISCOVERY_CARD_ORDER.find((id) => !dismissed.includes(id) && (id !== "connect_translation" || readShowConnect())) ?? null;
       if (next) {
         setDiscoveryCard(next);
         discoveryShownRef.current = true;

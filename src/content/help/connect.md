@@ -11,7 +11,7 @@ Two important things up front:
 - **Connect is 18+ only.** When you first open Connect you'll be asked to confirm your age; users under 18 cannot start sessions. This is enforced, not just a checkbox.
 - **Connect companions are not therapists.** These are supportive, non-clinical companions — a friendly listener, a mentor, a calming presence — not licensed medical or mental-health professionals. If you need clinical help, please see our Safety & Crisis article.
 
-Connect is available on every plan; find it at **imotara.com/connect** or the Connect tab in the mobile app.
+Connect is available on every plan. It is **hidden until you switch it on**: **Settings → Appearance → Show Connect** on the web, or **Settings → Advanced → Show Connect** in the app (from the next app update). Then **Connect** appears in the top menu on the web and as a tab in the app. You can always open it directly at **imotara.com/connect**.
 
 ## Browsing companions
 

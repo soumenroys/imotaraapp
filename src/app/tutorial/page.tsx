@@ -2036,7 +2036,7 @@ const FEATURES: Record<string, Feature[]> = {
       short: "Book live sessions with verified peer wellness companions — real people who listen, not clinicians.",
       long: "Imotara Connect is a human layer inside the app. You can browse verified peer wellness companions — people offering support from lived experience, in roles like friend, elder sibling or wellness companion — and book instant or scheduled sessions with them. Connect is peer support and is not clinical care: companions are not therapists, counsellors or doctors. Sessions are billed per minute from your prepaid balance with that specific companion. All sessions are private and confidential.",
       steps: [
-        "Tap the Connect tab at the bottom of the app (or open imotara.com/connect on web).",
+        "Connect is off by default. Switch it on in Settings → Appearance → Show Connect (web) or Settings → Advanced → Show Connect (app), then open the Connect tab — or go straight to imotara.com/connect.",
         "Browse companions — filter by availability, language, or specialty.",
         "Tap a companion card to see their profile, rate, and reviews.",
         "Tap 'Connect now' for an instant session or 'Schedule' to book a future slot.",

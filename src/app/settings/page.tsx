@@ -13,6 +13,7 @@ import { useAppearance, type Accent, type FontSize } from "@/hooks/useAppearance
 import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import { onLicenseRefresh } from "@/lib/imotara/licenseRefresh";
+import { readShowConnect, writeShowConnect } from "@/lib/imotara/connectVisibility";
 import {
     fetchLicense,
     subscribeLicenseStore,
@@ -2300,6 +2301,14 @@ export default function SettingsPage() {
         try { localStorage.setItem(DISCOVERY_ENABLED_KEY, val ? "1" : "0"); } catch { /* ignore */ }
     }
 
+    // ─── #108: Show Connect in the menu (owner 22 Nov 2026: OFF by default) ──
+    const [showConnectTab, setShowConnectTab] = useState(false);
+    useEffect(() => { setShowConnectTab(readShowConnect()); }, []);
+    function handleShowConnectToggle(val: boolean) {
+        setShowConnectTab(val);
+        writeShowConnect(val);
+    }
+
     // ─── O-2: Restart onboarding ─────────────────────────────────────────────
     const ONBOARDING_DONE_KEY = "imotara.onboarding.done.v1";
     const [onboardingResetMsg, setOnboardingResetMsg] = useState<string | null>(null);
@@ -4444,6 +4453,19 @@ export default function SettingsPage() {
                             onClick={() => handleVoiceConfirmToggle(!voiceConfirm)}
                             className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${voiceConfirm ? "bg-sky-500" : "bg-zinc-600"}`}>
                             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${voiceConfirm ? "translate-x-4" : "translate-x-0"}`} />
+                        </button>
+                    </div>
+
+                    {/* #108 (owner 22 Nov 2026): Connect tab — OFF by default, shown only when switched on */}
+                    <div className="mt-2 flex items-center justify-between gap-4 rounded-xl border border-white/8 bg-white/4 px-3 py-3">
+                        <div>
+                            <p className="text-xs font-medium text-zinc-200">Show Connect</p>
+                            <p className="mt-0.5 text-[11px] text-zinc-500">Adds Connect to the menu — for booking a session with a human wellness companion. Off by default.</p>
+                        </div>
+                        <button type="button" role="switch" aria-checked={showConnectTab} aria-label="Show Connect"
+                            onClick={() => handleShowConnectToggle(!showConnectTab)}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${showConnectTab ? "bg-sky-500" : "bg-zinc-600"}`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${showConnectTab ? "translate-x-4" : "translate-x-0"}`} />
                         </button>
                     </div>
                     </>)}

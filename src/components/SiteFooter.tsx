@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import packageJson from "../../package.json";
 import { BUSINESS } from "@/lib/imotara/businessIdentity";
+import ShowWhenConnectOn from "@/components/imotara/ShowWhenConnectOn";
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
 
@@ -222,16 +223,20 @@ export default function SiteFooter() {
               Explore
             </p>
             <nav className="grid grid-cols-2 gap-x-3 gap-y-1.5" aria-label="Footer navigation">
-              {NAV_LINKS.map(({ href, label, emoji }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
-                >
-                  <span className="text-[13px] opacity-60 group-hover:opacity-100 transition">{emoji}</span>
-                  {label}
-                </Link>
-              ))}
+              {NAV_LINKS.map(({ href, label, emoji }) => {
+                const link = (
+                  <Link
+                    key={href}
+                    href={href}
+                    className="group flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs text-zinc-500 transition hover:bg-white/5 hover:text-zinc-200"
+                  >
+                    <span className="text-[13px] opacity-60 group-hover:opacity-100 transition">{emoji}</span>
+                    {label}
+                  </Link>
+                );
+                // #108: Connect only for people who switched it on (Settings → Appearance; off by default)
+                return href === "/connect" ? <ShowWhenConnectOn key={href}>{link}</ShowWhenConnectOn> : link;
+              })}
             </nav>
           </div>
 

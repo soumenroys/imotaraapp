@@ -36,3 +36,11 @@ describe("one source for the donation buttons", () => {
     expect(FALLBACK_DONATION_PRESETS.map((p) => [p.id, p.amount])).toEqual(india.map((p) => [p.id, p.paise]));
   });
 });
+
+describe("⛔ no offline promise in the home-screen prompt (24 Nov 2026)", () => {
+  it("replies need the internet, so the install prompt never says 'offline'", () => {
+    const p = src("src/components/imotara/PWAInstallPrompt.tsx");
+    expect(p).not.toMatch(/offline/i);
+    expect(p).toContain("Open Imotara in one tap, like an app.");
+  });
+});

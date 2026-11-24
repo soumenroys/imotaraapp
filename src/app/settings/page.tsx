@@ -14,6 +14,7 @@ import EmotionalFingerprint from "@/components/imotara/EmotionalFingerprint";
 import useFeatureGate from "@/hooks/useFeatureGate";
 import { onLicenseRefresh } from "@/lib/imotara/licenseRefresh";
 import { readShowConnect, writeShowConnect } from "@/lib/imotara/connectVisibility";
+import { useDonationPresets } from "@/hooks/useDonationPresets";
 import {
     fetchLicense,
     subscribeLicenseStore,
@@ -1832,16 +1833,9 @@ export default function SettingsPage() {
         return process.env.NEXT_PUBLIC_IMOTARA_LICENSE_MODE || "off";
     }, []);
 
-    const DONATION_PRESETS = useMemo(
-        () => [
-            { id: "inr_49", label: "₹49", amount: 4900 },
-            { id: "inr_99", label: "₹99", amount: 9900 },
-            { id: "inr_199", label: "₹199", amount: 19900 },
-            { id: "inr_499", label: "₹499", amount: 49900 },
-            { id: "inr_999", label: "₹999", amount: 99900 },
-        ],
-        []
-    );
+    // #38 (24 Nov 2026): the visitor's own country band, same as /donate — the server
+    // charges by band, so a fixed ₹ ladder here showed one amount and charged another.
+    const DONATION_PRESETS = useDonationPresets();
 
     async function handleClearChat() {
         if (typeof window === "undefined") return;

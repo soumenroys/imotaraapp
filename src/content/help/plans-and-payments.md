@@ -76,7 +76,7 @@ In every case, you keep access until the end of the period you paid for. Nothing
 
 Imotara exists so emotional support isn't gated behind affordability. If you'd like to support that mission:
 
-1. **On web:** **Settings → Support Imotara (Donate)** — tap a preset amount and complete the Razorpay checkout. Your receipt appears under **Your Donations** (press **Refresh** to reload). The **imotara.com/donate** page offers the same presets.
+1. **On web:** **Settings → Support Imotara (Donate)** — tap a preset amount and complete the Razorpay checkout. Your receipt appears under **Your Donations** (press **Refresh** to reload). The **imotara.com/donate** page offers the same presets. The amounts follow the country you are in (shown and charged in rupees), and the button always shows the amount the checkout will charge.
 2. **On iOS:** tips go through Apple's tip jar — tap a tip amount ("Processed securely by Apple").
 
 Donations are separate from subscriptions — they don't change your plan, they just keep the lights warm. Thank you.

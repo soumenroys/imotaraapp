@@ -112,8 +112,10 @@ export default function GoogleIdButton({ onToken, fallback, disabled }: Props) {
     // ready: Google's button · fallback: the old button (blocked, slow, or not our host)
     const [phase, setPhase] = useState<"waiting" | "ready" | "fallback">("waiting");
     const ready = phase === "ready";
+    // Latest onToken for Google's callback, which fires long after render. Updated in an
+    // effect, not during render (react-hooks/refs — this line broke CI lint from 21 Nov).
     const onTokenRef = useRef(onToken);
-    onTokenRef.current = onToken;
+    useEffect(() => { onTokenRef.current = onToken; }, [onToken]);
 
     useEffect(() => {
         if (!canUseGis(window.location.hostname)) { setPhase("fallback"); return; }

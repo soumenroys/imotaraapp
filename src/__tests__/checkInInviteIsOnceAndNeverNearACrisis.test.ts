@@ -14,10 +14,14 @@ const src = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
 const base = { state: "unseen" as const, userMessageCount: 2, crisisInThread: false, hasIdentity: true, pushPossible: true };
 
 describe("when the card may appear", () => {
-  it("after 2 messages from the person (#16 B), not before", () => {
-    expect(INVITE_MIN_MESSAGES).toBe(2);
+  it("under the FIRST reply (owner 25 Nov 2026; was 2 since #16 B) — never before the person has spoken", () => {
+    expect(INVITE_MIN_MESSAGES).toBe(1);
+    expect(shouldOfferInvite({ ...base, userMessageCount: 1 })).toBe(true);
     expect(shouldOfferInvite(base)).toBe(true);
-    expect(shouldOfferInvite({ ...base, userMessageCount: 1 })).toBe(false);
+    expect(shouldOfferInvite({ ...base, userMessageCount: 0 })).toBe(false);
+  });
+  it("⛔ still never on a first message that touches a crisis", () => {
+    expect(shouldOfferInvite({ ...base, userMessageCount: 1, crisisInThread: true })).toBe(false);
   });
   it("#16 A: a guest with an identity is invited; nobody without one", () => {
     const page = src("src/app/chat/page.tsx");

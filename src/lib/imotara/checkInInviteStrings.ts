@@ -249,8 +249,12 @@ export function setInviteState(s: Exclude<InviteState, "unseen">): void {
  * anonymous identity — the one their chats are logged under — and the push is
  * saved against that. `hasIdentity` = signed in OR a guest identity was found.
  */
-/** Messages the person must have sent before the invite may appear (#16 B). */
-export const INVITE_MIN_MESSAGES = 2;
+/**
+ * Messages the person must have sent before the invite may appear. 2 since #16 B (10 Nov 2026);
+ * 1 since 25 Nov 2026 (owner): 21–40% of new chatters leave after ONE reply and never saw it.
+ * Same as the app (imotara-mobile src/notifications/checkInInvite.ts).
+ */
+export const INVITE_MIN_MESSAGES = 1;
 
 export function shouldOfferInvite(args: {
     state: InviteState;

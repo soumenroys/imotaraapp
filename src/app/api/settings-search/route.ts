@@ -75,6 +75,7 @@ const SETTINGS_LIST = [
   { id: "weekly_recap", title: "Weekly mood recap", description: "Show a summary of how the week has felt" },
   { id: "message_undo", title: "Message undo", description: "A few seconds to take a message back after sending" },
   { id: "daily_checkin", title: "Daily check-in", description: "Show the once-a-day check-in prompt in chat" },
+  { id: "checkin_reminder", title: "Daily check-in reminder", description: "A gentle daily reminder notification at a time you choose (hour and minute), on or off" },
   { id: "collective_pulse", title: "Collective pulse", description: "Show the anonymous card about how others are feeling today" },
   { id: "tone_reflection", title: "Tone reflection card", description: "Show the card reflecting the tone of a finished conversation" },
   { id: "return_greeting", title: "Return greeting", description: "Greet the user on returning after time away" },

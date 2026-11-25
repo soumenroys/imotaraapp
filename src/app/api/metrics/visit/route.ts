@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 import { parseTallyEvents } from "@/lib/analytics/visitTally";
 import { refuseAsRobot } from "@/lib/analytics/automatedVisitor";
+import { isTestBuild } from "@/lib/analytics/testBuild";
 
 export const runtime = "nodejs";
 
@@ -18,6 +19,11 @@ export async function POST(req: NextRequest) {
     // ⛔ Only for web: the apps' own HTTP stacks (okhttp, CFNetwork) are not robots.
     const platform = resolvePlatform(req);
     if (refuseAsRobot(platform, req.headers.get("user-agent"))) {
+        return new NextResponse(null, { status: 204 });
+    }
+    // #170 (25 Nov 2026): our own simulator / emulator / dev builds say so — never counted.
+    // ⚠️ Only an explicit "test" is dropped: store apps from before this change send nothing.
+    if (isTestBuild(req.headers.get("x-imotara-build"))) {
         return new NextResponse(null, { status: 204 });
     }
     let body: unknown = null;

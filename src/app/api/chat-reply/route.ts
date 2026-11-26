@@ -32,6 +32,7 @@ import { deriveAnalyticsEmotion } from "@/lib/emotion/analyticsEmotion";
 const RATE_LIMIT_PER_MIN = 30;
 import { formatImotaraReply } from "@/lib/imotara/response/responseFormatter";
 import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
+import { endCleanly } from "@/lib/imotara/response/endCleanly";
 import { getCulturalEmotionWord } from "@/lib/ai/cultural/culturalEmotionVocab";
 
 import {
@@ -262,8 +263,11 @@ export function replyTokenBudget(
     depth: string | undefined,
     resolvedLang: string | undefined | null,
 ): number {
+    // #17 B (26 Nov 2026): closure 80 → 120. Live logs showed English goodbyes still cut
+    // at 80 (2 in one day). 120 leaves room for the "1-2 short sentences" the closure
+    // prompt asks for; brevity comes from that prompt, and it stays well under a normal reply.
     const base = isClosureIntent
-        ? 80
+        ? 120
         : depth === "deep"
             ? 320
             : depth === "moderate"
@@ -3867,12 +3871,19 @@ export async function POST(req: Request) {
           // 🔑 First, before any words: the country hint. Clients that do not know this
           //    event skip it — both readers only take events carrying "t".
           if (resolvedCountry) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ meta: { resolvedCountry } })}\n\n`));
+          // #17 B (26 Nov 2026): if the model is cut at the length limit, the words already
+          // shown can't be taken back — so the stream ends with ONE `replace` event carrying the
+          // same reply ending on its last full sentence. Clients that don't know `replace` skip it
+          // (both readers only take events carrying "t") and keep what they had, as before.
+          let streamed = "";
+          let truncated = false;
           try {
             for await (const token of streamImotaraAI("Reply now.", {
               system: streamSystem,
               maxTokens: streamMaxTokens,
               temperature: replyTemperature,
               clientBudgetMs: clientBudgetFrom(req),
+              onTruncated: () => { truncated = true; },
             })) {
               /**
                * 🔴 THE ROMANIZED STRIP, ON THE PATH THAT ACTUALLY RUNS.
@@ -3901,11 +3912,16 @@ export async function POST(req: Request) {
               const outToken = isRomanInput
                 ? token.replace(/[^\x00-\x7F]/g, " ")
                 : token;
+              streamed += outToken;
               controller.enqueue(
                 encoder.encode(`data: ${JSON.stringify({ t: outToken })}\n\n`),
               );
             }
           } catch { /* stream ended or model error — client will use what arrived */ }
+          if (truncated && streamed.trim()) {
+            const clean = endCleanly(streamed);
+            if (clean !== streamed) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ replace: clean })}\n\n`));
+          }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         },

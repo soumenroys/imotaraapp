@@ -409,9 +409,15 @@ export async function respondRemote(input: {
                     const data = line.slice(6).trim();
                     if (data === "[DONE]") { done = true; break; }
                     try {
-                        const { t } = JSON.parse(data) as { t?: string };
+                        const { t, replace } = JSON.parse(data) as { t?: string; replace?: string };
                         if (t) {
                             fullText += t;
+                            input.onChunk?.(fullText);
+                        }
+                        // #17 B (26 Nov 2026): the server cut a reply at the length limit and
+                        // sends the same reply ending on its last full sentence — show that instead.
+                        if (typeof replace === "string" && replace.trim()) {
+                            fullText = replace;
                             input.onChunk?.(fullText);
                         }
                     } catch { /* skip malformed chunk */ }

@@ -37,26 +37,27 @@ const budget = (depth: string, closure: boolean, lang: string) =>
 
 describe("🔴 a non-English send-off gets the same headroom as any other reply", () => {
     it("Bengali closure is scaled, not left at the English budget", () => {
-        expect(budget("light", true, "bn")).toBe(112);
+        expect(budget("light", true, "bn")).toBe(168);
         expect(budget("light", true, "bn")).toBeGreaterThan(budget("light", true, "en"));
     });
 
     it("every Indian language gets it", () => {
         for (const l of ["hi", "bn", "ta", "te", "mr", "gu", "pa", "kn", "ml", "or", "ur"]) {
-            expect(budget("light", true, l), l).toBe(112);
+            expect(budget("light", true, l), l).toBe(168);
         }
     });
 
     it("the foreign languages too", () => {
         for (const l of ["ar", "he", "ru", "zh", "ja", "es", "fr", "de", "pt", "id"]) {
-            expect(budget("light", true, l), l).toBe(112);
+            expect(budget("light", true, l), l).toBe(168);
         }
     });
 });
 
 describe("⚖️ what must NOT have changed", () => {
-    it("an English closure reply is still 80 — the cap keeps it short", () => {
-        expect(budget("light", true, "en")).toBe(80);
+    it("an English closure reply is 120 (#17 B, 26 Nov 2026: 80 still cut goodbyes) — still capped short", () => {
+        expect(budget("light", true, "en")).toBe(120);
+        expect(budget("light", true, "en")).toBeLessThan(budget("light", false, "en"));
     });
 
     it("a closure reply is still much shorter than a normal one", () => {
@@ -100,7 +101,7 @@ describe("⛔ the exclusion must not come back", () => {
     it("the closure budget itself is still deliberate, not accidental", () => {
         const i = SRC.indexOf("export function replyTokenBudget(");
         const fn = SRC.slice(i, SRC.indexOf("\n}", i));
-        expect(fn).toMatch(/isClosureIntent\s*\n?\s*\?\s*80/);
+        expect(fn).toMatch(/isClosureIntent\s*\n?\s*\?\s*120/);
     });
 
     it("POST uses this function rather than its own copy of the maths", () => {

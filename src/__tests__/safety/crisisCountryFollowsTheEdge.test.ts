@@ -33,7 +33,9 @@ describe("the server says where the request came from", () => {
 describe("⛔ an older client is not broken by the new event", () => {
   it("both stream readers only take events that carry t", () => {
     // Web reader: `const { t } = JSON.parse(data)` then `if (t)`.
-    expect(src("src/lib/imotara/respondRemote.ts")).toMatch(/const \{ t \} = JSON\.parse\(data\)[\s\S]{0,60}if \(t\)/);
+    // #17 B (26 Nov 2026): it also reads `replace` (a cut reply's clean ending) — still never the meta event.
+    expect(src("src/lib/imotara/respondRemote.ts")).toMatch(/const \{ t(?:, replace)? \} = JSON\.parse\(data\)[\s\S]{0,80}if \(t\)/);
+    expect(src("src/lib/imotara/respondRemote.ts")).toMatch(/if \(typeof replace === "string" && replace\.trim\(\)\)/);
   });
 });
 

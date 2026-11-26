@@ -552,6 +552,14 @@ const SENTIMENT_SEEDS_BY_LANG: Record<string, [string, string, string]> = {
   ar: ["أشعر بثقل", "أحتاج للتعبير", "أفكر بصوت عالٍ"],
   de: ["Fühle mich schwer", "Muss mal reden", "Denke laut nach"],
   ja: ["気持ちが重い", "話を聞いてほしい", "ただ考えを整理したい"],
+  // #48 (27 Nov 2026): these 7 showed the chips in English. Gender-neutral wording.
+  es: ["Siento un peso encima", "Necesito desahogarme", "Solo pienso en voz alta"],
+  fr: ["J'ai le cœur lourd", "Besoin de vider mon sac", "Je réfléchis à voix haute"],
+  pt: ["Sinto um peso", "Preciso desabafar", "Só pensando em voz alta"],
+  ru: ["На душе тяжело", "Нужно выговориться", "Просто думаю вслух"],
+  id: ["Rasanya berat", "Perlu curhat", "Cuma lagi mikir-mikir"],
+  ur: ["دل بھاری ہے", "دل کی بات کہنی ہے", "بس سوچ رہا/رہی ہوں"],
+  zh: ["心里很沉重", "想倾诉一下", "只是自言自语"],
 };
 
 // Mood glimpse — local emotion hint from latest user message text
@@ -613,6 +621,18 @@ function getWeeklyRecapText(topEmotion: string, count: number, lang: string): st
     gu: (e, c) => `છેલ્લા 7 દિવસ: "${e}" સૌથી વધુ (${c} વખત). આ પાછળ શું છે, વિચારવું છે?`,
     pa: (e, c) => `ਪਿਛਲੇ 7 ਦਿਨ: "${e}" ਸਭ ਤੋਂ ਵੱਧ (${c} ਵਾਰ). ਇਸ ਪਿੱਛੇ ਕੀ ਹੈ, ਸੋਚਣਾ ਚਾਹੋਗੇ?`,
     or: (e, c) => `ଗତ 7 ଦିନ: "${e}" ସବୁଠୁ ଅଧିକ (${c} ଥର). ଏହା ପଛରେ କ'ଣ ଅଛି ଭାବିବାକୁ ଚାହୁଁଛନ୍ତି?`,
+    // #48 (27 Nov 2026): these 11 showed the weekly recap in English.
+    es: (e, c) => `Últimos 7 días: "${e}" fue tu sentimiento más frecuente (${c} veces). ¿Quieres pensar en qué lo ha provocado?`,
+    fr: (e, c) => `Ces 7 derniers jours : « ${e} » a été ton ressenti le plus fréquent (${c} fois). Tu veux réfléchir à ce qui le nourrit ?`,
+    de: (e, c) => `Letzte 7 Tage: „${e}“ war dein häufigstes Gefühl (${c}-mal). Magst du darüber nachdenken, was dahintersteckt?`,
+    pt: (e, c) => `Últimos 7 dias: "${e}" foi o sentimento mais frequente (${c} vezes). Quer refletir sobre o que tem causado isso?`,
+    ru: (e, c) => `Последние 7 дней: твоё самое частое чувство — «${e}» (отмечено: ${c}). Хочешь подумать, что за этим стоит?`,
+    id: (e, c) => `7 hari terakhir: "${e}" adalah perasaan yang paling sering kamu rasakan (${c} kali). Mau merenungkan apa penyebabnya?`,
+    ar: (e, c) => `آخر 7 أيام: كان "${e}" الشعور الأكثر تكرارًا لديك (${c} مرات). هل تريد أن تتأمل في ما يقف وراءه؟`,
+    he: (e, c) => `7 הימים האחרונים: "${e}" היה הרגש השכיח ביותר שלך (${c} פעמים). רוצה לחשוב מה עומד מאחוריו?`,
+    ur: (e, c) => `پچھلے 7 دن: "${e}" آپ کا سب سے زیادہ محسوس ہونے والا احساس رہا (${c} بار)۔ کیا اس کے پیچھے کی وجہ پر سوچنا چاہیں گے؟`,
+    zh: (e, c) => `过去7天：「${e}」是你最常出现的感受（${c}次）。想聊聊背后的原因吗？`,
+    ja: (e, c) => `この7日間：「${e}」が一番多かった気持ちでした（${c}回）。その背景を少し振り返ってみませんか？`,
   };
   return (RECAP[lang] ?? RECAP.en)(topEmotion, count);
 }
@@ -5384,6 +5404,63 @@ const MOOD_OPTIONS_BY_LANG: Record<string, MoodOption[]> = {
     { emoji: "😤", label: "怒り",   starter: "今、怒りを感じています。" },
     { emoji: "😕", label: "混乱",   starter: "頭が混乱していて、どうしたらいいかわかりません。" },
     { emoji: "😶", label: "無感覚", starter: "何も感じられない状態です。" },
+  ],
+  // #48 (27 Nov 2026): these 7 showed the mood check-in in English. Gender-neutral wording.
+  es: [
+    { emoji: "😊", label: "Bien",        starter: "Hoy me siento bastante bien." },
+    { emoji: "😔", label: "Triste",      starter: "Me he sentido triste y no sé muy bien por qué." },
+    { emoji: "😰", label: "Estrés",      starter: "Últimamente tengo mucho estrés." },
+    { emoji: "😤", label: "Frustración", starter: "Tengo mucha frustración y necesito sacarla." },
+    { emoji: "😟", label: "Ansiedad",    starter: "He sentido mucha ansiedad y preocupación." },
+    { emoji: "🌧️", label: "Soledad",     starter: "Ahora mismo siento un poco de soledad." },
+  ],
+  fr: [
+    { emoji: "😊", label: "Bien",        starter: "Je me sens plutôt bien aujourd'hui." },
+    { emoji: "😔", label: "Triste",      starter: "Je me sens triste et je ne sais pas trop pourquoi." },
+    { emoji: "😰", label: "Stress",      starter: "Je ressens beaucoup de stress ces derniers temps." },
+    { emoji: "😤", label: "Frustration", starter: "J'ai de la frustration et j'ai besoin de la laisser sortir." },
+    { emoji: "😟", label: "Anxiété",     starter: "Je ressens de l'anxiété et de l'inquiétude." },
+    { emoji: "🌧️", label: "Solitude",    starter: "Je ressens un peu de solitude en ce moment." },
+  ],
+  pt: [
+    { emoji: "😊", label: "Bem",         starter: "Hoje estou me sentindo muito bem." },
+    { emoji: "😔", label: "Triste",      starter: "Tenho me sentido triste e não sei bem por quê." },
+    { emoji: "😰", label: "Estresse",    starter: "Ando com muito estresse ultimamente." },
+    { emoji: "😤", label: "Frustração",  starter: "Estou com muita frustração e preciso desabafar." },
+    { emoji: "😟", label: "Ansiedade",   starter: "Tenho sentido ansiedade e preocupação." },
+    { emoji: "🌧️", label: "Solidão",     starter: "Estou sentindo um pouco de solidão agora." },
+  ],
+  ru: [
+    { emoji: "😊", label: "Хорошо",      starter: "Сегодня мне довольно хорошо." },
+    { emoji: "😔", label: "Грустно",     starter: "Мне грустно, и я не совсем понимаю почему." },
+    { emoji: "😰", label: "Стресс",      starter: "В последнее время у меня много стресса." },
+    { emoji: "😤", label: "Злость",      starter: "Меня всё злит, хочу выговориться." },
+    { emoji: "😟", label: "Тревога",     starter: "Мне тревожно, и я переживаю." },
+    { emoji: "🌧️", label: "Одиноко",     starter: "Мне сейчас немного одиноко." },
+  ],
+  id: [
+    { emoji: "😊", label: "Baik",        starter: "Hari ini aku merasa cukup baik." },
+    { emoji: "😔", label: "Sedih",       starter: "Aku merasa sedih dan nggak tahu kenapa." },
+    { emoji: "😰", label: "Stres",       starter: "Belakangan ini aku stres banget." },
+    { emoji: "😤", label: "Kesal",       starter: "Aku kesal dan butuh melampiaskannya." },
+    { emoji: "😟", label: "Cemas",       starter: "Aku merasa cemas dan khawatir." },
+    { emoji: "🌧️", label: "Kesepian",    starter: "Aku merasa agak kesepian sekarang." },
+  ],
+  ur: [
+    { emoji: "😊", label: "اچھا",        starter: "آج دل کافی اچھا ہے۔" },
+    { emoji: "😔", label: "اداس",        starter: "پتا نہیں کیوں، مگر آج دل اداس ہے۔" },
+    { emoji: "😰", label: "تناؤ",        starter: "کچھ عرصے سے بہت تناؤ ہے۔" },
+    { emoji: "😤", label: "غصہ",         starter: "بہت غصہ ہے، باہر نکالنا ہے۔" },
+    { emoji: "😟", label: "فکر",         starter: "کافی پریشانی اور فکر ہے۔" },
+    { emoji: "🌧️", label: "تنہائی",      starter: "ابھی کافی تنہائی محسوس ہو رہی ہے۔" },
+  ],
+  zh: [
+    { emoji: "😊", label: "不错",        starter: "我今天感觉还不错。" },
+    { emoji: "😔", label: "难过",        starter: "我最近有点难过，也说不清为什么。" },
+    { emoji: "😰", label: "压力",        starter: "最近压力真的很大。" },
+    { emoji: "😤", label: "烦躁",        starter: "我很烦躁，想发泄一下。" },
+    { emoji: "😟", label: "焦虑",        starter: "我一直感到焦虑和担心。" },
+    { emoji: "🌧️", label: "孤单",        starter: "我现在觉得有点孤单。" },
   ],
 };
 

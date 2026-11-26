@@ -4,6 +4,7 @@ import { statedPreference } from "./statedPreference";
 import { isBadPlaceholderText } from "@/lib/imotara/response/badPlaceholderText";
 import { englishSignal } from "./scriptDetection";
 import { guestChatToken } from "@/lib/imotara/guestChatIdentity";
+import { readShowConnect } from "@/lib/imotara/connectVisibility";
 
 /** Script-based language detection — handles native scripts via Unicode ranges.
  *  Urdu-specific chars are checked before the generic Arabic block to avoid misclassification. */
@@ -338,6 +339,8 @@ export async function respondRemote(input: {
         ...(typeof ctx.emotionMemory === "string" && ctx.emotionMemory ? { emotionMemory: ctx.emotionMemory } : {}),
         ...(userGender && userGender !== "prefer_not" && userGender !== "other" ? { userGender } : {}),
         ...(companionGender && companionGender !== "prefer_not" && companionGender !== "other" ? { companionGender } : {}),
+        // #17 (26 Nov 2026): the reply may name Imotara Connect only when this person can see it.
+        connectVisible: readShowConnect(),
     });
 
     // Read API timeout preference (default 20s — matches mobile default)

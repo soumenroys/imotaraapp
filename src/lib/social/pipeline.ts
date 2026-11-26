@@ -541,6 +541,15 @@ export function titleFormLine(forms: string[] | undefined, postsSoFar: number): 
   );
 }
 
+/**
+ * Where a run starts in the angle cycle and title forms: the post's own turn, moved on
+ * by one for every earlier failed run of the same slot (see `slotRetry`).
+ */
+export function retryTurn(postsSoFar: number, slotRetry?: number): number {
+  const r = Number.isFinite(slotRetry) && (slotRetry as number) > 0 ? Math.floor(slotRetry as number) : 0;
+  return postsSoFar + r;
+}
+
 export function angleOrder(cycle: string[], postsSoFar: number): string[] {
   if (cycle.length === 0) {
     throw new Error("social/pipeline: this schedule has no topic pool, so there is nothing to write about.");
@@ -822,13 +831,27 @@ export async function prepareGenerated(
     scheduledFor?: string;
     /** This week's vetted moments ⇒ trends.ts. None ⇒ the "trending" angle stands down. */
     trends?: TrendNote[];
+    /**
+     * 🔴 HOW MANY EARLIER RUNS FOR THIS SAME SLOT ALREADY FAILED (26 Nov 2026).
+     *
+     * Every run used to start from the identical angle and title form, so a slot that
+     * failed once got the same three drafts every six hours: Instagram, Sun 6 Dec,
+     * 5 runs, the same "A reply…" opener and the same clash with "When tiredness
+     * doesn't use its own name" each time. A retry is only worth making if something
+     * is different ⇒ the starting angle and title form move on by one per failed run.
+     * 0 / absent = the first run, exactly as before.
+     */
+    slotRetry?: number;
+    /** Why the previous run for this slot was refused (social_slot_attempts.last_error). */
+    priorObjection?: string;
   },
 ): Promise<PrepareResult> {
   const language = assertPostableLanguage(args.language);
   const maxAttempts = deps.maxAttempts ?? 3;
   const [recent, overlay] = await Promise.all([deps.recentSubjects(), deps.overlay()]);
   const rejected: RejectedDraft[] = [];
-  const objections: string[] = [];
+  const objections: string[] = args.priorObjection ? [`Previous attempt for this slot: ${args.priorObjection.slice(0, 600)}`] : [];
+  const turn = retryTurn(args.postsSoFar, args.slotRetry);
 
   /**
    * 🔑 THE ANGLE AND ITS WORD ARE DECIDED ONCE, HERE, before any attempt.
@@ -907,7 +930,7 @@ export async function prepareGenerated(
   if (cycle.length === 0 && args.schedule.topicPool.includes("trending")) {
     return { ok: false, reason: "No current moment applies to this post's day, and this schedule has no other angle. Add another angle to the schedule.", rejected: [] };
   }
-  const order = angleOrder(cycle, args.postsSoFar);
+  const order = angleOrder(cycle, turn);
   let pool = order[0];
 
   /**
@@ -931,7 +954,7 @@ export async function prepareGenerated(
   const contextFor = (p: string) => {
     const a = TOPIC_POOLS.find((t) => t.id === p);
     return {
-      brief: (a?.brief ?? args.schedule.brief) + titleFormLine(a?.titleForms, args.postsSoFar),
+      brief: (a?.brief ?? args.schedule.brief) + titleFormLine(a?.titleForms, turn),
       shape: a?.shape ?? shapeFor(args.schedule, args.postsSoFar),
       word: p === "untranslatable" ? pickWord(args.postsSoFar) : null,
       mistake: p === "built-wrong" ? pickMistake(args.postsSoFar) : null,

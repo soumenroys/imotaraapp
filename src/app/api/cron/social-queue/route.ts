@@ -253,6 +253,9 @@ export async function GET(req: NextRequest) {
         scheduledFor: want.scheduledFor,
         // 🔑 This week's vetted moments, read once per run ⇒ trends.ts.
         trends: await trendsFor(),
+        // 🔴 A retry must differ from the run that failed ⇒ pipeline.retryTurn.
+        slotRetry: soFar,
+        priorObjection: tried.get(slotKey(want))?.last_error ?? undefined,
       });
       ceiling = { ...ceiling, calls: ceiling.calls + draftsUsed(prepared) };
       await saveCeiling(ceiling);

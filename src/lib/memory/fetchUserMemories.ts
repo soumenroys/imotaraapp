@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { repairLegacyFact } from "@/lib/memory/memoryFacts";
 
 export type MemoryType = "identity" | "emotion" | "cognitive" | "thread";
 
@@ -37,7 +38,16 @@ export async function fetchUserMemories(
             return [];
         }
 
-        return (data ?? []) as UserMemoryRow[];
+        // Rows saved before 26 Nov 2026 can hold a feeling saved as a JOB ("User is a/an
+        // stressed and overwhelmed"). Every reader (Settings, replies) comes through here, so
+        // repair the wording or drop the row here — never hand it to a reply as a fact.
+        const out: UserMemoryRow[] = [];
+        for (const row of (data ?? []) as UserMemoryRow[]) {
+            const value = typeof row.value === "string" ? repairLegacyFact(row.value) : row.value;
+            if (value === null) continue;
+            out.push(value === row.value ? row : { ...row, value });
+        }
+        return out;
     } catch (err) {
         console.warn("[imotara] fetchUserMemories exception:", err);
         return [];

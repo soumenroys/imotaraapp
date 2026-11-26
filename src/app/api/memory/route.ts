@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
+import { repairLegacyFact } from "@/lib/memory/memoryFacts";
 
 export async function GET() {
     try {
@@ -33,9 +34,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
         }
 
-        const { text } = body;
-        if (!text || typeof text !== "string" || text.trim().length === 0)
+        const { text: raw } = body;
+        if (!raw || typeof raw !== "string" || raw.trim().length === 0)
             return NextResponse.json({ error: "text required" }, { status: 400 });
+
+        // A page loaded before 26 Nov 2026 still sends the old wording, incl. feelings saved
+        // as a job ("User is a/an stressed…"): repair it, or skip it.
+        const text = repairLegacyFact(raw.trim());
+        if (text === null) return NextResponse.json({ ok: true, skipped: true });
 
         const key = text.trim().slice(0, 80);
         const now = new Date().toISOString();

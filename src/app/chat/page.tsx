@@ -1,6 +1,7 @@
 // src/app/chat/page.tsx
 "use client";
 
+import { occupationFrom, occupationFact, placeFact } from "@/lib/memory/memoryFacts";
 import Link from "next/link";
 import Image from "next/image";
 import {
@@ -619,8 +620,7 @@ type CrisisTier = 0 | 1 | 2;
 
 // Companion memory — extract structured facts from a single user message
 const NAME_RE     = /\b(?:my name is|i(?:'m| am) called|call me) ([A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/i;
-const WORK_RE     = /\b(?:i(?:'m| am) (?:a|an)|i work as (?:a|an)) ([\w ]{3,30})\b/i;
-const LOCATION_RE = /\b(?:i(?:'m| am) from|i live in|i(?:'m| am) based in) ([A-Z][a-zA-Z ]{2,30})\b/i;
+// Job and place: see src/lib/memory/memoryFacts.ts — "I'm stressed" was saved as a JOB (26 Nov 2026).
 const EVENT_RE    = /\b(?:i have|i've got|i have a) ([\w ]{2,25}) (?:(?:coming )?up|on (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next week))\b/i;
 const REL_RE      = /\bmy (wife|husband|partner|boyfriend|girlfriend|mom|dad|mother|father|sister|brother|son|daughter|friend)\b(?:'s| is| are| has| have)? ?(\w[^.!?]{0,40})?/i;
 
@@ -629,10 +629,10 @@ function detectMemories(text: string): string[] {
   const t = text.trim();
   const nameMatch = t.match(NAME_RE);
   if (nameMatch) facts.push(`User's name is ${nameMatch[1]}`);
-  const workMatch = t.match(WORK_RE);
-  if (workMatch) facts.push(`User is a/an ${workMatch[1]}`);
-  const locationMatch = t.match(LOCATION_RE);
-  if (locationMatch) facts.push(`User is from/lives in ${locationMatch[1].trim()}`);
+  const job = occupationFrom(t);
+  if (job) facts.push(occupationFact(job));
+  const place = placeFact(t);
+  if (place) facts.push(place);
   const eventMatch = t.match(EVENT_RE);
   if (eventMatch) facts.push(`User has an upcoming ${eventMatch[1].trim()}`);
   const relMatch = t.match(REL_RE);

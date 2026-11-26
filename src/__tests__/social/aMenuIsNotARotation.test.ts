@@ -101,7 +101,11 @@ describe("exactly one angle reaches the writer", () => {
     // `export function angleOrder(cycle: string[]`, which sits earlier in the
     // file than weightedCycle — so the first version of this anchor compared
     // the definition's position and failed on correct code.
-    const at = pipeline.indexOf("angleOrder(cycle, args.postsSoFar)");
+    // ⚠️ 26 Nov: the draw takes `turn` = retryTurn(args.postsSoFar, args.slotRetry), so a retry
+    // of a failed slot starts from the next angle ⇒ aRetryMustDifferFromTheRunThatFailed.test.ts.
+    // Same build → weight → draw order; only the counter it is drawn with moved on.
+    const at = pipeline.indexOf("angleOrder(cycle, turn)");
+    expect(pipeline.indexOf("const turn = retryTurn(args.postsSoFar, args.slotRetry)"), "the draw is no longer anchored to the post's own turn").toBeGreaterThan(-1);
     expect(built, "the pool list is no longer built from the schedule").toBeGreaterThan(-1);
     expect(weighted, "the rotation is no longer weighted").toBeGreaterThan(-1);
     expect(at, "nothing draws a single angle any more").toBeGreaterThan(-1);

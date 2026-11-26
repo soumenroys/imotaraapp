@@ -23,6 +23,7 @@ import fs from "fs";
 import path from "path";
 import {
     SAFETY_BASELINE, CONNECT_REFERRAL_RULE, CONNECT_REMINDER, CRISIS_REMINDER,
+    LONELY_NO_CONNECT_RULE, lonelinessRule,
     SAFETY_RULE_IDS, safetyRuleText, safetyEndReminders,
 } from "@/lib/imotara/replySafetyRules";
 
@@ -80,13 +81,14 @@ describe("🔑 THE DRIFT TEST — every rule reaches BOTH prompts", () => {
 
     it("…the main prompt pulls its rules from the shared module", () => {
         expect(mainPrompt).toMatch(/SAFETY_BASELINE\.full/);
-        expect(mainPrompt).toMatch(/CONNECT_REFERRAL_RULE\.full/);
+        // #17 (26 Nov 2026): the loneliness rule — Connect only when it is on offer.
+        expect(mainPrompt).toMatch(/lonelinessRule\(connectOffered, "full"\)/);
         expect(mainPrompt).toMatch(/safetyEndReminders\(\{[^}]*\}, "full"\)/);
     });
 
     it("…and so does the romanized prompt", () => {
         expect(romanPrompt).toMatch(/SAFETY_BASELINE\.brief/);
-        expect(romanPrompt).toMatch(/CONNECT_REFERRAL_RULE\.brief/);
+        expect(romanPrompt).toMatch(/lonelinessRule\(connectOffered, "brief"\)/);
         expect(romanPrompt).toMatch(/safetyEndReminders\(\{[^}]*\}, "brief"\)/);
     });
 
@@ -96,7 +98,7 @@ describe("🔑 THE DRIFT TEST — every rule reaches BOTH prompts", () => {
         const symbols = (region: string) => {
             const found = new Set<string>();
             for (const m of region.matchAll(
-                /\b(SAFETY_BASELINE|CONNECT_REFERRAL_RULE|CONNECT_REMINDER|CRISIS_REMINDER|safetyEndReminders)\b/g,
+                /\b(SAFETY_BASELINE|CONNECT_REFERRAL_RULE|CONNECT_REMINDER|CRISIS_REMINDER|lonelinessRule|safetyEndReminders)\b/g,
             )) found.add(m[1]);
             return [...found].sort();
         };
@@ -144,8 +146,9 @@ describe("🔑 THE DRIFT TEST — every rule reaches BOTH prompts", () => {
 });
 
 describe("🔴 at most ONE end reminder, and crisis always wins", () => {
+    // When Connect IS on offer (switch on + a companion listed) — the behaviour from before #17.
     const R = (c: boolean, l: boolean, v: "full" | "brief" = "full") =>
-        safetyEndReminders({ isCrisisAdjacent: c, isLonelyOrWantsCompany: l }, v);
+        safetyEndReminders({ isCrisisAdjacent: c, isLonelyOrWantsCompany: l, connectOffered: true }, v);
 
     it("crisis ⇒ the crisis reminder", () => {
         expect(R(true, false)).toBe(CRISIS_REMINDER.full);
@@ -223,7 +226,7 @@ describe("⚖️ PROOF the assembled prompt did not change", () => {
         [l ? CONNECT_REMINDER.full : "", c ? CRISIS_REMINDER.full : ""]
             .filter(Boolean).join("\n");
     const joinNew = (c: boolean, l: boolean) =>
-        [safetyEndReminders({ isCrisisAdjacent: c, isLonelyOrWantsCompany: l }, "full")]
+        [safetyEndReminders({ isCrisisAdjacent: c, isLonelyOrWantsCompany: l, connectOffered: true }, "full")]
             .filter(Boolean).join("\n");
 
     it("✅ identical in every REACHABLE state", () => {
@@ -246,5 +249,59 @@ describe("⚖️ PROOF the assembled prompt did not change", () => {
         expect(old).toContain("You MUST name 'Imotara Connect'");   // the hazard
         expect(now).not.toContain("You MUST name 'Imotara Connect'");
         expect(now).toBe(CRISIS_REMINDER.full);
+    });
+});
+
+describe("🔴 #17 (26 Nov 2026): Connect is named ONLY when it is really on offer", () => {
+    /**
+     * The rule used to be unconditional: every lonely person was told to talk to a real
+     * person on Imotara Connect — while Connect is hidden unless they switch it on (#108)
+     * and had no companions listed. Seen live in a Hindi test on 26 Nov.
+     */
+    const lonely = { isCrisisAdjacent: false, isLonelyOrWantsCompany: true };
+
+    it("lonely + Connect NOT on offer ⇒ no Connect reminder at all", () => {
+        for (const v of ["full", "brief"] as const) {
+            expect(safetyEndReminders({ ...lonely, connectOffered: false }, v)).toBe("");
+        }
+    });
+
+    it("⛔ a MISSING flag counts as NOT on offer (older apps, failed lookups)", () => {
+        for (const v of ["full", "brief"] as const) {
+            expect(safetyEndReminders(lonely, v)).toBe("");
+            expect(lonelinessRule(undefined, v)).toBe(LONELY_NO_CONNECT_RULE[v]);
+        }
+    });
+
+    it("the body rule switches: Connect rule when offered, presence + trusted person otherwise", () => {
+        for (const v of ["full", "brief"] as const) {
+            expect(lonelinessRule(true, v)).toBe(CONNECT_REFERRAL_RULE[v]);
+            expect(lonelinessRule(false, v)).toBe(LONELY_NO_CONNECT_RULE[v]);
+        }
+    });
+
+    it("the no-Connect rule forbids naming Connect and keeps the trusted-person suggestion", () => {
+        for (const v of ["full", "brief"] as const) {
+            expect(LONELY_NO_CONNECT_RULE[v]).toMatch(/Do NOT mention Imotara Connect/);
+            expect(LONELY_NO_CONNECT_RULE[v]).toMatch(/trusted person/);
+            expect(LONELY_NO_CONNECT_RULE[v]).not.toMatch(/\bMUST name\b/);
+        }
+    });
+
+    it("crisis still wins whatever Connect's state", () => {
+        for (const offered of [true, false, undefined]) {
+            expect(safetyEndReminders({ isCrisisAdjacent: true, isLonelyOrWantsCompany: true, connectOffered: offered }, "full"))
+                .toBe(CRISIS_REMINDER.full);
+        }
+    });
+
+    it("the route decides it from the person's switch AND a listed companion, only on lonely turns", () => {
+        expect(SRC).toMatch(/const connectOffered =\s*\n?\s*isLonelyOrWantsCompany &&\s*\n?\s*connectIsOffered\(body\?\.connectVisible, await anyApprovedCompanion\(\)\)/);
+        expect(SRC.match(/safetyEndReminders\(\{ isCrisisAdjacent, isLonelyOrWantsCompany, connectOffered \}/g)?.length).toBe(2);
+    });
+
+    it("the web chat sends the switch", () => {
+        const client = fs.readFileSync(path.join(process.cwd(), "src/lib/imotara/respondRemote.ts"), "utf8");
+        expect(client).toContain("connectVisible: readShowConnect(),");
     });
 });

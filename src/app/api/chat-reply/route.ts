@@ -41,8 +41,9 @@ import {
 import { fetchUserMemories } from "@/lib/memory/fetchUserMemories";
 import { resolvePlatform } from "@/lib/imotara/clientPlatform";
 import {
-    SAFETY_BASELINE, CONNECT_REFERRAL_RULE, safetyEndReminders,
+    SAFETY_BASELINE, lonelinessRule, safetyEndReminders,
 } from "@/lib/imotara/replySafetyRules";
+import { anyApprovedCompanion, connectIsOffered } from "@/lib/imotara/connectAvailability";
 import { resolveUserTier } from "@/lib/imotara/org";
 
 type ChatReplyRequest = {
@@ -78,6 +79,10 @@ type ChatReplyRequest = {
   // ✅ Companion name + user response style (from localStorage profile)
   companionName?: string;
   responseStyle?: "comfort" | "reflect" | "motivate" | "advise";
+
+  // #17 (26 Nov 2026): the person's own Show Connect switch (#108, off by default).
+  // Missing ⇒ treated as off — older app versions never name Connect.
+  connectVisible?: boolean;
 
   // ✅ Rolling context: compact breadcrumb of user messages older than the 12-turn window
   olderContext?: string;
@@ -395,6 +400,14 @@ export async function POST(req: Request) {
       recent
         .filter((m) => m.role === "user")
         .some((m) => LONELY_WANTS_COMPANY_REGEX.test(m.content));
+
+    // #17 (26 Nov 2026): name Imotara Connect only when it is really on offer to
+    // THIS person — their Show Connect switch is on AND an approved companion
+    // exists. Otherwise a lonely person was sent to a tab they could not see,
+    // with nobody there. Looked up only on lonely turns (cached 5 min).
+    const connectOffered =
+      isLonelyOrWantsCompany &&
+      connectIsOffered(body?.connectVisible, await anyApprovedCompanion());
 
     // Normalize message for detection
     const normalizedMsg = lastUserMsg
@@ -1498,7 +1511,7 @@ export async function POST(req: Request) {
       "SYMPTOM MIRRORING: When the user describes specific physical sensations or behaviors — chest tightness, insomnia, not eating, fatigue, headache, trembling, shallow breath — NAME those specific details back. Do NOT respond with a generic 'anxiety is hard' or 'this happens to many people'. Say back the exact thing they described: 'सीने की वो बेचैनी...' / 'नींद न आना और खाना भी नहीं — ये सब एक साथ बहुत भारी होता है'.",
       "OPENER RULE: Never start with 'Got it', 'Absolutely', 'Of course', or similar filler acknowledgements. Respond directly to what the user said.",
       SAFETY_BASELINE.full,
-      CONNECT_REFERRAL_RULE.full,
+      lonelinessRule(connectOffered, "full"),
       "",
       includeExtendedTherapeuticGuidance ? [
         "MOTIVATIONAL GUIDANCE — WISDOM SOURCES FOR ADVICE AND ENCOURAGEMENT (ALL LANGUAGES):",
@@ -3728,7 +3741,7 @@ export async function POST(req: Request) {
       // were two independent conditionals; they can contradict each other, and
       // the only thing preventing it was `!isCrisisAdjacent` in a flag
       // computed 3,300 lines earlier. The precedence now lives with the text.
-      safetyEndReminders({ isCrisisAdjacent, isLonelyOrWantsCompany }, "full"),
+      safetyEndReminders({ isCrisisAdjacent, isLonelyOrWantsCompany, connectOffered }, "full"),
       "Now write " + effectiveCompanionName + "'s next reply — warm, specific to what the user said, and feels like a natural continuation. CRITICAL: Always finish your last sentence completely — never end mid-sentence or mid-word.",
     ]
       .filter(Boolean)
@@ -3793,7 +3806,7 @@ export async function POST(req: Request) {
           // match this prompt's own "1-2 sentences" constraint — full TIER 1
           // framework detail isn't needed, just the core referral behavior.
           SAFETY_BASELINE.brief,
-          isLonelyOrWantsCompany ? CONNECT_REFERRAL_RULE.brief : "",
+          isLonelyOrWantsCompany ? lonelinessRule(connectOffered, "brief") : "",
           companionPersonaHint || "Be warm and empathetic.",
           langAgeOverride,
           emotionHint,
@@ -3811,7 +3824,7 @@ export async function POST(req: Request) {
           // Repeated near the end for recall — same technique used in the
           // main prompt (scriptMirrorInstruction/contextAnchor), needed
           // because a buried instruction alone proved unreliable in testing.
-          safetyEndReminders({ isCrisisAdjacent, isLonelyOrWantsCompany }, "brief"),
+          safetyEndReminders({ isCrisisAdjacent, isLonelyOrWantsCompany, connectOffered }, "brief"),
         ].filter(Boolean).join("\n")
       : null;
 

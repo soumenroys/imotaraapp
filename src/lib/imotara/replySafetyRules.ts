@@ -64,6 +64,26 @@ export const CONNECT_REFERRAL_RULE: Record<SafetyVariant, string> = {
 };
 
 /**
+ * The loneliness rule when Connect is NOT on offer to this person.
+ *
+ * 🔴 26 Nov 2026 (#17 audit): the Connect rule above was unconditional, so every
+ * lonely person was told "you can talk to a real person through Imotara Connect"
+ * — while Connect is HIDDEN unless they switch it on (#108, owner 22 Nov) and had
+ * no companions listed. A lonely first-timer was pointed at something they could
+ * not find, where nobody was waiting. Seen live in a Hindi test that day.
+ *
+ * 🔑 So the route states the Connect rule only when it is really on offer
+ * (`connectOffered`: the person's Show Connect switch is on AND an approved
+ * companion exists), and this rule otherwise. It keeps everything the Connect
+ * rule asked for except the product mention: presence first, and a trusted
+ * person where it fits.
+ */
+export const LONELY_NO_CONNECT_RULE: Record<SafetyVariant, string> = {
+    full: "LONELINESS RULE: If the user says (in ANY language) that they are lonely, have no one to talk to, or wish they had someone real to talk to — be fully present with them first: name the loneliness in their own words. Where it fits naturally, gently wonder whether there is one trusted person — a friend, a relative, someone from before — they could reach out to, even with one small message. Do NOT mention Imotara Connect or any other Imotara feature or service.",
+    brief: "If the user is lonely / has no one to talk to, be present first; where it fits, gently wonder about one trusted person they could reach out to. Do NOT mention Imotara Connect or any other Imotara feature or service.",
+};
+
+/**
  * The near-end reminders.
  *
  * 🔑 These exist because a buried instruction proved unreliable in live
@@ -91,7 +111,18 @@ export type SafetySignals = {
     isCrisisAdjacent: boolean;
     /** Loneliness language — ⚠️ already false whenever isCrisisAdjacent. */
     isLonelyOrWantsCompany: boolean;
+    /**
+     * Connect is really on offer to THIS person: their Show Connect switch is on
+     * and an approved companion exists. ⛔ Missing ⇒ false — never name a place
+     * the person cannot see (see LONELY_NO_CONNECT_RULE).
+     */
+    connectOffered?: boolean;
 };
+
+/** The loneliness rule for the prompt body: Connect only when it is on offer. */
+export function lonelinessRule(connectOffered: boolean | undefined, variant: SafetyVariant): string {
+    return connectOffered === true ? CONNECT_REFERRAL_RULE[variant] : LONELY_NO_CONNECT_RULE[variant];
+}
 
 /**
  * The reminder to repeat near the end of the prompt, or "" for neither.
@@ -119,7 +150,8 @@ export function safetyEndReminders(
     variant: SafetyVariant,
 ): string {
     if (signals.isCrisisAdjacent) return CRISIS_REMINDER[variant];
-    if (signals.isLonelyOrWantsCompany) return CONNECT_REMINDER[variant];
+    // The Connect reminder says "you MUST name Imotara Connect" — only when it is really on offer.
+    if (signals.isLonelyOrWantsCompany && signals.connectOffered === true) return CONNECT_REMINDER[variant];
     return "";
 }
 
@@ -130,7 +162,7 @@ export function safetyEndReminders(
  * the difference between "deliberately absent" and "forgotten".
  */
 export const SAFETY_RULE_IDS = [
-    "baseline", "connect-referral", "connect-reminder", "crisis-reminder",
+    "baseline", "connect-referral", "lonely-no-connect", "connect-reminder", "crisis-reminder",
 ] as const;
 
 export function safetyRuleText(
@@ -140,6 +172,7 @@ export function safetyRuleText(
     switch (id) {
         case "baseline":         return SAFETY_BASELINE[variant];
         case "connect-referral": return CONNECT_REFERRAL_RULE[variant];
+        case "lonely-no-connect": return LONELY_NO_CONNECT_RULE[variant];
         case "connect-reminder": return CONNECT_REMINDER[variant];
         case "crisis-reminder":  return CRISIS_REMINDER[variant];
     }

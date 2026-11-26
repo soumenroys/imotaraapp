@@ -18,7 +18,7 @@ import { callImotaraAI, streamImotaraAI } from "@/lib/imotara/aiClient";
 import type { ImotaraAIResponse } from "@/lib/imotara/aiClient";
 import { getClientIp, checkPersistentIpRateLimit } from "@/lib/imotara/ipRateLimit";
 import { isRomanizedInput } from "@/lib/imotara/scriptDetection";
-import { CRISIS_HINT_REGEX, LONELY_WANTS_COMPANY_REGEX } from "@/lib/emotion/keywordMaps";
+import { isCrisisTier2, LONELY_WANTS_COMPANY_REGEX } from "@/lib/emotion/keywordMaps";
 import { verifiedStoriesFor } from "@/lib/ai/orchestrator/mythologyEngine";
 import { deriveAnalyticsEmotion } from "@/lib/emotion/analyticsEmotion";
 
@@ -379,9 +379,11 @@ export async function POST(req: Request) {
     // already in the system prompt, not sample more freely. Checked across
     // the recent window (not just the latest message) since a crisis signal
     // 1-2 turns back still warrants a measured reply now.
+    // #48 (27 Nov 2026): the SAME union the crisis card uses (isCrisisTier2), so the reply's
+    // crisis rules can never be off while the card is on — 5 natural phrasings were.
     const isCrisisAdjacent = recent
       .filter((m) => m.role === "user")
-      .some((m) => CRISIS_HINT_REGEX.test(m.content));
+      .some((m) => isCrisisTier2(m.content));
     const replyTemperature = isCrisisAdjacent ? 0.4 : 0.8;
 
     // Deterministic trigger for the CONNECT REFERRAL RULE — live testing showed

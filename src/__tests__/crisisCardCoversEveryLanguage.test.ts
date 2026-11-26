@@ -120,8 +120,11 @@ describe("⚠️ THE UNION — neither platform may lose what it already caught"
     it("🔴 the shared regex alone really does miss these — the premise", () => {
         // If this ever fails, CRISIS_HINT_REGEX has grown to cover them and
         // the legacy sets may finally be redundant. Check before deleting.
+        // #48 (27 Nov 2026): the natural-phrasings list added the bare word "suicide"
+        // (it is also French), so that one is now covered by the shared regex too.
+        // The legacy sets stay — the rest is still theirs alone.
         const covered = WEB_ONLY.filter((p) => CRISIS_HINT_REGEX.test(p));
-        expect(covered).toEqual([]);
+        expect(covered).toEqual(["suicide"]);
     });
 
     it("⛔ …and the union catches every one", () => {

@@ -10,6 +10,7 @@
 
 "use server";
 
+import { endCleanly } from "@/lib/imotara/response/endCleanly";
 import { alertKindForOpenAIError } from "./openaiAlertKind";
 import { aiKeyFor, type AIFeature } from "@/lib/imotara/aiKeys";
 
@@ -46,6 +47,13 @@ export type CallImotaraAIOptions = {
    * Used for "pause / goodbye / talk later" closure states.
    */
   noQuestions?: boolean;
+
+  /**
+   * #17 B (26 Nov 2026): told when a STREAMED reply stopped at the length limit, so the
+   * route can send the client a clean ending (endCleanly). Streams can't take back words
+   * already shown, so the fix is a final replace event, not a cut in flight.
+   */
+  onTruncated?: () => void;
 
   /**
    * How long the CLIENT is prepared to wait, in ms, as the client itself
@@ -586,6 +594,10 @@ async function callImotaraAIPrimary(
 
     const usedModel = data?.model || model;
     let text: string | undefined = data?.choices?.[0]?.message?.content?.trim();
+
+    // #17 B (26 Nov 2026): a reply cut at the length limit ends on its last full sentence,
+    // never mid-word. Only when the model was cut — a finished reply is never touched.
+    if (finishReason === "length" && text) text = endCleanly(text);
 
     // Keep existing behavior for “success but empty output”: provide a gentle default.
     if (!text) {
@@ -1460,8 +1472,13 @@ async function* streamImotaraAIPrimary(
         }
         try {
           const parsed = JSON.parse(data) as {
-            choices?: { delta?: { content?: string | null } }[];
+            choices?: { delta?: { content?: string | null }; finish_reason?: string | null }[];
           };
+          // #17 B: the streaming path never said when it was cut — count it, and tell the route.
+          if (parsed.choices?.[0]?.finish_reason === "length") {
+            console.warn(`[imotara][aiClient] stream reply TRUNCATED at maxTokens (maxTokens=${maxTokens}, model=${model})`);
+            options.onTruncated?.();
+          }
           const token = parsed.choices?.[0]?.delta?.content;
           if (token) {
             yieldedAny = true;

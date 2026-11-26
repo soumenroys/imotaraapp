@@ -24,6 +24,9 @@ appears before anything else:
 
 **Age:** you must be **13 or older**, and if you are under **18** a parent or guardian needs to
 agree to your use of Imotara. If the law where you live sets a higher age, that one applies.
+*(App 1.7.3+)* Where Google Play or the App Store tells the app that the person is **under 13**, a gentle stop
+screen with crisis help replaces the chat. For **13–17** the replies use the teen tone and Connect stays closed. If the
+store gives no clear answer, nothing changes — the app never locks anyone out on a guess.
 
 You see this **once**. It comes back only if the Terms themselves change, so you can accept the
 new version. It appears **before** sign-in on purpose — many people chat without ever making an
@@ -37,7 +40,7 @@ account, and they should know what Imotara is too.
 
 ### 1b. Create an account (Google / email magic link / Apple)
 1. **On web:** go to **Settings** and scroll to the **Remote history sync** card, or use the sign-in entry in the top bar. Choose **Google**, **email magic link**, or **Sign in with Apple** (Apple appears on iOS). Sign-in completes through the `/auth/callback` page and returns you to the app.
-2. **On mobile:** open **Settings**, expand the **Your plan** section, and tap **Sign in to restore your plan** (this uses Google sign-in). The session token is stored securely in the device keychain.
+2. **On mobile:** open **Settings**, expand the **Your plan** section, and choose **Sign in or restore your plan** (Google), **Continue with Apple** (iPhone), or **Use email instead** (a one-time code or a password). From app 1.7.3, Google opens the phone's own account picker instead of a web page. The session token is stored securely in the device keychain.
 3. Confirm you are signed in: **On web** the **Remote history sync** card shows **Signed in as [your email]**. **On mobile** the **Your plan** card stops showing the sign-in prompt.
 4. Note: signing in is what turns on cross-device sync and cloud backup and removes the anonymous voice caps.
 
@@ -220,7 +223,8 @@ On mobile all four live together under **Settings → Experience → Voice input
 2. **View:** each remembered fact shows its value plus its type, key, and a confidence %. If empty you'll see "No memories yet — Imotara will pick up facts as you chat."
 3. **Refresh** the list with the **Refresh** button.
 4. **Delete one fact:** tap **Forget** on that row (accessibility label "Forget this memory").
-5. **Control capture:** turn **Companion memory auto-capture** on/off (**Settings → Chat behaviour** on web). Set the **Memory cap** (max number of facts retained) under **Companion memory**.
+5. **What gets remembered (web 26 Nov 2026, app 1.7.3+):** short plain facts — your name, your job ("User works as a teacher"), where you live ("User lives in Kolkata"), an upcoming event, people you mention. A feeling is **never** saved as a fact about you: "I'm stressed" is not a job. Memories saved in the old wording ("User is a/an …", "from/lives in") are reworded or, if wrong, removed automatically.
+6. **Control capture:** turn **Companion memory auto-capture** on/off (**Settings → Chat behaviour** on web). Set the **Memory cap** (max number of facts retained) under **Companion memory**.
 
 ---
 
@@ -251,6 +255,8 @@ On mobile all four live together under **Settings → Experience → Voice input
 ### 10a. Daily check-in reminder at a chosen time
 1. **On web:** **Settings → Browser notifications → Enable notifications** (allow the browser prompt). Then set **Preferred reminder time** (a time picker) — "Daily check-in reminder fires around this time".
 2. **On mobile:** **Settings → Experience → Daily check-in reminder** — flip the switch on (allow the OS permission), then set the time with the **Hour** and **Minute** steppers (minutes step by 15). Optionally enable **Play sound** and **Show badge**. The notification is titled in the **companion's name** ("Maya is here for you 💙"), and renaming the companion re-issues it.
+3. **The chat offers it too:** under your **first** reply, Imotara asks once *"Shall I check in with you tomorrow?"* — **8:30 PM**, **9:00 AM**, **Choose a time** (opens Settings) or **Not now**. It is offered once ever, never during or after a crisis, and not if reminders are off. (Web 25 Nov 2026, app 1.7.3+; before, it waited for the second reply.)
+4. **Can't find it?** Type **reminder** in the Settings search box — **Daily check-in reminder** is the first result (web 26 Nov 2026, app 1.7.3+).
 
 #### Taking a break from the reminder *(web v1.5.8+, iOS and Android v1.5.9+)*
 

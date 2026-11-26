@@ -978,6 +978,8 @@ export async function POST(req: Request) {
     // P2: Cultural Emotion Vocabulary — pre-select a candidate word (1 in 8 emotional turns).
     // Seed from user turn count so it stays stable within a turn but varies across turns.
     const userTurnCount = rawMessages.filter((m) => m?.role === "user").length;
+    // #17 C: the user's first message in this conversation (see FIRST MESSAGE RULE).
+    const isFirstUserTurn = userTurnCount <= 1;
     const culturalWordCandidate = (() => {
       if (userTurnCount < 2) return null;           // too early in conversation
       if (userTurnCount % 8 !== 0) return null;     // 1 in 8 turns
@@ -3655,8 +3657,16 @@ export async function POST(req: Request) {
         `  1. The user has shared ${mythArcText}.`,
         `  2. The conversation has had at least ${storyConfig.mythMinTurns} user turns.`,
         "ADVICE/GUIDANCE: If the user is asking for advice or help with a decision — draw on a story or parable from turn 1 onward. The story directly serves the guidance.",
-        "ENCOURAGEMENT EXCEPTION: Even in lighter or moderately emotional moments, a brief uplifting story or anecdote can warm the conversation and plant a seed of hope. Use it like a friend who says 'oh, that reminds me of something...'",
-        "HUMOR EXCEPTION: A witty parable, a gently ironic story, or a funny historical anecdote can be used to inject levity when someone has been dealing with something difficult across multiple turns. Laughter is also medicine.",
+        // #17 C (26 Nov 2026): on the user's FIRST message these two exceptions overrode
+        // mythMinTurns (2) — 5 of 17 emotional first replies told a story (Karna, Sita,
+        // Radha–Krishna…), and a story more than doubled the first reply (median 518 vs 220
+        // chars). 36% of new people never send a 2nd message. The first reply is for them.
+        isFirstUserTurn
+          ? "FIRST MESSAGE RULE: This is the user's very first message in this conversation. Do NOT tell a story, myth, parable or anecdote in this reply — be fully present with exactly what they said. Stories can come later in the conversation. Only exception: they explicitly ask for advice or what to do."
+          : "ENCOURAGEMENT EXCEPTION: Even in lighter or moderately emotional moments, a brief uplifting story or anecdote can warm the conversation and plant a seed of hope. Use it like a friend who says 'oh, that reminds me of something...'",
+        isFirstUserTurn
+          ? ""
+          : "HUMOR EXCEPTION: A witty parable, a gently ironic story, or a funny historical anecdote can be used to inject levity when someone has been dealing with something difficult across multiple turns. Laughter is also medicine.",
         "Skip mythology only when: user is in active crisis, asking a pure factual question, the very first greeting, or if you already used a story in the previous turn.",
         "",
         ...(verifiedStories

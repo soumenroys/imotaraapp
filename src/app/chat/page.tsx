@@ -1,6 +1,7 @@
 // src/app/chat/page.tsx
 "use client";
 
+import { detectLatinLang, looksEnglish } from "@/lib/lang/latinLang";
 import { occupationFrom, occupationFact, placeFact } from "@/lib/memory/memoryFacts";
 import Link from "next/link";
 import Image from "next/image";
@@ -2154,6 +2155,7 @@ export default function ChatPage() {
         .slice(-4)
         .map((m) => m.content ?? ""),
       (l) => Boolean(CRISIS_BANNER_BY_LANG[l]),
+      typeof navigator !== "undefined" ? navigator.language : null,
     );
     return { lang };
   }, [crisisTier, preferredLang, activeThread?.messages]);
@@ -5932,6 +5934,7 @@ export function crisisBannerLangFor(
     preferredLang: string | undefined | null,
     recentTexts: string[],
     hasCopy: (lang: string) => boolean,
+    deviceLang?: string | null,
 ): string {
     // 1. A stated choice wins — they picked it.
     const stated = (preferredLang ?? "").trim().toLowerCase();
@@ -5952,7 +5955,21 @@ export function crisisBannerLangFor(
         if (hint && hint !== "en" && hasCopy(hint)) return hint;
     }
 
-    // 4. Nothing to go on. The same guess as before this function existed.
+    // 4. #48 (27 Nov 2026): Spanish / French / German / Portuguese / Indonesian share the
+    //    Latin script, so step 2 cannot see them — "ya no quiero vivir" got an ENGLISH card.
+    //    detectLatinLang answers only on clear evidence, else null.
+    for (let i = recentTexts.length - 1; i >= 0; i--) {
+        const latin = detectLatinLang(recentTexts[i] ?? "");
+        if (latin && hasCopy(latin)) return latin;
+    }
+
+    // 5. The browser's own language — the person set it, even if not here.
+    const device = (deviceLang ?? "").trim().toLowerCase().split(/[-_]/)[0];
+    //    ⛔ Not when they are clearly writing English — then English is what they read.
+    const wroteEnglish = recentTexts.some((t) => looksEnglish(t ?? ""));
+    if (device && !wroteEnglish && hasCopy(device)) return device;
+
+    // 6. Nothing to go on. The same guess as before this function existed.
     return "en";
 }
 

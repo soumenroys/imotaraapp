@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from "react";
 import { SignedOut } from "@/app/admin/social/_components/SignedOut";
 import { PageTutorial, TUTORIALS } from "@/app/admin/social/_components/PageTutorial";
 import { PostFlow } from "@/app/admin/social/_components/PostFlow";
+import { VideoPreview, isVideoKind } from "@/app/admin/social/_components/VideoPreview";
 import { SocialPage, Chip, Explain, HowItWorks, POST_STATUS } from "@/app/admin/social/_components/ui";
 import { publishingSentence } from "@/lib/social/platforms";
 import { cardsForPost } from "@/lib/social/cards";
@@ -431,6 +432,8 @@ export default function Today() {
                             {post.body}
                           </article>
                         )}
+
+                        {isVideoKind(post.media_kind) && <VideoPreview post={post} />}
 
                         {(post.media_kind === "graphic" || post.media_kind === "carousel") && (
                           <div className="space-y-2">

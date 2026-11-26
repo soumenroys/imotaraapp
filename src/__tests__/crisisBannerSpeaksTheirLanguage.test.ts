@@ -135,14 +135,12 @@ describe("⚖️ the honest limits, stated rather than hidden", () => {
         expect(resolve(null, "मी मरायचं ठरवलं आहे")).toBe("mr");
     });
 
-    it("⚠️ es/fr/de/pt/id still get English — no detector exists for them", () => {
-        // ⛔ NOT an assertion that this is FINE. It is a known gap on the
-        // board: Latin script, no roman hints. Recorded here so the next
-        // person sees the limit instead of assuming 22/22 coverage.
-        for (const p of ["quiero morir", "je veux mourir", "ich will sterben",
-                         "quero morrer", "saya ingin mati"]) {
-            expect(resolve(null, p)).toBe("en");
-        }
+    it("✅ es/fr/de/pt/id now get their own card (#48, 27 Nov 2026 — was English)", () => {
+        // The gap this test used to record: Latin script, no detector. Closed by
+        // detectLatinLang — see crisisCardSpeaksLatinLanguages.test.ts.
+        const cases: Array<[string, string]> = [["quiero morir", "es"], ["je veux mourir", "fr"],
+            ["ich will sterben", "de"], ["quero morrer", "pt"], ["saya ingin mati", "id"]];
+        for (const [p, l] of cases) expect(resolve(null, p)).toBe(l);
     });
 
     it("…but if they HAVE set the language, those five work", () => {

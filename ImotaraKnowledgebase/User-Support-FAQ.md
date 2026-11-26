@@ -16,6 +16,12 @@
 **Q: How do I export my data?**
 **A:** On web, use **Export** (`/api/export`) to download everything as **JSON or CSV**. A GDPR-style data request (a machine-readable package of all data held about your account) is available on all tiers. Data export as a downloadable file is a Plus-and-above feature in the licensing matrix, but the GDPR data-request path is available to everyone.
 
+**Q: I can't find the Connect tab.** *(web 22 Nov 2026+, app 1.7.3+)*
+**A:** It is **off by default**. Switch it on in **Settings → Appearance → Show Connect** (web) or **Settings → Advanced → Show Connect** (app); typing *connect* in the Settings search finds it too. The setting stays on until switched off. Teens (13–17) do not get Connect.
+
+**Q: Google sign-in on the phone no longer opens a web page. Is that right?** *(app 1.7.3+)*
+**A:** Yes. Google now uses the phone's own account picker (Android) or sign-in sheet (iPhone). Cancelling just returns to Settings. The phone also offers **Continue with Apple** (iPhone) and **Use email instead** — a 6-digit code or a password, never a link.
+
 ## Sync & offline
 
 **Q: How does cross-device sync work?**
@@ -37,6 +43,9 @@
 
 **Q: What's the GDPR/privacy posture?**
 **A:** An internal source-code audit (June 2026) scored Imotara **61/100** and confirmed a solid privacy-first architecture — local-first design, encryption, Supabase RLS, account deletion, and data export all exist. It flagged gaps being worked on (cookie consent, explicit terms acceptance at signup, a children's age gate, and defined data-retention periods). Apple App Store privacy was rated compliant (no tracking). If a user raises a formal data request or complaint, escalate to info@imotara.com.
+
+**Q: A user's companion memory says something strange like "User is a/an stressed".** *(fixed web 26 Nov 2026, app 1.7.3)*
+**A:** Old wording from a bug that saved a feeling as a job. It is now reworded or removed automatically (web: on the next load; app: after updating to 1.7.3). The person can also tap **Forget** on any memory. Memory only keeps short plain facts — name, job, where they live, upcoming events, people they mention.
 
 ## Payments, upgrades & donations
 
@@ -84,6 +93,9 @@
 
 Three things worth knowing (all v1.4.1+): the reminder is titled in the **companion's name**, and renaming re-issues it; switching the reminder **off also cancels a queued inactivity nudge**; and on Android delivery is **inexact by design** — a 17:00 reminder can arrive around 17:07. ⚠️ On Android builds **older than v1.4.1** the reminder could not be scheduled at all and the app misreported it as "Permission needed" — the fix is to update.
 
+**Q: The chat asked "Shall I check in with you tomorrow?" — what is that?** *(web 25 Nov 2026+, app 1.7.3+)*
+**A:** A one-time offer under the person's **first** reply: **8:30 PM**, **9:00 AM**, **Choose a time** or **Not now**. It never appears during or after a crisis, never again once answered, and not when reminders are off. Accepting turns on the normal daily check-in reminder, which can be changed or paused in Settings (type *reminder* in the Settings search).
+
 **Q: A Free user says they can't turn reminders off. Is that a bug?** *(web v1.5.8+, mobile v1.5.9+)*
 **A:** No, it is the intended behaviour. **Free** users can **pause** the daily reminder for **3 or 5 days**, as often as they like; **Plus and above** can switch it off entirely. Pausing and resuming are never restricted by plan, and a paused reminder **re-arms itself** when the pause ends — the user does not have to remember to turn it back on. They can also **Resume** early.
 
@@ -104,6 +116,9 @@ It is shown **once**. It returns only if the Terms themselves change, and then o
 
 **Q: What is the minimum age?**
 **A:** **13.** Users under **18** need a parent or guardian to agree to their use of Imotara. Where local law sets a higher age, the higher age applies. ⚠️ Support should quote **13**, not 18 — the two numbers both appear in the acceptance sentence and are easy to confuse.
+
+**Q: An app user sees "Imotara is for people 13 and older" and can't chat.** *(app 1.7.3+)*
+**A:** The phone's app store (Google Play Age Signals or Apple's Declared Age Range) reported an age range entirely **below 13**. The screen still shows crisis help. Support cannot override it — the age comes from the store account, which a parent or guardian manages. A missing or unclear signal never triggers it.
 
 **Q: A user says the welcome screen appeared again.**
 **A:** That means the Terms changed and they are being asked to accept the new version. It is not a bug and not a lost account. If they insist nothing changed, check whether they cleared site data or reinstalled — the acceptance is stored on the device as well as recorded server-side.

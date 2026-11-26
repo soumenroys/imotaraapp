@@ -9,6 +9,7 @@
 // ⚠️ The web app does not use this route; it uses the browser's own
 // SpeechRecognition. Everything here is the iOS and Android voice path.
 
+import { repairOdiaScript } from "@/lib/voice/odiaScriptRepair";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -751,5 +752,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ text: "", discarded: "no_speech" });
     }
 
-    return NextResponse.json({ text: rawText });
+    // #48 (27 Nov 2026): Odia transcripts can come back with Bengali letters mixed in.
+    // Repairs only mostly-Odia text; everything else is returned unchanged.
+    return NextResponse.json({ text: repairOdiaScript(rawText) });
 }

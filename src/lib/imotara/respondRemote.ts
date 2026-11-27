@@ -24,8 +24,11 @@ function detectLangFromScript(text: string): string {
     if (/[\u067E\u0686\u0688\u0691\u0679\u06AF\u06A9\u06BA\u06D2\u06D3]/.test(text)) return "ur";
     if (/[\u0600-\u06FF]/.test(text)) return "ar";          // Arabic
     if (/[\u0400-\u04FF]/.test(text)) return "ru";          // Russian/Cyrillic
+    // 🔴 #44 (27 Nov 2026): KANA BEFORE KANJI. Kana is only Japanese; kanji are shared with
+    // Chinese, and ordinary Japanese mixes both — testing Chinese first sent "今日は気分が悪い"
+    // to the reply model as CHINESE. (Kanji-only Japanese is still unknowable from script.)
+    if (/[\u3040-\u30FF]/.test(text)) return "ja";          // Japanese (kana — unambiguous)
     if (/[\u4E00-\u9FFF]/.test(text)) return "zh";          // Chinese
-    if (/[\u3040-\u30FF]/.test(text)) return "ja";          // Japanese
     return "en";
 }
 
@@ -140,11 +143,45 @@ export function detectLangFromRomanHints(text: string): string {
     return best[1] >= 1 ? best[0] : "en";
 }
 
+/**
+ * 🔴 #44 (27 Nov 2026): Roman Urdu and Arabizi, for the REPLY language only.
+ *
+ * Roman Urdu shares almost every word with Hinglish, so it is called Urdu only on markers
+ * Hindi writers do not use (Pakistani spellings like "bohat"/"kyunke", ammi/abbu, inshallah…)
+ * AND only when the text is already Hindustani — "Inshallah it will be fine" stays English.
+ * Arabizi (Arabic in Latin letters, digits for sounds: 3=ع, 7=ح, 2=ء) needs two signals and
+ * must beat the English signal — "web3", "b2b", "Ana is my friend" stay English.
+ *
+ * ⛔ Deliberately NOT inside detectLangFromRomanHints: that one also picks the TTS voice and
+ * the Connect translation source — an Arabic voice reading Latin "ana ta3ban" would be worse.
+ * The reply prompt mirrors the user's script, so "ar" here ⇒ a reply in Arabizi, not English.
+ */
+const ROMAN_URDU_MARKERS =
+    /\b(bohat|bohot|kyunke|ammi|ammijaan|abbu|abbujaan|inshallah|insha allah|mashallah|masha allah|alhamdulillah|subhanallah|khuda|janab|mehrbani|meharbani)\b/gi;
+const ARABIZI_WORDS =
+    /\b(ana|enta|enti|inta|inti|habibi|habibti|yalla|yallah|shu|shou|ezzay|izzay|kifak|kifik|keefak|keefik|ma3|3ala|3and|3ndi|3andi|ma3lesh|ma3lish|msh|mish|la2|aywa|aiwa|tamam|kteer|ktir|ktiir|awi|2awi|mafi|mafeesh|wallah|walla|khalas|ya3ni|yani|7abibi|7elw|helw|za3lan|za3lana|ta3ban|ta3bana|7azeen|hazeen|mabsout|mabsoot|bdi|baddi|3ayez|3ayza|3awez|leh|lesh|leish|3arif|3arfa|moshkela|mushkila)\b/gi;
+const ARABIZI_DIGIT_TOKEN = /\b[a-z]*[2379][a-z]+\b|\b[a-z]{2,}[2379]\b/gi;
+
+export function detectRomanUrduOrArabizi(text: string, romanHint: string): "ur" | "ar" | null {
+    if (!text || /[^\u0000-\u024F\s\p{P}\p{S}\d]/u.test(text)) return null; // Latin text only
+    const english = englishSignal(text);
+    const urdu = new Set((text.match(ROMAN_URDU_MARKERS) ?? []).map((w) => w.toLowerCase())).size;
+    if (romanHint === "hi" && urdu >= 1) return "ur";
+    if (romanHint === "en" && urdu >= 2 && !(english.score >= 2 && english.score > urdu)) return "ur";
+    if (romanHint !== "en") return null;
+    const words = new Set((text.match(ARABIZI_WORDS) ?? []).map((w) => w.toLowerCase())).size;
+    const digits = (text.match(ARABIZI_DIGIT_TOKEN) ?? []).length;
+    const score = words + digits;
+    if (words >= 1 && score >= 2 && english.score < score) return "ar";
+    return null;
+}
+
 /** Combined detection: script first, then Roman hints as fallback. */
 function detectLangFromMessage(text: string): string {
     const scriptLang = detectLangFromScript(text);
     if (scriptLang !== "en") return scriptLang;
-    return detectLangFromRomanHints(text);
+    const roman = detectLangFromRomanHints(text);
+    return detectRomanUrduOrArabizi(text, roman) ?? roman;
 }
 
 /** Detects explicit language-switch intent in a message.

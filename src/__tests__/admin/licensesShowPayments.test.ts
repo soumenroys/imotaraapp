@@ -42,8 +42,8 @@ describe("summarisePayments", () => {
 describe("wiring", () => {
   const route = readFileSync(join(process.cwd(), "src/app/api/admin/licenses/route.ts"), "utf8");
   const page = readFileSync(join(process.cwd(), "src/app/admin/page.tsx"), "utf8");
-  it("every list path (v6, v5, v4) adds payments", () => {
-    expect(route.match(/await withPayments\(supabase,/g)?.length).toBe(3);
+  it("every list path (v7, v6, v5, v4) adds payments", () => {
+    expect(route.match(/await withPayments\(supabase,/g)?.length).toBe(4);
   });
   it("reads payment_licenses (the complete record), one query per page", () => {
     expect(route).toMatch(/\.from\("payment_licenses"\)[\s\S]*?\.in\("user_id", ids\)/);

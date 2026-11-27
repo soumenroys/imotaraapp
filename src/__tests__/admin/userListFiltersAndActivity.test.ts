@@ -9,8 +9,10 @@ vi.mock("@/app/api/admin/_auth", () => ({ adminAuthorized: async () => true }));
 vi.mock("@/lib/supabaseServer", () => ({ getSupabaseAdmin: () => ({ rpc }) }));
 
 import { GET } from "@/app/api/admin/licenses/route";
-import { formatIST, istDayStart, parseUserListFilters } from "@/lib/admin/userListFilters";
+import { formatIST, istDayStart, parseGuestMode, parseUserListFilters } from "@/lib/admin/userListFilters";
 
+// v7 (27 Nov 2026) is asked first; these older tests start from "v7 not run yet".
+const V7_MISSING = { data: null, error: { message: "Could not find the function public.admin_search_users_v7", code: "PGRST202" } };
 const req = (qs: string) => ({ nextUrl: new URL(`https://imotara.com/api/admin/licenses?${qs}`) }) as never;
 
 describe("the filters reach the database only as known words", () => {
@@ -45,15 +47,15 @@ describe("last active is shown in Indian time, whatever the admin's computer say
 });
 
 describe("the route", () => {
-  beforeEach(() => rpc.mockReset());
+  beforeEach(() => { rpc.mockReset(); rpc.mockResolvedValueOnce(V7_MISSING); });
 
   it("asks admin_v6 with the filters and returns its rows and total", async () => {
     rpc.mockResolvedValueOnce({ data: [{ user_id: "u1", message_count: 12, last_active_at: "2026-11-07T10:00:00Z", platform: "android", total_count: 1 }], error: null });
     const res = await GET(req("page=0&limit=20&excludeAnonymous=1&tier=plus&activeDays=30&sort=last_active&joinedFrom=2026-11-01"));
     const body = await res.json();
-    expect(rpc).toHaveBeenCalledTimes(1);
-    expect(rpc.mock.calls[0][0]).toBe("admin_search_users_v6");
-    expect(rpc.mock.calls[0][1]).toMatchObject({ exclude_anonymous: true, f_tier: "plus", f_active_days: 30, sort_by: "last_active", f_joined_from: "2026-10-31T18:30:00.000Z", f_joined_to: null, f_msgs_min: null, f_msgs_max: null });
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(rpc.mock.calls[1][0]).toBe("admin_search_users_v6");
+    expect(rpc.mock.calls[1][1]).toMatchObject({ exclude_anonymous: true, f_tier: "plus", f_active_days: 30, sort_by: "last_active", f_joined_from: "2026-10-31T18:30:00.000Z", f_joined_to: null, f_msgs_min: null, f_msgs_max: null });
     expect(body).toMatchObject({ total: 1, activityUnavailable: false });
     expect(body.users[0].message_count).toBe(12);
   });
@@ -64,8 +66,8 @@ describe("the route", () => {
       .mockResolvedValueOnce({ data: null, error: { message: "Could not find the function public.admin_search_users_v5", code: "PGRST202" } })
       .mockResolvedValueOnce({ data: [{ user_id: "u1", total_count: 1 }], error: null });
     const body = await (await GET(req("tier=plus"))).json();
-    expect(rpc.mock.calls[2][0]).toBe("admin_search_users_with_licenses");
-    expect(rpc.mock.calls[2][1]).not.toHaveProperty("f_tier");
+    expect(rpc.mock.calls[3][0]).toBe("admin_search_users_with_licenses");
+    expect(rpc.mock.calls[3][1]).not.toHaveProperty("f_tier");
     expect(body).toMatchObject({ activityUnavailable: true, total: 1 });
   });
 
@@ -73,7 +75,7 @@ describe("the route", () => {
     rpc.mockResolvedValueOnce({ data: null, error: { message: "permission denied for function admin_search_users_v6", code: "42501" } });
     const res = await GET(req(""));
     expect(res.status).toBe(500);
-    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -116,7 +118,7 @@ describe("the page", () => {
 
 // #136 (owner, 12 Nov 2026): filter by number of messages.
 describe("#136 — the message-count filter", () => {
-  beforeEach(() => rpc.mockReset());
+  beforeEach(() => { rpc.mockReset(); rpc.mockResolvedValueOnce(V7_MISSING); });
   const v6 = readFileSync("docs/sql/admin_v6_message_filter.sql", "utf8");
 
   it("only whole numbers reach the database; a reversed range is put the right way round", () => {
@@ -131,8 +133,8 @@ describe("#136 — the message-count filter", () => {
   it("the range is sent to admin_v6", async () => {
     rpc.mockResolvedValueOnce({ data: [], error: null });
     const body = await (await GET(req("msgMin=1&msgMax=5"))).json();
-    expect(rpc.mock.calls[0][0]).toBe("admin_search_users_v6");
-    expect(rpc.mock.calls[0][1]).toMatchObject({ f_msgs_min: 1, f_msgs_max: 5 });
+    expect(rpc.mock.calls[1][0]).toBe("admin_search_users_v6");
+    expect(rpc.mock.calls[1][1]).toMatchObject({ f_msgs_min: 1, f_msgs_max: 5 });
     expect(body.messageFilterUnavailable).toBe(false);
   });
 
@@ -141,9 +143,9 @@ describe("#136 — the message-count filter", () => {
       .mockResolvedValueOnce({ data: null, error: { message: "Could not find the function public.admin_search_users_v6", code: "PGRST202" } })
       .mockResolvedValueOnce({ data: [{ user_id: "u1", total_count: 1 }], error: null });
     const body = await (await GET(req("msgMin=1&msgMax=5&tier=plus"))).json();
-    expect(rpc.mock.calls[1][0]).toBe("admin_search_users_v5");
-    expect(rpc.mock.calls[1][1]).not.toHaveProperty("f_msgs_min");
-    expect(rpc.mock.calls[1][1]).toMatchObject({ f_tier: "plus" });
+    expect(rpc.mock.calls[2][0]).toBe("admin_search_users_v5");
+    expect(rpc.mock.calls[2][1]).not.toHaveProperty("f_msgs_min");
+    expect(rpc.mock.calls[2][1]).toMatchObject({ f_tier: "plus" });
     expect(body).toMatchObject({ messageFilterUnavailable: true, activityUnavailable: false, total: 1 });
   });
 
@@ -169,5 +171,71 @@ describe("#136 — the message-count filter", () => {
     expect(ui).toMatch(/MESSAGE_RANGES\.map/);
     expect(ui).toMatch(/Custom range…/);
     expect(ui).toMatch(/run docs\/sql\/admin_v6_message_filter\.sql in Supabase/);
+  });
+});
+
+// v7 (owner, 27 Nov 2026): "many users joined but with 0 text" — backup is off by default, so the
+// saved-message count read 0 for people who really chat. v7 adds the reply count and a
+// "guests who chatted" choice.
+describe("v7 — replies next to saved messages, and guests who chatted", () => {
+  beforeEach(() => rpc.mockReset());
+  const v7 = readFileSync("docs/sql/admin_v7_replies_and_guests.sql", "utf8");
+
+  it("guests= wins; the older excludeAnonymous=1 still means hidden; junk falls back", () => {
+    expect(parseGuestMode(new URLSearchParams("guests=chatted"))).toBe("chatted");
+    expect(parseGuestMode(new URLSearchParams("guests=all&excludeAnonymous=1"))).toBe("all");
+    expect(parseGuestMode(new URLSearchParams("excludeAnonymous=1"))).toBe("none");
+    expect(parseGuestMode(new URLSearchParams(""))).toBe("all");
+    expect(parseGuestMode(new URLSearchParams("guests=x';drop&excludeAnonymous=1"))).toBe("none");
+  });
+
+  it("the route asks v7 first, with the guest choice, and returns reply_count", async () => {
+    rpc.mockResolvedValueOnce({ data: [{ user_id: "u1", message_count: 0, reply_count: 37, total_count: 1 }], error: null });
+    const body = await (await GET(req("guests=chatted&excludeAnonymous=1&msgMin=1"))).json();
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc.mock.calls[0][0]).toBe("admin_search_users_v7");
+    expect(rpc.mock.calls[0][1]).toMatchObject({ guests: "chatted", exclude_anonymous: true, f_msgs_min: 1 });
+    expect(body).toMatchObject({ total: 1, repliesUnavailable: false });
+    expect(body.users[0].reply_count).toBe(37);
+  });
+
+  it("⛔ before v7 is run: v6 answers, guests stay hidden, and the page is told replies are missing", async () => {
+    rpc.mockResolvedValueOnce(V7_MISSING).mockResolvedValueOnce({ data: [], error: null });
+    const body = await (await GET(req("guests=chatted"))).json();
+    expect(rpc.mock.calls[1][0]).toBe("admin_search_users_v6");
+    expect(rpc.mock.calls[1][1]).toMatchObject({ exclude_anonymous: true });
+    expect(body.repliesUnavailable).toBe(true);
+  });
+
+  it("any other v7 error is an error", async () => {
+    rpc.mockResolvedValueOnce({ data: null, error: { message: "permission denied for function admin_search_users_v7", code: "42501" } });
+    expect((await GET(req(""))).status).toBe(500);
+  });
+
+  it("the SQL: replies come from chat_reply events; filter and sort use the higher count; read-only; service_role only", () => {
+    expect(v7).toMatch(/count\(\*\) filter \(where e\.event_type = 'chat_reply'\) as replies/);
+    expect(v7).toMatch(/coalesce\(ue\.replies, 0\)::bigint as reply_count/);
+    expect(v7).toMatch(/when 'chatted' then not base\.is_anonymous or greatest\(base\.message_count, base\.reply_count\) > 0/);
+    expect(v7).toMatch(/greatest\(base\.message_count, base\.reply_count\) >= f_msgs_min/);
+    expect(v7).toMatch(/when sort_by = 'messages'\s+then greatest\(base\.message_count, base\.reply_count\)/);
+    expect(v7).not.toMatch(/\b(insert|update|delete)\s+(into|from)?\s*public\./i);
+    const sig = "text, integer, integer, boolean, text, text, text, integer, timestamptz, timestamptz, text, integer, integer, text";
+    expect(v7).toContain(`revoke execute on function admin_search_users_v7(${sig})\n  from public, anon, authenticated;`);
+    expect(v7).toContain(`grant  execute on function admin_search_users_v7(${sig})\n  to service_role;`);
+    // every argument the route sends exists in v7
+    const route = readFileSync("src/app/api/admin/licenses/route.ts", "utf8");
+    const start = route.indexOf("const baseArgs = {");
+    const sent = [...route.slice(start, route.indexOf("};", start)).matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
+    for (const a of [...sent, "f_msgs_min", "f_msgs_max", "guests"])
+      expect(v7).toMatch(new RegExp(`^\\s+${a}\\s+(text|integer|boolean|timestamptz)\\b`, "m"));
+  });
+
+  it("the page shows replies and saved messages, and offers the three guest choices", () => {
+    const ui = readFileSync("src/app/admin/page.tsx", "utf8");
+    expect(ui).toMatch(/repl\$\{user\.reply_count === 1 \? "y" : "ies"\} · \$\{user\.message_count \?\? 0\} saved message/);
+    expect(ui).toMatch(/<option value="none">Hidden<\/option>/);
+    expect(ui).toMatch(/<option value="chatted" disabled=\{repliesUnavailable\}>Only guests who chatted<\/option>/);
+    expect(ui).toMatch(/params\.set\("guests", g\)/);
+    expect(ui).toMatch(/useState<GuestMode>\("none"\)/); // default unchanged: guests hidden
   });
 });

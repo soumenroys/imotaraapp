@@ -11,6 +11,17 @@ export const STATUSES = ["trial", "valid", "cancelling", "expired", "invalid"] a
 export const PLATFORMS = ["web", "android", "ios", "unknown"] as const;
 export const ACTIVE_DAYS = [0, 1, 7, 30, 90] as const; // 0 = never active
 export const SORTS = ["updated", "last_active", "messages", "joined"] as const;
+/** v7 (owner, 27 Nov 2026): which guest (anonymous) accounts the list shows. */
+export const GUEST_MODES = ["none", "chatted", "all"] as const;
+export type GuestMode = (typeof GUEST_MODES)[number];
+
+/** `guests=` wins; otherwise the older `excludeAnonymous=1` means "none", anything else "all". */
+export function parseGuestMode(q: URLSearchParams): GuestMode {
+  const g = q.get("guests");
+  const hit = GUEST_MODES.find((m) => m === g);
+  if (hit) return hit;
+  return q.get("excludeAnonymous") === "1" ? "none" : "all";
+}
 /** #136 (owner, 12 Nov 2026): filter by how many messages a person has sent. Ready-made ranges for
  *  the drop-down; a custom range sends its own msgMin / msgMax. Upper bound inclusive, null = no cap. */
 export const MESSAGE_RANGES: readonly { key: string; label: string; min: number; max: number | null }[] = [

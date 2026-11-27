@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { adminAuthorized } from "@/app/api/admin/_auth";
-import { hasMessageFilter, needsActivityQuery, parseUserListFilters } from "@/lib/admin/userListFilters";
+import { hasMessageFilter, needsActivityQuery, parseGuestMode, parseUserListFilters } from "@/lib/admin/userListFilters";
 import { summarisePayments, type PaymentRow } from "@/lib/admin/paymentsSummary";
 
 const MISSING_FN = /Could not find the function|PGRST202|does not exist/i;
@@ -63,7 +63,9 @@ export async function GET(req: NextRequest) {
   // occupies a row in auth.users. Hiding them has to happen in the query, not
   // afterwards: filtering the returned page would return fewer than `limit`
   // rows AND still skip the people it excluded.
-  const excludeAnonymous = req.nextUrl.searchParams.get("excludeAnonymous") === "1";
+  // v7 (27 Nov 2026): `guests=none|chatted|all`; older callers still send excludeAnonymous=1.
+  const guests = parseGuestMode(req.nextUrl.searchParams);
+  const excludeAnonymous = guests !== "all";
 
   const filters = parseUserListFilters(req.nextUrl.searchParams);
   const supabase = getSupabaseAdmin();
@@ -86,6 +88,23 @@ export async function GET(req: NextRequest) {
     sort_by:           filters.sort,
   };
 
+  // v7 (owner, 27 Nov 2026): admin_v7 adds reply_count (cloud replies — the honest activity number
+  // while backup is off by default) and guests = 'chatted'. Until docs/sql/admin_v7_replies_and_guests.sql
+  // is run, fall back to v6: no reply counts, and 'chatted' acts as 'none' (guests hidden, as before).
+  {
+    const v7 = await supabase.rpc("admin_search_users_v7", { ...baseArgs, f_msgs_min: filters.msgMin, f_msgs_max: filters.msgMax, guests });
+    if (!v7.error) {
+      const users = await withPayments(supabase, v7.data ?? []);
+      const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
+      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable: false, repliesUnavailable: false });
+    }
+    if (!MISSING_FN.test(`${v7.error.message} ${v7.error.code ?? ""}`)) {
+      console.error("[admin/licenses GET v7]", v7.error.message);
+      return NextResponse.json({ error: v7.error.message }, { status: 500 });
+    }
+    console.warn("[admin/licenses GET] admin_v7 not applied — falling back to v6");
+  }
+
   // #136 (12 Nov 2026): admin_v6 adds the message-count range. Until
   // docs/sql/admin_v6_message_filter.sql is run, fall back to v5 — everything else keeps working and
   // the page says the message filter is not available yet (messageFilterUnavailable).
@@ -94,7 +113,7 @@ export async function GET(req: NextRequest) {
     if (!v6.error) {
       const users = await withPayments(supabase, v6.data ?? []);
       const total = users.length > 0 && users[0]?.total_count != null ? Number(users[0].total_count) : users.length === 0 && page === 0 ? 0 : null;
-      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable: false });
+      return NextResponse.json({ users, total, page, limit, filterUnavailable: false, activityUnavailable: false, messageFilterUnavailable: false, repliesUnavailable: true });
     }
     if (!MISSING_FN.test(`${v6.error.message} ${v6.error.code ?? ""}`)) {
       console.error("[admin/licenses GET v6]", v6.error.message);

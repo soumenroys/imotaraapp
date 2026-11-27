@@ -9,6 +9,7 @@ import {
   verifyGooglePlaySubscription,
   verifyGooglePlayProduct,
   acknowledgeGooglePlayPurchase,
+  PLAY_PURCHASE_TOKEN,
 } from "@/lib/googlePlay";
 import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
 import type { LicenseProductId } from "@/lib/imotara/grantLicense";
@@ -44,7 +45,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "productId and purchaseToken required" }, { status: 400 });
   }
   if (!isValidProductId(productId)) {
-    return NextResponse.json({ ok: false, error: `Unknown product: ${productId}` }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "Unknown product" }, { status: 400 });
+  }
+  // 🔴 #172 (27 Nov 2026): strict token shape — see PLAY_PURCHASE_TOKEN (replay via URL suffixes).
+  if (typeof purchaseToken !== "string" || !PLAY_PURCHASE_TOKEN.test(purchaseToken)) {
+    return NextResponse.json({ ok: false, error: "productId and purchaseToken required" }, { status: 400 });
   }
 
   const admin          = getSupabaseAdmin();
@@ -55,8 +60,21 @@ export async function POST(req: NextRequest) {
     ? await verifyGooglePlaySubscription(PACKAGE_NAME, productId, purchaseToken)
     : await verifyGooglePlayProduct(PACKAGE_NAME, productId, purchaseToken);
 
+  // #172 (27 Nov 2026): PENDING (UPI / cash still completing) is not "invalid". It used to answer
+  // 400 and the app said "Verification failed" to someone who HAD paid. 202 + pending ⇒ the app
+  // leaves the purchase unfinished and retries; Google completes it within minutes or cancels it.
+  if (verification.pending) {
+    // `error` is SHOWN by app ≤1.7.3 (it alerts data.error) ⇒ plain words, not a code. Newer apps
+    // read `pending: true` / 202 and show their own translated message.
+    return NextResponse.json(
+      { ok: false, pending: true, error: "Your payment is still being completed. Once Google confirms it, tap Restore purchases to activate." },
+      { status: 202 },
+    );
+  }
   if (!verification.valid) {
-    return NextResponse.json({ ok: false, error: verification.error ?? "Purchase not valid" }, { status: 400 });
+    // Google's own error text stays in our logs, not in the app.
+    console.warn("[google-play/verify] not valid:", productId, verification.state ?? "", verification.error ?? "");
+    return NextResponse.json({ ok: false, error: "Purchase not valid" }, { status: 400 });
   }
 
   // 🔴 ONE grant per purchase ⇒ lib/imotara/claimPayment.ts (6 Nov 2026).

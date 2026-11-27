@@ -10,6 +10,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId } from "@/lib/imotara/grantLicense";
 import type { LicenseProductId } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
+import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
 import { isLicenseTier } from "@/types/license";
 import { releasePriorOrgMembership, orgTermExpiresAt, resolveOrgTier, grantOrgTierWithFloor } from "@/lib/imotara/org";
 
@@ -141,7 +142,16 @@ export async function POST(req: NextRequest) {
         }
 
         if (!productId || !isValidProductId(productId)) break;
+        // 🔴 #172 (27 Nov 2026): ONE grant per payment. Stripe delivers an event more than once;
+        // every repeat used to stack another 31/366 days. ⇒ lib/imotara/claimPayment.ts
+        const piClaim = await claimPayment(admin, {
+          payment_id: pi.id, user_id: userId, product_id: productId, tier: "pending",
+          amount_paise: pi.amount_received ?? 0, currency: (pi.currency ?? "usd").toUpperCase(),
+        });
+        if (piClaim === "taken") break;
+        if (piClaim === "error") return NextResponse.json({ received: false }, { status: 503 });
         const result = await grantLicense(userId, productId as LicenseProductId, admin, "stripe");
+        if (!result.ok) { await releasePayment(admin, pi.id); return NextResponse.json({ received: false }, { status: 503 }); }
         if (result.ok) {
           void createInvoice(admin, {
             userId, productId,
@@ -166,7 +176,16 @@ export async function POST(req: NextRequest) {
         const { userId, productId } = getMeta(subscription);
         if (!userId || !productId || !isValidProductId(productId)) break;
 
+        // 🔴 #172: one grant per INVOICE (each renewal is a new invoice; a repeat delivery is not).
+        if (!inv.id) break;
+        const invClaim = await claimPayment(admin, {
+          payment_id: inv.id, user_id: userId, product_id: productId, tier: "pending",
+          amount_paise: inv.amount_paid ?? 0, currency: (inv.currency ?? "usd").toUpperCase(),
+        });
+        if (invClaim === "taken") break;
+        if (invClaim === "error") return NextResponse.json({ received: false }, { status: 503 });
         const result = await grantLicense(userId, productId as LicenseProductId, admin, "stripe");
+        if (!result.ok) { await releasePayment(admin, inv.id); return NextResponse.json({ received: false }, { status: 503 }); }
         if (result.ok) {
           // Store subscription ID in external_ref so cancel route can call Stripe API
           void admin.from("licenses")

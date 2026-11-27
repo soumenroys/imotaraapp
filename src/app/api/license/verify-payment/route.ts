@@ -4,7 +4,7 @@ export const maxDuration = 30;
 // Verifies the payment with Razorpay, then grants license via grantLicense().
 // Auth: Bearer token (mobile) or Supabase cookie (web).
 //
-// POST { paymentId: string, productId?: string }
+// POST { paymentId: string, productId?: string }   (productId is only a cross-check — the ORDER decides)
 // → { ok: true, tier: string, tokenBalance: number, expiresAt: string | null }
 
 import { NextResponse } from "next/server";
@@ -12,17 +12,17 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { supabaseUserServer } from "@/lib/supabase/userServer";
 import {
     grantLicense,
-    isValidProductId,
     PRODUCT_CATALOG,
     type LicenseProductId,
 } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
+import { fetchRzpOrder, licenseFromOrder } from "@/lib/imotara/razorpayOrder";
 
 const RZP_KEY_ID     = process.env.RAZORPAY_KEY_ID     ?? "";
 const RZP_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET ?? "";
 
-type RzpPayment = { id: string; amount: number; status: string; currency: string; notes?: Record<string, string> };
+type RzpPayment = { id: string; amount: number; status: string; currency: string; order_id?: string | null; notes?: Record<string, string> };
 
 async function fetchRzpPayment(paymentId: string): Promise<RzpPayment | null> {
     if (!RZP_KEY_ID || !RZP_KEY_SECRET) return null;
@@ -58,9 +58,9 @@ async function fetchRzpPaymentCaptured(paymentId: string): Promise<RzpPayment | 
                 await new Promise(r => setTimeout(r, POLL_DELAY_MS));
                 continue;
             }
-            // Still authorized after all retries — grant license anyway.
-            // The webhook will fire payment.captured within seconds and is idempotent.
-            console.warn(`[verify-payment] payment ${paymentId} still "authorized" after ${POLL_ATTEMPTS} polls — granting license; webhook will confirm`);
+            // #172 (27 Nov 2026): still only authorized ⇒ NOT granted here. An authorization can
+            // still be voided; the webhook grants on payment.captured (from the order's notes).
+            console.warn(`[verify-payment] payment ${paymentId} still "authorized" after ${POLL_ATTEMPTS} polls — webhook will grant on capture`);
             return payment;
         }
         // Any other status (failed, refunded, etc.) — stop retrying
@@ -83,19 +83,6 @@ async function resolveUserId(req: Request): Promise<string | null> {
     } catch {
         return null;
     }
-}
-
-/** Derive productId from Razorpay payment amount as a best-effort fallback. */
-function inferProductId(amountPaise: number, notes?: Record<string, string>): LicenseProductId | null {
-    // Prefer explicit notes field set at order creation
-    const fromNotes = String(notes?.productId ?? "").trim();
-    if (isValidProductId(fromNotes)) return fromNotes;
-
-    // Amount-based fallback (backward compat with older clients)
-    for (const [id, def] of Object.entries(PRODUCT_CATALOG)) {
-        if (def.paise === amountPaise) return id as LicenseProductId;
-    }
-    return null;
 }
 
 export async function POST(req: Request) {
@@ -122,24 +109,36 @@ export async function POST(req: Request) {
         // Verify with Razorpay — polls for capture (handles UPI mandate "authorized" delay)
         const payment = await fetchRzpPaymentCaptured(paymentId);
 
-        if (!payment && process.env.NODE_ENV === "production") {
+        if (!payment) {
             return NextResponse.json({ ok: false, error: "Payment verification failed" }, { status: 400 });
         }
 
-        // Accept "captured" (normal) or "authorized" (UPI mandate pre-capture).
-        // Reject everything else: failed, refunded, expired.
-        if (payment && payment.status !== "captured" && payment.status !== "authorized") {
-            return NextResponse.json({ ok: false, error: `Payment not completed (status: ${payment.status})` }, { status: 400 });
+        // #172 (27 Nov 2026): only a CAPTURED payment is granted here. "authorized" (bank said
+        // yes, capture still to come) ⇒ the webhook grants on capture; the page already says
+        // "your plan will activate within a minute" for this answer.
+        if (payment.status === "authorized") {
+            const res = NextResponse.json({ ok: false, pending: true, error: "payment_processing" }, { status: 202 });
+            res.headers.set("Cache-Control", "no-store");
+            return res;
+        }
+        if (payment.status !== "captured") {
+            return NextResponse.json({ ok: false, error: "Payment not completed" }, { status: 400 });
         }
 
-        // Resolve productId (body → payment notes → amount-based fallback)
-        const productId: LicenseProductId | null =
-            isValidProductId(bodyPid)
-                ? (bodyPid as LicenseProductId)
-                : inferProductId(payment?.amount ?? 0, payment?.notes);
-
-        if (!productId) {
-            return NextResponse.json({ ok: false, error: "Could not resolve product" }, { status: 400 });
+        // 🔴 #172 (27 Nov 2026): WHAT was bought — and by WHOM — comes from the order our server
+        // created (order-intent), never from the browser. The payment must belong to that order,
+        // be this caller's, and have paid the order's full amount. ⇒ lib/imotara/razorpayOrder.ts
+        const order = await fetchRzpOrder(payment.order_id);
+        const decided = licenseFromOrder(order, payment, userId);
+        if (!decided.ok) {
+            console.warn(`[verify-payment] refused ${paymentId}: ${decided.reason}`);
+            return NextResponse.json({ ok: false, error: "This payment can't be used for this plan" }, { status: 400 });
+        }
+        const productId: LicenseProductId = decided.productId;
+        // The page names what it sold; a different name means a tampered request.
+        if (bodyPid && bodyPid !== productId) {
+            console.warn(`[verify-payment] refused ${paymentId}: body product ${bodyPid} ≠ order product ${productId}`);
+            return NextResponse.json({ ok: false, error: "This payment can't be used for this plan" }, { status: 400 });
         }
 
         const admin = getSupabaseAdmin();
@@ -151,8 +150,8 @@ export async function POST(req: Request) {
             user_id:      userId,
             product_id:   productId,
             tier:         product.type === "subscription" ? product.tier : "free",
-            amount_paise: payment?.amount ?? product.paise,
-            currency:     payment?.currency ?? "INR",
+            amount_paise: payment.amount,
+            currency:     payment.currency ?? "INR",
         });
         if (claim === "error") {
             return NextResponse.json({ ok: false, error: "Could not record the payment — please retry" }, { status: 503 });
@@ -191,9 +190,8 @@ export async function POST(req: Request) {
             description:    getProductDescription(productId),
             paymentGateway: "razorpay",
             gatewayRef:     paymentId,
-            amountPaise:    payment?.amount ?? (PRODUCT_CATALOG[productId] && "paise" in PRODUCT_CATALOG[productId]
-                              ? (PRODUCT_CATALOG[productId] as { paise: number }).paise : 0),
-            currency:       payment?.currency ?? "INR",
+            amountPaise:    payment.amount,
+            currency:       payment.currency ?? "INR",
             periodStart:    new Date().toISOString(),
             periodEnd:      result.expiresAt ?? undefined,
         }).catch((err: unknown) => console.error("[verify-payment] invoice creation failed:", err));

@@ -60,8 +60,17 @@ async function getAccessToken(clientEmail: string, privateKey: string): Promise<
   }
 }
 
+/**
+ * #172 (27 Nov 2026): Play purchase tokens are URL-safe text. Anything else ("#", "/", "?", "%")
+ * is refused BEFORE it goes into Google's URL — a token with a suffix fetched the SAME purchase
+ * while being a NEW one-grant key, so one purchase could be redeemed again and again.
+ */
+export const PLAY_PURCHASE_TOKEN = /^[A-Za-z0-9._-]{20,4096}$/;
+
 export interface GooglePlayPurchaseResult {
   valid:       boolean;
+  /** #172: Google says the payment is still PENDING (UPI / cash etc. not completed yet). */
+  pending?:    boolean;
   expiresAt?:  string | null;
   /** Google's own subscriptionState, e.g. SUBSCRIPTION_STATE_IN_GRACE_PERIOD (subscriptions only). */
   state?:      string;
@@ -80,6 +89,7 @@ export async function verifyGooglePlaySubscription(
   productId:     string,
   purchaseToken: string,
 ): Promise<GooglePlayPurchaseResult> {
+  if (!PLAY_PURCHASE_TOKEN.test(purchaseToken)) return { valid: false, error: "Invalid purchase token" };
   const sa = getServiceAccount();
   if (!sa) return { valid: false, error: "Google Play service account not configured." };
 
@@ -99,9 +109,15 @@ export async function verifyGooglePlaySubscription(
     const state      = data.subscriptionState as string;
     const isActive   = ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"].includes(state);
     const expiresAt  = data.lineItems?.[0]?.expiryTime ?? null;
+    // #172: the subscriptionsv2 URL carries no product ⇒ the token must really be FOR this product.
+    const items: Array<{ productId?: string }> = Array.isArray(data.lineItems) ? data.lineItems : [];
+    if (!items.some((li) => li?.productId === productId)) {
+      return { valid: false, state, error: "Purchase is for a different product." };
+    }
 
     return {
       valid:      isActive,
+      pending:    state === "SUBSCRIPTION_STATE_PENDING",
       state,
       expiresAt:  expiresAt ? new Date(expiresAt).toISOString() : null,
       orderId:    data.latestOrderId ?? undefined,
@@ -120,6 +136,7 @@ export async function verifyGooglePlayProduct(
   productId:     string,
   purchaseToken: string,
 ): Promise<GooglePlayPurchaseResult> {
+  if (!PLAY_PURCHASE_TOKEN.test(purchaseToken)) return { valid: false, error: "Invalid purchase token" };
   const sa = getServiceAccount();
   if (!sa) return { valid: false, error: "Google Play service account not configured." };
 
@@ -137,7 +154,7 @@ export async function verifyGooglePlayProduct(
 
     // purchaseState: 0=purchased, 1=canceled, 2=pending
     const isValid = data.purchaseState === 0;
-    return { valid: isValid, orderId: data.orderId };
+    return { valid: isValid, pending: data.purchaseState === 2, orderId: data.orderId };
   } catch (err) {
     console.error("[googlePlay] verifyProduct error:", err);
     return { valid: false, error: String(err) };

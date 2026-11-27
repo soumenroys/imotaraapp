@@ -84,7 +84,9 @@ export async function POST(req: Request) {
         res.headers.set("Cache-Control", "no-store");
         return res;
     } catch (err: any) {
-        if (process.env.NODE_ENV !== "production") console.warn("[order-intent]", String(err));
-        return NextResponse.json({ ok: false, error: err?.message ?? "Server error" }, { status: 500 });
+        // #172 (27 Nov 2026): Razorpay's raw error text went to the browser and was never logged
+        // in production. Now: logged here, a plain message there.
+        console.error("[order-intent]", String(err));
+        return NextResponse.json({ ok: false, error: "Could not start checkout. Please try again." }, { status: 500 });
     }
 }

@@ -246,7 +246,9 @@ describe("Google Play purchases", () => {
     it("PENDING (UPI still completing) ⇒ 202 pending, not 'invalid'", () => {
         expect(gp).toMatch(/pending:\s+state === "SUBSCRIPTION_STATE_PENDING",/);
         expect(gp).toMatch(/pending: data\.purchaseState === 2,/);
-        expect(route).toMatch(/if \(verification\.pending\) \{\s*return NextResponse\.json\(\{ ok: false, pending: true, error: "payment_pending" \}, \{ status: 202 \}\);/);
+        expect(route).toMatch(/if \(verification\.pending\) \{[\s\S]{0,300}?return NextResponse\.json\(\s*\{ ok: false, pending: true, error: "[^"]*Restore purchases[^"]*" \},\s*\{ status: 202 \},?\s*\);/);
+        // app ≤1.7.3 alerts `error` verbatim — never a machine code
+        expect(route).not.toMatch(/error: "payment_pending"/);
         // pending is decided BEFORE invalid
         expect(route.indexOf("if (verification.pending)")).toBeLessThan(route.indexOf("if (!verification.valid)"));
     });

@@ -64,7 +64,12 @@ export async function POST(req: NextRequest) {
   // 400 and the app said "Verification failed" to someone who HAD paid. 202 + pending ⇒ the app
   // leaves the purchase unfinished and retries; Google completes it within minutes or cancels it.
   if (verification.pending) {
-    return NextResponse.json({ ok: false, pending: true, error: "payment_pending" }, { status: 202 });
+    // `error` is SHOWN by app ≤1.7.3 (it alerts data.error) ⇒ plain words, not a code. Newer apps
+    // read `pending: true` / 202 and show their own translated message.
+    return NextResponse.json(
+      { ok: false, pending: true, error: "Your payment is still being completed. Once Google confirms it, tap Restore purchases to activate." },
+      { status: 202 },
+    );
   }
   if (!verification.valid) {
     // Google's own error text stays in our logs, not in the app.

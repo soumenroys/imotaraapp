@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "digital-twin-anxiety",
-  title: "デジタルツイン不安 — AIがあなたのメンタルヘルスを先読みするとき",
+  title: "デジタルツイン不安 — アルゴリズムがあなたのメンタルヘルスを先読みするとき",
   description:
-    "AIはうつ病の発症を9ヶ月前に予測できる。しかし、アルゴリズムに自分の精神的未来をラベル付けされることは、それ自体が一種の害になり得る。",
+    "アルゴリズムはうつ病の発症を9ヶ月前に予測できる。しかし、機械に自分の精神的未来をラベル付けされることは、それ自体が一種の害になり得る。",
   date: "2026-03-29",
   category: "Research",
-  tags: ["Japanese", "日本語", "predictive AI", "mental health", "digital twin", "privacy"],
+  tags: ["Japanese", "日本語", "predictive algorithms", "mental health", "digital twin", "privacy"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 5,
   coverEmoji: "🔮",
   featured: false,
   language: "日本語",
   languageCode: "ja",
-  titleEn: "Digital Twin Anxiety — When AI Predicts Your Mental Health Before You Do",
+  titleEn: "Digital Twin Anxiety — When an Algorithm Predicts Your Mental Health Before You Do",
   descriptionEn:
-    "Predictive AI can flag depression before a person feels it. But being labelled by an algorithm before you understand yourself can be its own form of harm.",
+    "Predictive software can flag depression before a person feels it. But being labelled by an algorithm before you understand yourself can be its own form of harm.",
 };
 
 function JapaneseContent() {

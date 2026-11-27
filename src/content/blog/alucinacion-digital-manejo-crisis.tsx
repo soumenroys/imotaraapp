@@ -6,10 +6,10 @@ export const meta: BlogPost = {
   slug: "alucinacion-digital-manejo-crisis",
   title: "Alucinación Digital en el Manejo de Crisis Emocionales",
   description:
-    "Cuando la IA da información incorrecta durante una crisis de salud mental, las consecuencias pueden ser graves. Cómo Imotara aborda la seguridad en momentos de crisis.",
+    "Cuando un sistema automático da información incorrecta durante una crisis de salud mental, las consecuencias pueden ser graves. Cómo Imotara aborda la seguridad en momentos de crisis.",
   date: "2026-03-06",
   category: "Research",
-  tags: ["IA", "crisis", "salud mental", "Spanish", "alucinación"],
+  tags: ["tecnología", "crisis", "salud mental", "Spanish", "alucinación"],
   author: { name: "Equipo Imotara", role: "Imotara Team" },
   readingTime: 5,
   coverEmoji: "🆘",
@@ -18,7 +18,7 @@ export const meta: BlogPost = {
   languageCode: "es",
   titleEn: "Digital Hallucination in Emotional Crisis Management",
   descriptionEn:
-    "When AI gives wrong information during a mental health crisis, the consequences can be serious. How Imotara approaches crisis safety across 22 languages.",
+    "When an automated system gives wrong information during a mental health crisis, the consequences can be serious. How Imotara approaches crisis safety across 22 languages.",
 };
 
 function SpanishContent() {

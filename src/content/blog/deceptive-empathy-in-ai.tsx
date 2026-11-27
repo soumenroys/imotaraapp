@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "deceptive-empathy-in-ai",
-  title: "Täuschende Empathie — Wenn KI vorgibt, Ihre Gefühle zu verstehen",
+  title: "Täuschende Empathie — Wenn Software vorgibt, Ihre Gefühle zu verstehen",
   description:
-    'Wenn eine KI sagt „Ich weiß genau, wie du dich fühlst" — was bedeutet das wirklich? Über die Ethik simulierter emotionaler Intelligenz und warum Ehrlichkeit mehr hilft als Trost.',
+    'Wenn eine App sagt „Ich weiß genau, wie du dich fühlst" — was bedeutet das wirklich? Über die Ethik simulierter emotionaler Intelligenz und warum Ehrlichkeit mehr hilft als Trost.',
   date: "2026-02-07",
   category: "Research",
-  tags: ["German", "Deutsch", "AI ethics", "empathy", "mental health"],
+  tags: ["German", "Deutsch", "tech ethics", "empathy", "mental health"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 6,
   coverEmoji: "🎭",
   featured: false,
   language: "Deutsch",
   languageCode: "de",
-  titleEn: "Deceptive Empathy — When AI Pretends to Understand Your Feelings",
+  titleEn: "Deceptive Empathy — When Software Pretends to Understand Your Feelings",
   descriptionEn:
-    "When an AI says 'I know exactly how you feel' — what does that actually mean? On the ethics of simulated emotional intelligence and why honesty helps more than comfort.",
+    "When an app says 'I know exactly how you feel' — what does that actually mean? On the ethics of simulated emotional intelligence and why honesty helps more than comfort.",
 };
 
 function GermanContent() {
@@ -88,14 +88,14 @@ function GermanContent() {
       <p>
         Wenn Imotara Anzeichen echter Not erkennt — Krisensprache, eskalierende Verzweiflung,
         Ausdrücke von Selbstverletzung — verdoppelt es den Trost nicht. Es pausiert. Es
-        erkennt die Grenzen dessen an, was eine KI bieten kann. Es verweist klar auf
+        erkennt seine Grenzen an. Es verweist klar auf
         Krisenressourcen. Es sagt: <em>Das übersteigt, was ich für dich halten kann —
         hier ist jemand, der es kann.</em>
       </p>
 
       <p className="mt-8 border-l-2 border-indigo-500/40 pl-4 italic text-zinc-400">
-        Imotara ist ein KI-Begleiter — kein Therapeut, kein Freund, kein Ersatz für
-        menschliche Verbindung. Es ist ehrlich darüber. Und in dieser Ehrlichkeit versucht
+        Imotara ist ein privater Begleiter, dessen Antworten von Software kommen — kein
+        Therapeut, kein Freund, kein Ersatz für menschliche Verbindung. Es ist ehrlich darüber. Und in dieser Ehrlichkeit versucht
         es, wirklich nützlich zu sein.
       </p>
     </div>

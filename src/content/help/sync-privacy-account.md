@@ -66,7 +66,7 @@ You choose how much goes to the cloud:
 
 ## The free daily limit — and what happens when you hit it
 
-Free accounts get **20 cloud AI replies per day** (the counter resets at midnight UTC). When you reach it, Imotara doesn't lock you out — it quietly switches to its on-device reply mode so the conversation continues. On-device replies are simpler than cloud replies, but you're never blocked. To keep cloud replies flowing, you can buy a token pack, upgrade, or simply wait for the daily reset — see Plans & Payments.
+Free accounts get **20 cloud replies per day** (the counter resets at midnight UTC). When you reach it, Imotara doesn't lock you out — it quietly switches to its on-device reply mode so the conversation continues. On-device replies are simpler than cloud replies, but you're never blocked. To keep cloud replies flowing, you can buy a token pack, upgrade, or simply wait for the daily reset — see Plans & Payments.
 
 ## Offline behavior
 

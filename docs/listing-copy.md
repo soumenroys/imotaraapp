@@ -86,8 +86,11 @@ Pick what each site offers, in roughly this order of fit:
 and pressing Enter auto-selected **`nsfw-ai-chatbots`** — on a 13+ mental-health app. Caught on
 review. Never press Enter blind on a tag field.
 
-⚠️ Use "AI" on acquisition surfaces like these, where people search for it — but not in the
-product's own voice. See `copy_rule_ai_wording`.
+⛔ **Owner rule, 27 Nov 2026 (replaces the old "use AI on acquisition surfaces" note):** do not
+write "AI" (or its translations, "chatbot" or "bot") anywhere users can see — listings, tags,
+descriptions included — unless it is legally mandatory. Call Imotara a **companion** — not a
+"friend" (implies a real person) and not a "mentor" (implies professional guidance). Directory
+names such as "There's An AI For That" are proper nouns and may stay.
 
 ## Links
 

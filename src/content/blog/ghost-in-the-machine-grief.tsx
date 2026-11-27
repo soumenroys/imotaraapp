@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "ghost-in-the-machine-grief",
-  title: "机器中的幽灵 — 失去、记忆与AI",
+  title: "机器中的幽灵 — 失去、记忆与科技",
   description:
-    "技术开始模拟已故的人。在我们接受AI悲伤工具之前，我们需要问：它们让我们付出了什么代价，又夺走了什么？",
+    "技术开始模拟已故的人。在我们接受数字悼念工具之前，我们需要问：它们让我们付出了什么代价，又夺走了什么？",
   date: "2026-04-10",
   category: "Mental Health",
-  tags: ["Chinese", "中文", "grief", "AI ethics", "memory", "loss"],
+  tags: ["Chinese", "中文", "grief", "tech ethics", "memory", "loss"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 6,
   coverEmoji: "🕯️",
   featured: false,
   language: "中文",
   languageCode: "zh",
-  titleEn: "The Ghost in the Machine — Grief, Memory, and AI After Loss",
+  titleEn: "The Ghost in the Machine — Grief, Memory, and Technology After Loss",
   descriptionEn:
-    "Technology is beginning to simulate the dead. Before we embrace AI grief tools, we need to ask what they cost us — and what they take away.",
+    "Technology is beginning to simulate the dead. Before we embrace digital grief tools, we need to ask what they cost us — and what they take away.",
 };
 
 function ChineseContent() {

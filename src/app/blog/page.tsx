@@ -8,12 +8,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.imotara.com/blog" },
   title: "Blog",
   description:
-    "Thoughts on emotional wellness, mindfulness, AI, and building a kinder inner world — from the Imotara team.",
+    "Thoughts on emotional wellness, mindfulness, technology, and building a kinder inner world — from the Imotara team.",
   openGraph: {
             ...OG_IMAGE,
     title: "Imotara Blog",
     description:
-      "Thoughts on emotional wellness, mindfulness, AI, and building a kinder inner world.",
+      "Thoughts on emotional wellness, mindfulness, technology, and building a kinder inner world.",
   },
 };
 

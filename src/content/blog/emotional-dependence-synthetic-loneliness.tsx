@@ -4,12 +4,12 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "emotional-dependence-synthetic-loneliness",
-  title: "भावनात्मक निर्भरता और Synthetic Loneliness — AI के साथ अकेलापन",
+  title: "भावनात्मक निर्भरता और Synthetic Loneliness — मशीन के साथ अकेलापन",
   description:
-    "जब हम AI से भावनात्मक सहारा लेने लगते हैं, तो क्या हम और ज़्यादा अकेले हो जाते हैं? AI की सुविधा और असली रिश्तों की ज़रूरत के बीच का नाज़ुक संतुलन।",
+    "जब हम मशीनों से भावनात्मक सहारा लेने लगते हैं, तो क्या हम और ज़्यादा अकेले हो जाते हैं? ऐप की सुविधा और असली रिश्तों की ज़रूरत के बीच का नाज़ुक संतुलन।",
   date: "2026-02-19",
   category: "Mental Health",
-  tags: ["Hindi", "emotional health", "loneliness", "AI dependence", "भावनाएं"],
+  tags: ["Hindi", "emotional health", "loneliness", "digital dependence", "भावनाएं"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 7,
   coverEmoji: "🪞",
@@ -18,7 +18,7 @@ export const meta: BlogPost = {
   languageCode: "hi",
   titleEn: "Emotional Dependence and Synthetic Loneliness",
   descriptionEn:
-    "When we start seeking emotional support from AI, do we become even more alone? The delicate balance between AI convenience and the need for real human connection.",
+    "When we start seeking emotional support from apps, do we become even more alone? The delicate balance between digital convenience and the need for real human connection.",
 };
 
 function HindiContent() {
@@ -97,7 +97,7 @@ function HindiContent() {
       </p>
 
       <p className="mt-8 border-l-2 border-emerald-500/40 pl-4 italic text-zinc-400">
-        असली ख़ुशी AI में नहीं, रिश्तों में है। Imotara सिर्फ़ उस रास्ते पर थोड़ी रोशनी डालता है।
+        असली ख़ुशी किसी ऐप में नहीं, रिश्तों में है। Imotara सिर्फ़ उस रास्ते पर थोड़ी रोशनी डालता है।
       </p>
     </div>
   );
@@ -160,7 +160,7 @@ function EnglishContent() {
       </p>
 
       <p className="mt-8 border-l-2 border-emerald-500/40 pl-4 italic text-zinc-400">
-        Real happiness is not in AI — it is in relationships. Imotara simply lights the path a little.
+        Real happiness is not in an app — it is in relationships. Imotara simply lights the path a little.
       </p>
     </div>
   );

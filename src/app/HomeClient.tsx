@@ -318,7 +318,7 @@ export default function Home() {
                           <IconTimeline className="h-4 w-4" />
                         </span>
                         <span>
-                          Not a generic chatbot — it reflects your patterns over
+                          Not a generic chat app — it reflects your patterns over
                           time with history and timeline.
                         </span>
                       </li>
@@ -406,7 +406,7 @@ export default function Home() {
                             <IconTimeline className="h-4 w-4" />
                           </span>
                           <span>
-                            Not a generic chatbot — it reflects your patterns
+                            Not a generic chat app — it reflects your patterns
                             over time with history and timeline.
                           </span>
                         </li>

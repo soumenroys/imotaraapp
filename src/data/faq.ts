@@ -159,13 +159,13 @@ export const FAQ: FaqItem[] = [
     {
         id: "ai-app-grief",
         section: "Difficult moments",
-        q: "Can an AI app help with grief and loss?",
+        q: "Can a companion app help with grief and loss?",
         a: "It can give you somewhere to say the things you have stopped saying out loud, which for many people is the part that has nowhere else to go. It is not grief counselling and will not pretend to be. Grief arrives long after people stop asking how you are, and at those hours Imotara is awake and will not change the subject.",
     },
     {
         id: "ai-app-anxiety",
         section: "Difficult moments",
-        q: "Can I talk to an AI about anxiety?",
+        q: "Can I talk to a companion app about anxiety?",
         a: "Yes, and many people find it easier than telling someone who will worry about them. Imotara will not diagnose you or tell you what you have, because it cannot and should not. What it can do is let you describe the thing accurately, which is often what makes it smaller.",
     },
     {
@@ -203,8 +203,8 @@ export const FAQ: FaqItem[] = [
     {
         id: "is-it-safe",
         section: "Safety and age",
-        q: "Is it safe to tell an AI how I feel?",
-        a: "With Imotara, what you write stays private: it is not sold, not used to advertise to you, and not readable by anyone else. The honest caveat is that no AI is a substitute for a person who can act — if you are in danger, something that can only reply is not enough, and Imotara will tell you so rather than keep the conversation going.",
+        q: "Is it safe to tell a companion app how I feel?",
+        a: "With Imotara, what you write stays private: it is not sold, not used to advertise to you, and not readable by anyone else. The honest caveat is that no app is a substitute for a person who can act — if you are in danger, something that can only reply is not enough, and Imotara will tell you so rather than keep the conversation going.",
     },
     {
         id: "minimum-age",

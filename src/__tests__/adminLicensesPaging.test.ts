@@ -47,14 +47,14 @@ describe("every user is reachable", () => {
     it("changing the search or the filter returns you to the first page", () => {
         // Narrowing a search while on page 4 would otherwise land on an empty
         // screen that reads as "no results".
-        expect(ui).toMatch(/useEffect\(\(\) => \{ setPage\(0\); \}, \[search, hideGuests, licTab, filters\]\)/);
+        expect(ui).toMatch(/useEffect\(\(\) => \{ setPage\(0\); \}, \[search, guestMode, licTab, filters\]\)/);
     });
 });
 
 describe("guests are filtered in the query, not after it", () => {
     it("the route forwards the flag to the RPC", () => {
         expect(route).toMatch(/exclude_anonymous: excludeAnonymous/);
-        expect(route).toMatch(/excludeAnonymous = req\.nextUrl\.searchParams\.get\("excludeAnonymous"\) === "1"/);
+        expect(route).toMatch(/const guests = parseGuestMode\(req\.nextUrl\.searchParams\);\n\s+const excludeAnonymous = guests !== "all";/);
     });
 
     it("nothing filters the returned rows after the query", () => {

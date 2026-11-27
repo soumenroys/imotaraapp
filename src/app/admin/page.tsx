@@ -43,6 +43,8 @@ interface UserLicense {
   banned_at?: string | null;
   // admin_v5 (task #86) — absent until docs/sql/admin_v5_users_activity.sql is run.
   message_count?: number | null;
+  // admin_v7 (27 Nov 2026) — cloud replies received; absent until docs/sql/admin_v7_replies_and_guests.sql is run.
+  reply_count?: number | null;
   last_active_at?: string | null;
   platform?: string | null;
   // #139 — the person's payments (absent = never paid: free / grandfathered / manual).
@@ -101,7 +103,7 @@ import { AdminShell, SignOutButton, Tile, type NavKey } from "@/app/admin/_compo
 import { PageTutorial } from "@/app/admin/_components/PageTutorial";
 import { CronHealth } from "@/app/admin/_components/CronHealth";
 import { ADMIN_TUTORIALS } from "@/app/admin/_components/adminTutorials";
-import { MESSAGE_RANGES, formatIST } from "@/lib/admin/userListFilters";
+import { MESSAGE_RANGES, formatIST, type GuestMode } from "@/lib/admin/userListFilters";
 import { formatMoney, type PaymentSummary } from "@/lib/admin/paymentsSummary";
 
 const SESSION_KEY = "imotara_admin_token";
@@ -795,7 +797,11 @@ function UserLicenseRow({
           </p>
           {user.message_count !== undefined && (
             <p className="mt-0.5 text-[10px] text-zinc-500">
-              {`${user.message_count ?? 0} message${user.message_count === 1 ? "" : "s"}`}
+              {/* v7 (owner, 27 Nov 2026): backup is off by default, so saved messages read 0 for most
+                  people who really chat — the reply count is the honest activity number. */}
+              {user.reply_count !== undefined && user.reply_count !== null
+                ? `${user.reply_count} repl${user.reply_count === 1 ? "y" : "ies"} · ${user.message_count ?? 0} saved message${user.message_count === 1 ? "" : "s"}`
+                : `${user.message_count ?? 0} message${user.message_count === 1 ? "" : "s"}`}
               {` · Last active ${formatIST(user.last_active_at) ?? "never"}`}
               {user.platform && ` · ${PLATFORM_LABEL[user.platform] ?? user.platform}`}
             </p>
@@ -2915,7 +2921,9 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   // Guests are hidden by default: the mobile app signs people in anonymously,
   // so auth.users fills with rows that carry no email and cannot be licensed.
   // Leaving them in means the page you are looking at is mostly noise.
-  const [hideGuests, setHideGuests]   = useState(true);
+  // v7 (owner, 27 Nov 2026): a middle choice — guests who chatted at least once.
+  const [guestMode, setGuestMode]     = useState<GuestMode>("none");
+  const [repliesUnavailable, setRepliesUnavailable] = useState(false);
   const [filterUnavailable, setFilterUnavailable] = useState(false);
   // Task #86: plan / status / platform / last-active / joined-date filters and
   // a sort. Every value is re-checked on the server (lib/admin/userListFilters).
@@ -2930,12 +2938,13 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   const [loading, setLoading]         = useState(false);
   const [error, setError]             = useState("");
 
-  const fetchUsers = useCallback(async (q: string, p: number, hide: boolean, f: UserFilterState) => {
+  const fetchUsers = useCallback(async (q: string, p: number, g: GuestMode, f: UserFilterState) => {
     setLoading(true); setError("");
     try {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(p) });
       if (q) params.set("search", q);
-      if (hide) params.set("excludeAnonymous", "1");
+      params.set("guests", g);
+      if (g !== "all") params.set("excludeAnonymous", "1");
       for (const [k, v] of Object.entries(f)) if (v) params.set(k, v);
       const res = await fetch(`/api/admin/licenses?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -2947,6 +2956,7 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
       setFilterUnavailable(!!json.filterUnavailable);
       setActivityUnavailable(!!json.activityUnavailable);
       setMessageFilterUnavailable(!!json.messageFilterUnavailable);
+      setRepliesUnavailable(!!json.repliesUnavailable);
     } catch { setError("Network error."); }
     finally { setLoading(false); }
   }, [token]);
@@ -2966,12 +2976,12 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
   // Any change to what is being asked for puts you back on the first page —
   // otherwise narrowing a search while on page 4 lands on an empty screen that
   // looks like "no results".
-  useEffect(() => { setPage(0); }, [search, hideGuests, licTab, filters]);
+  useEffect(() => { setPage(0); }, [search, guestMode, licTab, filters]);
 
   useEffect(() => {
-    if (licTab === "users") fetchUsers(search, page, hideGuests, filters);
+    if (licTab === "users") fetchUsers(search, page, guestMode, filters);
     else fetchHistory();
-  }, [licTab, search, page, hideGuests, filters, fetchUsers, fetchHistory]);
+  }, [licTab, search, page, guestMode, filters, fetchUsers, fetchHistory]);
 
   return (
     <div>
@@ -3022,11 +3032,14 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
               these rows grow without bound and cannot be licensed — hidden by
               default, but never silently: the toggle says which way it is. */}
           <div className="mb-4 flex items-center justify-between gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-500">
-              <input type="checkbox" checked={hideGuests}
-                onChange={(e) => setHideGuests(e.target.checked)}
-                className="h-3.5 w-3.5 cursor-pointer accent-indigo-500" />
-              Hide guest accounts
+            <label className="flex items-center gap-2 text-xs text-zinc-500">
+              Guest accounts
+              <select value={guestMode} onChange={(e) => setGuestMode(e.target.value as GuestMode)}
+                className="rounded-lg border border-white/10 bg-zinc-900 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-indigo-500/40">
+                <option value="none">Hidden</option>
+                <option value="chatted" disabled={repliesUnavailable}>Only guests who chatted</option>
+                <option value="all">All (incl. app opens that never chatted)</option>
+              </select>
             </label>
             {filterUnavailable && (
               <span className="text-[10px] text-amber-500/80">
@@ -3097,7 +3110,9 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
               <span className="text-[10px] text-zinc-600">
                 {activityUnavailable
                   ? "Filters, message counts and last active need the admin_v5 query — run docs/sql/admin_v5_users_activity.sql in Supabase."
-                  : "Last active is India time (IST). Message counts include only chats saved to the account — chats kept only on a phone are not counted."}
+                  : repliesUnavailable
+                    ? "Last active is India time (IST). Message counts include only chats saved to the account — chats kept only on a phone are not counted. Reply counts need docs/sql/admin_v7_replies_and_guests.sql."
+                    : "Last active is India time (IST). Replies = answers the person received (counted even when backup is off). Saved messages = chats backed up to the account. The Messages filter uses whichever is higher."}
               </span>
               {messageFilterUnavailable && (
                 <span className="text-[10px] text-amber-500/80">
@@ -3128,7 +3143,7 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
             <div className="space-y-3">
               {users.map((u) => (
                 <UserLicenseRow key={u.user_id} user={u} token={token} myRole={myRole}
-                  onUpdated={() => fetchUsers(search, page, hideGuests, filters)} />
+                  onUpdated={() => fetchUsers(search, page, guestMode, filters)} />
               ))}
               {/* Pager. `total` comes from count(*) OVER () and is absent on
                   the pre-migration fallback path, so "Next" falls back to
@@ -3147,7 +3162,8 @@ function LicensesSection({ token, myRole }: { token: string; myRole: string | nu
                   {search ? ` for "${search}"` : ""}
                   {` · ${SORT_LABEL[activityUnavailable ? "" : filters.sort] ?? "most recently updated"}`}
                   {filtersOn && !activityUnavailable ? " · filtered" : ""}
-                  {hideGuests && !filterUnavailable ? " · guests hidden" : ""}
+                  {guestMode === "none" && !filterUnavailable ? " · guests hidden" : ""}
+                  {guestMode === "chatted" && !filterUnavailable ? " · only guests who chatted" : ""}
                 </p>
 
                 <button type="button"

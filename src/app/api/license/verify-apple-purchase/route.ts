@@ -237,7 +237,10 @@ export async function POST(req: Request) {
         }
 
         // Create invoice record (non-blocking — errors logged)
-        createInvoice(admin, {
+        // 🔴 28 Nov 2026 (owner's TestFlight test): a free TEST-STORE purchase wrote a real-looking
+        // invoice (INV-001020, ₹49 INR) — it reads as revenue. Sandbox purchases are still granted
+        // and recorded (payment_licenses.currency = SANDBOX); they just get no invoice.
+        if (!isSandbox) createInvoice(admin, {
           userId,
           productId,
           tier:           result.tier,

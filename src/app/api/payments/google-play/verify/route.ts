@@ -89,8 +89,9 @@ export async function POST(req: NextRequest) {
     // #44 (27 Nov 2026): Google's purchase API carries NO price. This used to write a false
     // "USD" for everyone; now it is what the app reports from the store (records only — never
     // used to grant anything), else "XXX" (ISO 4217: not reported).
-    amount_paise: paid.minor,
-    currency:     paid.currency,
+    amount_paise: verification.isTest ? 0 : paid.minor,
+    // 28 Nov 2026: a licence-tester purchase is marked like Apple's test store.
+    currency:     verification.isTest ? "SANDBOX" : paid.currency,
   });
   if (claim === "error") {
     return NextResponse.json({ ok: false, error: "Could not record the purchase — please retry" }, { status: 503 });
@@ -128,8 +129,8 @@ export async function POST(req: NextRequest) {
   // never finished (settleRepeatedPack), so this mark must really be written.
   await markGranted(admin, purchaseToken, result.tier);
 
-  // Create invoice
-  createInvoice(admin, {
+  // Create invoice — never for a licence-tester (free test) purchase (28 Nov 2026).
+  if (!verification.isTest) createInvoice(admin, {
     userId,
     productId,
     tier:           result.tier,

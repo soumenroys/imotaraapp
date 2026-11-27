@@ -71,6 +71,11 @@ export interface GooglePlayPurchaseResult {
   valid:       boolean;
   /** #172: Google says the payment is still PENDING (UPI / cash etc. not completed yet). */
   pending?:    boolean;
+  /**
+   * 28 Nov 2026: a licence-tester (free test) purchase — products: purchaseType 0;
+   * subscriptions v2: a `testPurchase` object. Granted as usual, but no invoice.
+   */
+  isTest?:     boolean;
   expiresAt?:  string | null;
   /** Google's own subscriptionState, e.g. SUBSCRIPTION_STATE_IN_GRACE_PERIOD (subscriptions only). */
   state?:      string;
@@ -118,6 +123,7 @@ export async function verifyGooglePlaySubscription(
     return {
       valid:      isActive,
       pending:    state === "SUBSCRIPTION_STATE_PENDING",
+      isTest:     data.testPurchase != null,
       state,
       expiresAt:  expiresAt ? new Date(expiresAt).toISOString() : null,
       orderId:    data.latestOrderId ?? undefined,
@@ -154,7 +160,7 @@ export async function verifyGooglePlayProduct(
 
     // purchaseState: 0=purchased, 1=canceled, 2=pending
     const isValid = data.purchaseState === 0;
-    return { valid: isValid, pending: data.purchaseState === 2, orderId: data.orderId };
+    return { valid: isValid, pending: data.purchaseState === 2, orderId: data.orderId, isTest: data.purchaseType === 0 };
   } catch (err) {
     console.error("[googlePlay] verifyProduct error:", err);
     return { valid: false, error: String(err) };

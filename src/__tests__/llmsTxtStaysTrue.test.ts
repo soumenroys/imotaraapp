@@ -129,3 +129,21 @@ describe("llms.txt says what Imotara is not", () => {
         expect(LLMS).not.toMatch(/Tele-MANAS|14416/);
     });
 });
+
+// 27 Nov 2026: llms.txt said "Current version: 1.6.9" while 1.7.3 was live everywhere — the
+// line was bumped by hand, so it never was. Now scripts/bump-version.mjs bumps it, and this
+// fails the moment the two disagree.
+describe("llms.txt names the version that is actually live", () => {
+    it("matches package.json", () => {
+        const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")) as { version: string };
+        const m = LLMS.match(/- Current version: ([\d.]+) on web, Android and iOS\./);
+        expect(m?.[1]).toBe(pkg.version);
+    });
+    it("the bump script updates that line", () => {
+        const bump = fs.readFileSync(path.join(ROOT, "scripts/bump-version.mjs"), "utf8");
+        expect(bump).toMatch(/applyEdits\(path\.join\(WEB_ROOT, "public", "llms\.txt"\)/);
+    });
+    it("Connect is described as available but off by default (owner, 27 Nov)", () => {
+        expect(LLMS).toMatch(/\*\*Imotara Connect\*\*:.*It is off by default; switch it on in Settings\./);
+    });
+});

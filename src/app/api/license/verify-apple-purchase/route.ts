@@ -9,7 +9,7 @@
 
 import { NextResponse } from "next/server";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
-import { verifyAppleTransaction, APPLE_BUNDLE_ID } from "@/lib/apple/storeServer";
+import { verifyAppleTransaction, APPLE_BUNDLE_ID, APPLE_TRANSACTION_ID } from "@/lib/apple/storeServer";
 import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import {
@@ -18,6 +18,9 @@ import {
     PRODUCT_CATALOG,
     type LicenseProductId,
 } from "@/lib/imotara/grantLicense";
+
+/** #172: marks a free test-store (sandbox) purchase in payment_licenses.currency. */
+const SANDBOX_CURRENCY = "SANDBOX";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -43,12 +46,15 @@ export async function POST(req: Request) {
         const productId     = String(body?.productId     ?? "").trim();
         const transactionId = String(body?.transactionId ?? "").trim();
 
-        console.log(`[verify-apple-purchase] userId=${userId} productId=${productId} transactionId=${transactionId}`);
+        // #172: no transaction id next to the person in the logs.
+        console.log(`[verify-apple-purchase] productId=${productId}`);
 
         if (!isValidProductId(productId)) {
             return NextResponse.json({ ok: false, error: "Invalid productId" }, { status: 400 });
         }
-        if (!transactionId) {
+        // 🔴 #172 (27 Nov 2026): digits only — see APPLE_TRANSACTION_ID. "2000…#1" used to be a
+        // NEW one-grant key for the SAME Apple purchase ⇒ unlimited re-redemption.
+        if (!APPLE_TRANSACTION_ID.test(transactionId)) {
             return NextResponse.json({ ok: false, error: "transactionId required" }, { status: 400 });
         }
 
@@ -58,7 +64,7 @@ export async function POST(req: Request) {
         // Also select tier so we can detect a prior failed grantLicense and recover.
         const { data: existingPayment } = await admin
             .from("payment_licenses")
-            .select("payment_id, tier, user_id")
+            .select("payment_id, tier, user_id, product_id")
             .eq("payment_id", transactionId)
             .maybeSingle();
 
@@ -92,8 +98,17 @@ export async function POST(req: Request) {
                 // them the purchase. Falling back to null restores the previous
                 // day-counting behaviour, which is the safe direction.
                 const reVerify = await verifyAppleTransaction(transactionId);
+                // #172: refunded since ⇒ nothing to honour.
+                if (reVerify.ok && reVerify.revoked) {
+                    return NextResponse.json({ ok: false, error: "This purchase was refunded." }, { status: 400 });
+                }
+                // #172: the product RECORDED for this transaction, never the one the request names.
+                const recordedProduct = String(existingPayment.product_id ?? "");
+                if (!isValidProductId(recordedProduct)) {
+                    return NextResponse.json({ ok: false, error: "Could not restore this purchase" }, { status: 400 });
+                }
                 const reGrant = await grantLicense(
-                    userId, productId as LicenseProductId, admin, "apple",
+                    userId, recordedProduct as LicenseProductId, admin, "apple",
                     reVerify.ok ? reVerify.expiresAt : null,
                 );
                 if (!reGrant.ok) {
@@ -137,10 +152,15 @@ export async function POST(req: Request) {
 
         const verification = await verifyAppleTransaction(transactionId);
         if (!verification.ok) {
+            // #172: Apple's own error text stays in our logs, not in the app.
+            console.warn("[verify-apple-purchase] not verified:", verification.error);
             return NextResponse.json(
-                { ok: false, error: `Apple verification failed: ${verification.error}` },
+                { ok: false, error: "We couldn't confirm this purchase with Apple. Please try Restore in a minute." },
                 { status: 400 },
             );
+        }
+        if (verification.revoked) {
+            return NextResponse.json({ ok: false, error: "This purchase was refunded." }, { status: 400 });
         }
         // Confirm Apple's productId matches what the client claimed.
         // App Store Connect stores the full bundle-prefixed SKU (e.g.
@@ -159,17 +179,38 @@ export async function POST(req: Request) {
             }
         }
 
+        // 🔴 #172 (27 Nov 2026): a SANDBOX purchase is free (TestFlight testers, App Review).
+        // Subscriptions there expire within minutes (Apple's own expiry is used), but a credit
+        // pack would be real credits for nothing ⇒ at most ONE sandbox credit pack per account
+        // per day — enough for App Review to see it work, useless for farming credits.
+        const isSandbox = verification.environment === "sandbox";
+        const product = PRODUCT_CATALOG[productId as LicenseProductId];
+        if (isSandbox && product.type !== "subscription") {
+            const since = new Date(Date.now() - 24 * 3600_000).toISOString();
+            const { count } = await admin
+                .from("payment_licenses")
+                .select("payment_id", { count: "exact", head: true })
+                .eq("user_id", userId)
+                .eq("currency", SANDBOX_CURRENCY)
+                .like("product_id", "tokens_%")
+                .gte("granted_at", since);
+            if ((count ?? 0) >= 1) {
+                return NextResponse.json({ ok: false, error: "Test purchases are limited to one credit pack a day." }, { status: 429 });
+            }
+        }
+
         // 🔴 ONE grant per transaction ⇒ lib/imotara/claimPayment.ts. This used to
         // ask "seen it?" above and record it here, so two reports of one token
         // pack (purchase listener + restore) arriving together granted twice.
-        const product = PRODUCT_CATALOG[productId as LicenseProductId];
         const claim = await claimPayment(admin, {
             payment_id:   transactionId,
             user_id:      userId,
             product_id:   productId,
             tier:         product.type === "subscription" ? product.tier : "free",
             amount_paise: product.paise, // INR paise (App Store pricing set per country by App Store Connect)
-            currency:     "INR",         // Indian pricing basis; App Store handles local currency per region
+            // Indian pricing basis; App Store handles local currency per region.
+            // #172: sandbox rows are marked so they can be told apart (and rate-limited above).
+            currency:     isSandbox ? SANDBOX_CURRENCY : "INR",
         });
         if (claim === "error") {
             return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 503 });

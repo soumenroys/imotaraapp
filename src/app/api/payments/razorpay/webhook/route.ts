@@ -9,6 +9,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import { grantLicense, isValidProductId, PRODUCT_CATALOG } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
+import { fetchRzpOrder, orderNotes, paymentMatchesOrder, type RzpOrder } from "@/lib/imotara/razorpayOrder";
 import { isLicenseTier } from "@/types/license";
 import { releasePriorOrgMembership, orgTermExpiresAt, resolveOrgTier, grantOrgTierWithFloor } from "@/lib/imotara/org";
 
@@ -58,14 +59,21 @@ export async function POST(req: Request) {
             const paymentEntity: any = event?.payload?.payment?.entity;
             const orderEntity: any   = event?.payload?.order?.entity;
 
-            // Notes live on the ORDER (set at creation) and are copied to the payment
-            // by Razorpay. Read from payment first; fall back to order entity.
-            // This handles both payment.captured and order.paid correctly.
-            const paymentNotes = paymentEntity?.notes ?? {};
-            const orderNotes   = orderEntity?.notes ?? {};
-            const notes = (paymentNotes?.productId || paymentNotes?.purpose)
-                ? paymentNotes
-                : orderNotes;
+            // 🔴 #172 (27 Nov 2026): notes come from the ORDER only — our server wrote them.
+            // The payment's notes are set by Checkout, i.e. by the PAYER, and ours carry no
+            // userId — reading them first meant (a) a donation could claim to be a corporate
+            // order or a Plus licence, and (b) a licence was never granted here at all.
+            // order.paid carries the order; payment.captured does not ⇒ fetch it.
+            const paymentOrderId: string | undefined = paymentEntity?.order_id ?? undefined;
+            let order: RzpOrder | null = orderEntity?.id ? (orderEntity as RzpOrder) : null;
+            if (!order && paymentOrderId) {
+                order = await fetchRzpOrder(paymentOrderId);
+                // Could not read the order ⇒ let Razorpay retry rather than guess.
+                if (!order) return NextResponse.json({ ok: false, error: "order lookup failed" }, { status: 503 });
+            }
+            const notes = orderNotes(order);
+            // The money must match the order it claims to pay (server-set amount).
+            const paidInFull = paymentMatchesOrder(paymentEntity, order);
 
             const purpose   = String(notes?.purpose  ?? "");
             const productId = String(notes?.productId ?? "").trim();
@@ -73,7 +81,9 @@ export async function POST(req: Request) {
 
             console.log("[razorpay/webhook] event:", eventType, "purpose:", purpose, "productId:", productId, "userId:", userId ? "present" : "missing");
 
-            if (purpose === "imotara_corporate" && userId) {
+            if (purpose === "imotara_corporate" && userId && !paidInFull) {
+                console.warn("[razorpay/webhook] corporate payment does not match its order — not activated", paymentEntity?.id);
+            } else if (purpose === "imotara_corporate" && userId) {
                 // ---- Corporate seat purchase — create org in pending state ----
                 const orgType  = String(notes?.orgType  ?? "commercial");
                 const seats    = parseInt(String(notes?.seats ?? "10"), 10) || 10;
@@ -155,6 +165,8 @@ export async function POST(req: Request) {
                 } else {
                     console.log("[razorpay/webhook] corporate org already exists:", existingOrg.name);
                 }
+            } else if (purpose === "imotara_license" && isValidProductId(productId) && userId && !paidInFull) {
+                console.warn("[razorpay/webhook] licence payment does not match its order — not granted", paymentEntity?.id);
             } else if (purpose === "imotara_license" && isValidProductId(productId) && userId) {
                 // ---- LIC-5: license payment — grant tier / top up tokens ----
                 // Idempotency: verify-payment may have already processed this paymentId.

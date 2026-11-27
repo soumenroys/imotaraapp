@@ -112,7 +112,14 @@ export function appleChainMode(): "report" | "enforce" {
 }
 
 // ── Verify transaction with Apple ─────────────────────────────────────────────
-// Tries production first, then sandbox (covers TestFlight purchases).
+// Tries production first, then sandbox (covers TestFlight purchases and App Review).
+
+/**
+ * #172 (27 Nov 2026): Apple transaction ids are decimal digits. Anything else is refused BEFORE it
+ * is put into Apple's URL — "2000…#1", "x/../2000…" all fetched the SAME transaction while being a
+ * NEW one-grant key, so one purchase could be redeemed again and again, by any account.
+ */
+export const APPLE_TRANSACTION_ID = /^\d{1,25}$/;
 
 export async function verifyAppleTransaction(transactionId: string): Promise<{
     ok: boolean;
@@ -125,8 +132,13 @@ export async function verifyAppleTransaction(transactionId: string): Promise<{
      * 7-day free trial would have granted a full month of Plus.
      */
     expiresAt?: string | null;
+    /** Apple's own transaction id from the signed payload — the one-grant key. */
+    transactionId?: string;
+    /** Apple refunded / revoked this transaction. */
+    revoked?: boolean;
     error?: string;
 }> {
+    if (!APPLE_TRANSACTION_ID.test(transactionId)) return { ok: false, error: "Invalid transaction id" };
     const token = makeAppleJWT();
     const endpoints = [
         { url: `https://api.storekit.apple.com/inApps/v1/transactions/${transactionId}`,         env: "production" },
@@ -187,11 +199,18 @@ export async function verifyAppleTransaction(transactionId: string): Promise<{
             ? new Date(rawExpiry).toISOString()
             : null;
 
+        // #172 (27 Nov 2026): the signed payload must be THIS transaction of THIS app.
+        const signedId = String(txPayload.transactionId ?? "");
+        if (signedId !== transactionId) return { ok: false, error: "Transaction id mismatch" };
+        if (String(txPayload.bundleId ?? "") !== APPLE_BUNDLE_ID) return { ok: false, error: "Wrong app" };
+
         return {
             ok: true,
             appleProductId: String(txPayload.productId ?? ""),
             environment: env,
             expiresAt,
+            transactionId: signedId,
+            revoked: txPayload.revocationDate != null,
         };
     }
 

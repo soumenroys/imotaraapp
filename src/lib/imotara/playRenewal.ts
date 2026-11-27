@@ -27,7 +27,7 @@ import { recordBillingState } from "@/lib/imotara/billingIssue";
 
 export const PLAY_SUBSCRIPTION_SKUS = ["plus_monthly", "plus_annual", "pro_monthly", "pro_annual"] as const;
 
-type Verified = Pick<GooglePlayPurchaseResult, "valid" | "expiresAt" | "orderId" | "state">;
+type Verified = Pick<GooglePlayPurchaseResult, "valid" | "expiresAt" | "orderId" | "state" | "isTest">;
 
 /** Extend the token's OWNER to Google's expiry; one invoice per Google order (a renewal has a new order id). */
 export async function extendPlayGrant(
@@ -39,7 +39,8 @@ export async function extendPlayGrant(
   if (!verification.valid || !verification.expiresAt) return { ok: false, error: "not active at Google" };
   const result = await grantLicense(ownerId, productId, admin, "google_play", verification.expiresAt);
   if (!result.ok) return { ok: false, error: result.error ?? "grant failed" };
-  if (verification.orderId) {
+  // 28 Nov 2026: no invoice for a licence-tester (free test) renewal.
+  if (verification.orderId && !verification.isTest) {
     await createInvoice(admin, {
       userId: ownerId,
       productId,
@@ -48,7 +49,7 @@ export async function extendPlayGrant(
       paymentGateway: "google_play",
       gatewayRef: verification.orderId,
       amountPaise: 0,
-      currency: "USD",
+      currency: "XXX", // Play's API has no price (ISO "not reported") — was a false "USD"
       periodStart: new Date().toISOString(),
       periodEnd: result.expiresAt ?? verification.expiresAt,
     }).catch((err: unknown) => console.error("[playRenewal] invoice failed:", err));

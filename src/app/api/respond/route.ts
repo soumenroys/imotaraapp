@@ -565,10 +565,11 @@ function derivePreferredLanguage(
                         ? (hasUrduSpecific || explicit === "ur" ? "ur" : "ar")
                         : hasCyrillic
                           ? "ru"
-                          : hasCJK
-                            ? "zh"
-                            : hasJapanese
-                              ? "ja"
+                          // 🔴 #44: kana before kanji — Japanese mixes both; kana is only Japanese.
+                          : hasJapanese
+                            ? "ja"
+                            : hasCJK
+                              ? "zh"
                               : undefined;
 
   // ✅ Priority: explicit > script > guess

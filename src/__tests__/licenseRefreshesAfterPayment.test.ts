@@ -96,7 +96,7 @@ describe("the checkout handler uses it", () => {
         expect(page).toMatch(/import useLicense, \{ refreshLicense \}/);
         // Must fire on the CONFIRMED branch, before the success message.
         const i = page.indexOf("confirm?.ok");
-        const j = page.indexOf("Plan activated!");
+        const j = page.indexOf("purchaseMessage(productId, confirm)");
         const k = page.indexOf("refreshLicense()");
         expect(i).toBeGreaterThan(-1);
         expect(k).toBeGreaterThan(i);

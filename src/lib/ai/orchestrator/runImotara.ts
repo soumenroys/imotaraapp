@@ -27,6 +27,7 @@ import {
   ROMAN_TA_LANG_HINT_REGEX,
   ROMAN_TE_LANG_HINT_REGEX,
   CRISIS_HINT_REGEX,
+  isCrisisTier2,
   BN_SAD_REGEX, BN_STRESS_REGEX, BN_FEAR_REGEX,
   HI_SAD_REGEX, HI_STRESS_REGEX, HI_FEAR_REGEX,
   KN_SAD_REGEX, KN_STRESS_REGEX, KN_FEAR_REGEX,
@@ -243,6 +244,47 @@ function inferBlueprintTone(userMessage: string): ResponseTone {
   // Default
   return "calm";
 }
+
+// 🔴 #44 (27 Nov 2026): every built-in crisis reply names the person's OWN helpline, in their
+// language, BEFORE the question. The English reply used to put it last and cap the whole text at
+// 240 characters — the acknowledgement + question already took 173–201, so the helpline sentence
+// was cut off every single time; the 21 other languages' crisis replies had no helpline at all.
+// The label/contact come from crisisResources (59 countries + findahelpline.com for the rest —
+// never another country's number). Only the short lead-in is translated.
+const CRISIS_HELPLINE_LEAD: Record<string, string> = {
+  en: "If you need a real person right now",
+  hi: "अगर अभी किसी इंसान से बात करनी हो",
+  bn: "এখনই কোনো মানুষের সঙ্গে কথা বলতে চাইলে",
+  mr: "आत्ता कोणाशी तरी बोलायचं असेल तर",
+  gu: "અત્યારે કોઈ વ્યક્તિ સાથે વાત કરવી હોય તો",
+  pa: "ਜੇ ਹੁਣੇ ਕਿਸੇ ਨਾਲ ਗੱਲ ਕਰਨੀ ਹੋਵੇ",
+  ta: "இப்போதே ஒருவரிடம் பேச வேண்டுமென்றால்",
+  te: "ఇప్పుడే ఎవరితోనైనా మాట్లాడాలంటే",
+  kn: "ಈಗಲೇ ಯಾರೊಂದಿಗಾದರೂ ಮಾತನಾಡಬೇಕಿದ್ದರೆ",
+  ml: "ഇപ്പോൾ തന്നെ ആരോടെങ്കിലും സംസാരിക്കണമെങ്കിൽ",
+  or: "ଏବେ କାହା ସହିତ କଥା ହେବାକୁ ଚାହିଁଲେ",
+  ur: "اگر ابھی کسی سے بات کرنی ہو",
+  ar: "إذا احتجت إلى التحدث مع شخص الآن",
+  he: "אם צריך לדבר עם מישהו עכשיו",
+  zh: "如果现在需要找人说说话",
+  ja: "今すぐ誰かと話したいときは",
+  es: "Si necesitas hablar con alguien ahora mismo",
+  fr: "Si tu as besoin de parler à quelqu'un tout de suite",
+  pt: "Se você precisar falar com alguém agora",
+  de: "Wenn du jetzt sofort mit jemandem sprechen möchtest",
+  ru: "Если нужно поговорить с кем-то прямо сейчас",
+  id: "Kalau kamu perlu bicara dengan seseorang sekarang",
+};
+
+export function crisisHelplineLine(lang: string, countryCode?: string | null): string {
+  const line = getCrisisResourcesForCountry(countryCode).primary[0];
+  const lead = CRISIS_HELPLINE_LEAD[lang] ?? CRISIS_HELPLINE_LEAD.en;
+  const colon = lang === "zh" || lang === "ja" ? "：" : ": ";
+  return `${lead} — ${line.label}${colon}${line.contact}`;
+}
+
+// Wide enough for ack (≤95) + helpline (≤160) + question (≤110) + spacing.
+const CRISIS_REPLY_MAX = 480;
 
 function cap(s: string, max: number): string {
   const t = oneLine(s);
@@ -1121,6 +1163,78 @@ function hasStrongForeignEmotionalSignal(msg: string, lang: string): boolean {
   return false;
 }
 
+// 🔴 #44 (27 Nov 2026): ONE crisis path for the built-in reply in every language, checked FIRST.
+// Before: each language reached its crisis lines only through an "is this emotional?" word list
+// that, for most languages, did not contain the crisis words ⇒ "I want to die" in Gujarati,
+// Tamil, Urdu, Arabic, Chinese, Spanish, German, Russian, Indonesian… got "I understand, go on" —
+// and no language's crisis reply named a helpline. Detection = isCrisisTier2 (the crisis card's
+// detector, 22 languages) + the romanised words each language block already knew.
+// gu / pa / or lines corrected on the way in (verb agreement; or "I am with truth" ⇒ "with you").
+const LOCAL_CRISIS_LINES: Record<string, readonly [string, string]> = {
+  bn: ["এখন তুমি অনেক ভারী জায়গায় আছো। আমি সত্যিই পাশে আছি।", "এই মুহূর্তে তোমার কি কাছে কেউ আছে — কেউ যাকে ডাকতে পারো?"],
+  hi: ["अभी तुम बहुत भारी जगह पर हो। मैं यहाँ हूँ — सच में।", "इस वक़्त तुम्हारे पास कोई है — कोई जिसे बुला सको?"],
+  mr: ["आत्ता तू खूप जड जागी आहेस. मी खरोखरच सोबत आहे.", "या क्षणी तुझ्याजवळ कोणी आहे का — कोणाला बोलवू शकतोस?"],
+  gu: ["અત્યારે તું ઘણી ભારે જગ્યા પર છે. હું ખરેખર સાથે છું.", "આ ક્ષણે તારી પાસે કોઈ છે — કોઈ જેને બોલાવી શકે?"],
+  kn: ["ನೀನು ಈಗ ತುಂಬಾ ಕಷ್ಟದ ಜಾಗದಲ್ಲಿ ಇದ್ದೀಯ. ನಾನು ನಿಜವಾಗಿಯೂ ಪಕ್ಕದಲ್ಲಿದ್ದೇನೆ.", "ಈ ಕ್ಷಣ ನಿನ್ನ ಹತ್ತಿರ ಯಾರಾದರೂ ಇದ್ದಾರಾ — ಯಾರನ್ನಾದರೂ ಕರೆಯಬಲ್ಲೆಯಾ?"],
+  pa: ["ਤੂੰ ਹੁਣ ਬਹੁਤ ਭਾਰੀ ਥਾਂ 'ਤੇ ਹੈਂ। ਮੈਂ ਸੱਚਮੁੱਚ ਨਾਲ ਹਾਂ।", "ਇਸ ਵੇਲੇ ਤੇਰੇ ਕੋਲ ਕੋਈ ਹੈ — ਕਿਸੇ ਨੂੰ ਬੁਲਾ ਸਕਦਾ/ਸਕਦੀ ਹੈਂ?"],
+  or: ["ତୁ ଏବେ ବହୁତ ଭାରୀ ଜାଗାରେ ଅଛୁ। ମୁଁ ସତରେ ତୋ ସହିତ ଅଛି।", "ଏହି ମୁହୂର୍ତ୍ତରେ ତୋ ପାଖରେ କେହି ଅଛନ୍ତି କି — କାହାକୁ ଡାକି ପାରିବୁ?"],
+  ur: ["آپ ابھی بہت بھاری جگہ پر ہیں۔ میں سچ میں ساتھ ہوں۔", "اس وقت آپ کے پاس کوئی ہے — کسی کو بلا سکتے ہیں؟"],
+  ta: ["நீ இப்போது மிகவும் கனமான இடத்தில் இருக்கிறாய். நான் உண்மையிலேயே இங்கே இருக்கிறேன்.", "இந்த நேரத்தில் உன்னிடம் யாராவது இருக்கிறார்களா — யாரையாவது அழைக்க முடியுமா?"],
+  te: ["నువ్వు ఇప్పుడు చాలా కష్టమైన స్థలంలో ఉన్నావు. నేను నిజంగా ఇక్కడే ఉన్నాను.", "ఈ క్షణంలో నీ దగ్గర ఎవరైనా ఉన్నారా — ఎవరినైనా పిలవగలవా?"],
+  ml: ["നീ ഇപ്പോൾ വളരെ ഭാരമേറിയ ഇടത്തിലാണ്. ഞാൻ ശരിക്കും ഇവിടെ ഉണ്ട്.", "ഈ നേരത്ത് നിന്റെ അടുത്ത് ആരെങ്കിലും ഉണ്ടോ — ആരെയെങ്കിലും വിളിക്കാൻ പറ്റുമോ?"],
+  ar: ["أنت الآن في مكان ثقيل جداً. أنا هنا معك حقاً.", "هل هناك أحد قريب منك الآن يمكنك الاتصال به؟"],
+  zh: ["你现在处在一个很沉重的地方。我真的在这里陪着你。", "你现在身边有没有可以联系的人？"],
+  es: ["Estás en un lugar muy pesado ahora. Estoy aquí contigo de verdad.", "¿Hay alguien cerca de ti ahora con quien puedas hablar?"],
+  fr: ["Tu es dans un endroit très lourd là. Je suis vraiment là avec toi.", "Est-ce qu'il y a quelqu'un près de toi maintenant que tu peux appeler ?"],
+  pt: ["Você está num lugar muito pesado agora. Estou aqui de verdade.", "Tem alguém perto de você agora com quem possa falar?"],
+  ru: ["Ты сейчас в очень тяжёлом месте. Я здесь с тобой.", "Есть ли рядом с тобой кто-то, кому ты можешь позвонить?"],
+  id: ["Kamu sekarang berada di tempat yang sangat berat. Aku benar-benar di sini bersamamu.", "Ada seseorang di dekatmu sekarang yang bisa kamu hubungi?"],
+  de: ["Du bist jetzt an einem sehr schweren Ort. Ich bin wirklich bei dir.", "Gibt es jemanden in deiner Nähe, den du jetzt anrufen kannst?"],
+  he: ["אתה עכשיו במקום כבד מאוד. אני ממש כאן איתך.", "יש מישהו קרוב אליך עכשיו שאתה יכול להתקשר אליו?"],
+  ja: ["今、あなたはとても重い場所にいます。本当にここにいます、一緒に。", "今、近くに電話できる人はいますか?"],
+};
+const ROMAN_CRISIS_WORDS: Record<string, RegExp> = {
+  bn: /\b(sesh kore|sesh kore debo|mara jabo|mare jabo|nishwas nite)\b/,
+  hi: /\b(marne|mar jaana|khatam karna|khud ko nahi|mujhe nahi chahiye|sab khatam)\b/,
+  mr: /\b(marne|marayla|sab sampla|khud la|swatahla)\b/,
+  gu: /\b(marne|khatam|sab sambhal nathi)\b/,
+  kn: /\b(saaybekku|saaytini|khatam|sambalisolla)\b/,
+  ta: /\b(saaganum|saavenu|khatam|thanga mudiyala)\b/,
+  te: /\b(chaavali|chaavatam|khatam|aasha ledu)\b/,
+  ml: /\b(marikkanam|marikkan|sambhalikkan patunilla|khatam)\b/,
+  pa: /\b(marna|maar laina|khatam|sambhaal nahi)\b/,
+  or: /\b(marajaiba|mara jai|khatam|handle napariba)\b/,
+  ur: /\b(marne|mar jaana|khatam karna|mujhe nahi chahiye|sab khatam)\b/,
+};
+const FOREIGN_CRISIS_LATIN = /\b(suicide|kill myself|end it|can't go on|no point|suicidio|suicídio|mau mati|sterben|sich umbringen)\b/i;
+const FOREIGN_CRISIS_OTHER = /(самоубийств|не хочу жить|хочу умереть|انتحار|أريد أن أموت|自杀|不想活|אני רוצה למות|אין לי כוח|自殺|死にたい|もう無理)/;
+
+function isLocalCrisis(lang: string, text: string): boolean {
+  const lower = text.toLowerCase();
+  return (
+    isCrisisTier2(text) ||
+    (ROMAN_CRISIS_WORDS[lang]?.test(lower) ?? false) ||
+    FOREIGN_CRISIS_LATIN.test(lower) ||
+    FOREIGN_CRISIS_OTHER.test(lower)
+  );
+}
+
+function localCrisisReply(lang: string, userMessage: string, ctx: SessionContext): ImotaraResponse | null {
+  const lines = LOCAL_CRISIS_LINES[lang];
+  if (!lines) return null;
+  const name = getUserName({ ...ctx } as SessionContext);
+  const body = `${lines[0]} ${crisisHelplineLine(lang, (ctx as any)?.countryCode ?? null)}`;
+  return {
+    message: name ? `${name}, ${body}` : body,
+    followUp: lines[1],
+    meta: {
+      styleContract: "1.0",
+      blueprint: "1.0",
+      blueprintUsed: getResponseBlueprint({ tone: inferBlueprintTone(userMessage) }),
+    },
+  };
+}
+
 function draftResponseForLanguage(
   userMessage: string,
   ctx: SessionContext,
@@ -1131,6 +1245,11 @@ function draftResponseForLanguage(
   // For every other language, use the generic draft path for now.
   const INDIAN_LANGS = new Set(["hi", "bn", "mr", "gu", "kn", "ta", "te", "ml", "pa", "or", "ur"]);
   const FOREIGN_LANGS = new Set(["ar", "zh", "es", "fr", "pt", "ru", "id", "de", "he", "ja"]);
+  // 🔴 #44: crisis before every other rule (English: draftResponse checks it first too).
+  if ((INDIAN_LANGS.has(lang) || FOREIGN_LANGS.has(lang)) && isLocalCrisis(lang, userMessage)) {
+    const crisis = localCrisisReply(lang, userMessage, ctx);
+    if (crisis) return crisis;
+  }
   if (!INDIAN_LANGS.has(lang) && !FOREIGN_LANGS.has(lang)) {
     // propagate detected language so downstream formatters can honor it
     (ctx as any).preferredLanguage = lang;
@@ -1371,7 +1490,7 @@ function draftResponseForLanguage(
       let guFollow: string;
 
       if (isCrisis) {
-        guMsg = "અત્યારે તું ઘણી ભારે જગ્યા પર છ. હું ખરેખર સાથે છ.";
+        guMsg = "અત્યારે તું ઘણી ભારે જગ્યા પર છે. હું ખરેખર સાથે છું.";
         guFollow = "આ ક્ષણે તારી પાસે કોઈ છે — કોઈ જેને બોલાવી શકે?";
       } else if (isWork) {
         guMsg = pickFrom(seed2 + ":work", [
@@ -1701,7 +1820,7 @@ function draftResponseForLanguage(
       let paFollow: string;
 
       if (isCrisis) {
-        paMsg = "ਤੂੰ ਹੁਣ ਬਹੁਤ ਭਾਰੀ ਥਾਂ 'ਤੇ ਹੈ। ਮੈਂ ਸੱਚਮੁੱਚ ਨਾਲ ਹਾਂ।";
+        paMsg = "ਤੂੰ ਹੁਣ ਬਹੁਤ ਭਾਰੀ ਥਾਂ 'ਤੇ ਹੈਂ। ਮੈਂ ਸੱਚਮੁੱਚ ਨਾਲ ਹਾਂ।";
         paFollow = "ਇਸ ਵੇਲੇ ਤੇਰੇ ਕੋਲ ਕੋਈ ਹੈ — ਕਿਸੇ ਨੂੰ ਬੁਲਾ ਸਕਦਾ/ਸਕਦੀ ਹੈਂ?";
       } else if (isWork) {
         paMsg = pickFrom(seed2 + ":work", [
@@ -1767,8 +1886,8 @@ function draftResponseForLanguage(
       let orFollow: string;
 
       if (isCrisis) {
-        orMsg = "ତୁ ଏବେ ବହୁତ ଭାରୀ ଜାଗାରେ ଅଛ। ମୁଁ ସତ୍ୟ ସହିତ ଅଛି।";
-        orFollow = "ଏହି ମୁହୂର୍ତ୍ତରେ ତୁ ପାଖରେ କେହି ଅଛ କି — କାହାକୁ ଡାକି ପାରିବ?";
+        orMsg = "ତୁ ଏବେ ବହୁତ ଭାରୀ ଜାଗାରେ ଅଛୁ। ମୁଁ ସତରେ ତୋ ସହିତ ଅଛି।";
+        orFollow = "ଏହି ମୁହୂର୍ତ୍ତରେ ତୋ ପାଖରେ କେହି ଅଛନ୍ତି କି — କାହାକୁ ଡାକି ପାରିବୁ?";
       } else if (isWork) {
         orMsg = pickFrom(seed2 + ":work", [
           "କାମର ଏହି ଚାପ ସତ୍ୟ ବହୁତ ଭାରୀ — ଘୁଅ ନାହିଁ, boss ଚାପ — ସବୁ ଏକ ସଙ୍ଗେ ବହୁତ ଅଧିକ ହୋଇଯାଏ।",
@@ -2095,7 +2214,10 @@ function draftResponseForLanguage(
 
     const isWork3 = /\b(boss|work|job|office|deadline|manager|pressure|atasan|travail|patron|arbeit|chef|trabajo|jefe|работа|начальник|工作|老板|عمل|رئيس|kaam|kerja)\b/i.test(lower3) || /(עבודה|בוס|לחץ|דדליין|仕事|上司|締め切り|プレッシャー)/.test(lower3);
     const isRelationship3 = /\b(relationship|breakup|girlfriend|boyfriend|fight|argument|distant|alone|relación|ruptura|relation|rupture|beziehung|trennung|hubungan|putus|отношения|расставание|关系|分手|علاقة|انفصال)\b/i.test(lower3) || /(מערכת יחסים|פרידה|ריב|מריבה|関係|別れ|喧嘩|距離)/.test(lower3);
-    const isCrisis3 = /\b(suicide|kill myself|end it|can't go on|no point|самоубийство|не хочу жить|انتحار|自杀|suicidio|suicídio|mau mati|sterben|sich umbringen)\b/i.test(lower3) || /(אני רוצה למות|אין לי כוח|自殺|死にたい|もう無理)/.test(lower3);
+    // 🔴 #44 (27 Nov 2026): \b only sees ASCII letters ⇒ Cyrillic / Arabic / Chinese words inside
+    // the \b group could NEVER match. Non-Latin phrases live in the second (boundary-free) check.
+    // ⛔ never bare 想死 — 我想死你了 means "I miss you so much" (see keywordMaps).
+    const isCrisis3 = /\b(suicide|kill myself|end it|can't go on|no point|suicidio|suicídio|mau mati|sterben|sich umbringen)\b/i.test(lower3) || /(самоубийств|не хочу жить|хочу умереть|انتحار|أريد أن أموت|自杀|不想活|אני רוצה למות|אין לי כוח|自殺|死にたい|もう無理)/.test(lower3);
     const isLonely3 = /\b(alone|lonely|no one|nobody|nobody understands|isolated|seul|seule|allein|sendirian|одинок|孤独|وحيد)\b/i.test(lower3) || /(בדידות|לבד|אין מי|孤独|一人|誰もいない)/.test(lower3);
 
     type ForeignLang = "ar" | "zh" | "es" | "fr" | "pt" | "ru" | "id" | "de" | "he" | "ja";
@@ -3285,6 +3407,53 @@ function draftResponse(
   let message = "";
   let followUp = "";
 
+  // 🔴 #44 (27 Nov 2026): crisis is checked FIRST, with the same detector as the crisis card
+  // (isCrisisTier2). It used to sit after the greeting / short-statement / short-question rules,
+  // so "should I kill myself?" was answered by the short-question rule with a generic line.
+  if (isCrisisTier2(msg)) {
+    console.log("[IMOTARA_CRISIS_BRANCH]", { msg, lower, rel });
+    const crisisAck = pickFromSeed(
+      `crisisAck:${msg}:${rel}:${name ?? ""}`,
+      [
+        "I’m really glad you said it here. You matter, and I want to stay with you right now.",
+        "Thank you for telling me directly. I'm here with you. We can take this one safe step at a time.",
+        "I’m with you right now. Your safety matters more than anything else in this moment.",
+      ] as const,
+    );
+
+    const crisisFollow = pickFromSeed(
+      `crisisFollow:${msg}:${rel}:${name ?? ""}`,
+      [
+        "Are you in immediate danger right now, or have you already done anything to hurt yourself?",
+        "Can you move a little farther from anything you could use to hurt yourself, and tell me once you have?",
+        "Can you call or message one trusted person right now and stay with me while you do it?",
+      ] as const,
+    );
+
+    const countryCode = (ctx as any)?.countryCode ?? null;
+    // ⚠️ Never null, and never empty — an unrecognised country yields the
+    // international directory rather than one country's numbers.
+    // 🔴 #44: the helpline comes BEFORE the question and the cap is wide enough
+    // for all three parts (the old order + 240 cut the helpline off every time).
+    const crisisSupportOffer = `${crisisHelplineLine("en", countryCode)}.`;
+
+    return {
+      reflectionSeed: undefined,
+      message: cap(
+        `${crisisAck}\n\n${crisisSupportOffer}\n\n${crisisFollow}`,
+        CRISIS_REPLY_MAX,
+      ),
+      followUp: "",
+      meta: {
+        styleContract: "1.0",
+        blueprint: "1.0",
+        blueprintUsed: getResponseBlueprint({
+          tone: inferBlueprintTone(userMessage),
+        }),
+      },
+    };
+  }
+
   // ✅ Greeting-only: be human first, avoid template follow-ups like "comfort/clarity/next step"
   if (isGreetingOnly(msg)) {
     const greetAck = pickFromSeed(
@@ -3342,54 +3511,6 @@ function draftResponse(
       message = `${openerWithContext} I’m here with you.`;
       followUp = "";
     }
-  } else if (
-    CRISIS_HINT_REGEX.test(msg)
-  ) {
-    console.log("[IMOTARA_CRISIS_BRANCH]", { msg, lower, rel });
-    const crisisAck = pickFromSeed(
-      `crisisAck:${msg}:${rel}:${name ?? ""}`,
-      [
-        "I’m really glad you said it here. You matter, and I want to stay with you right now.",
-        "Thank you for telling me directly. I'm here with you. We can take this one safe step at a time.",
-        "I’m with you right now. Your safety matters more than anything else in this moment.",
-      ] as const,
-    );
-
-    const crisisFollow = pickFromSeed(
-      `crisisFollow:${msg}:${rel}:${name ?? ""}`,
-      [
-        "Are you in immediate danger right now, or have you already done anything to hurt yourself?",
-        "Can you move a little farther from anything you could use to hurt yourself, and tell me once you have?",
-        "Can you call or message one trusted person right now and stay with me while you do it?",
-      ] as const,
-    );
-
-    const countryCode = (ctx as any)?.countryCode ?? null;
-    // ⚠️ Never null, and never empty — an unrecognised country yields the
-    // international directory rather than one country's numbers. The old code
-    // had a prose fallback here naming no destination at all, reached by
-    // everyone outside the 59 listed countries.
-    const countryResources = getCrisisResourcesForCountry(countryCode);
-    const primaryLine = countryResources.primary[0];
-
-    const crisisSupportOffer =
-      `If you need immediate human support, you can reach ${primaryLine.label} at ${primaryLine.contact}. ${primaryLine.note ?? ""}`.trim();
-
-    return {
-      reflectionSeed: undefined,
-      message: cap(
-        `${crisisAck}\n\n${crisisFollow}\n\n${crisisSupportOffer}`,
-        240,
-      ),
-      followUp: "",
-      meta: {
-        styleContract: "1.0",
-        blueprint: "1.0",
-        blueprintUsed: getResponseBlueprint({
-          tone: inferBlueprintTone(userMessage),
-        }),
-      },
-    };
 
   } else if (detectMetaComplaintIntent(msg)) {
     const metaAck = pickFromSeed(
@@ -3802,7 +3923,7 @@ function draftResponse(
   // Keep it inside meta so we don't break ImotaraResponse typing
   (meta as any).emotion = emotion;
 
-  const isCrisisDraft = CRISIS_HINT_REGEX.test(msg);
+  const isCrisisDraft = isCrisisTier2(msg);
 
   return {
     // ✅ Disable ReflectionSeed entirely (no card, no structured prompt)
@@ -3974,7 +4095,7 @@ export async function runImotara(input: {
       return null;
     })();
 
-    const isCrisisMsg = CRISIS_HINT_REGEX.test(userMessage);
+    const isCrisisMsg = isCrisisTier2(userMessage);
     const isGreeting = isGreetingOnly(userMessage);
     const isQuestion = /[?？؟]$/.test(userMessage.trim());
     const storySeed = userMessage.length + userMessage.charCodeAt(0);
@@ -4019,7 +4140,7 @@ export async function runImotara(input: {
       return null;
     })();
 
-    const isCrisisMsg = CRISIS_HINT_REGEX.test(userMessage);
+    const isCrisisMsg = isCrisisTier2(userMessage);
     const isGreeting = isGreetingOnly(userMessage);
     const isQuestion = /[?？؟]$/.test(userMessage.trim());
     const mythSeed = userMessage.length + (userMessage.charCodeAt(1) || 0);
@@ -4059,7 +4180,7 @@ export async function runImotara(input: {
       return null;
     })();
 
-    const isCrisisMsg = CRISIS_HINT_REGEX.test(userMessage);
+    const isCrisisMsg = isCrisisTier2(userMessage);
     const isGreeting = isGreetingOnly(userMessage);
     const isQuestion = /[?？؟]$/.test(userMessage.trim());
     const quoteSeed = userMessage.length + (userMessage.charCodeAt(2) || 0);
@@ -4163,7 +4284,7 @@ export async function runImotara(input: {
     }
   }
 
-  const isCrisisReply = CRISIS_HINT_REGEX.test(userMessage);
+  const isCrisisReply = isCrisisTier2(userMessage);
 
   // ── emotionMemory: warm up opener when history shows sustained heavy load ───
   // Only override when we don’t already have a more specific opener above.

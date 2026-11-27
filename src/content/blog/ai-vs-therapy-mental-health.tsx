@@ -4,12 +4,12 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "ai-vs-therapy-mental-health",
-  title: "AI vs Therapy: What's the Difference and When Do You Need Each?",
+  title: "Companion Apps vs Therapy: What's the Difference and When Do You Need Each?",
   description:
-    "AI mental wellness apps and therapy both support emotional health — but in very different ways. Here's an honest breakdown of what each does, and when to choose which.",
+    "Companion apps for emotional wellness and therapy both support emotional health — but in very different ways. Here's an honest breakdown of what each does, and when to choose which.",
   date: "2026-04-20",
   category: "Mental Health",
-  tags: ["AI vs therapy", "mental health", "when to see a therapist", "companion app", "emotional wellness"],
+  tags: ["companion app vs therapy", "mental health", "when to see a therapist", "companion app", "emotional wellness"],
   author: {
     name: "Soumen Roy",
     role: "Founder, Imotara",
@@ -117,7 +117,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        Responsible AI wellness apps are explicit about this. Imotara, for example, is clear that it is a
+        Responsible companion apps are explicit about this. Imotara, for example, is clear that it is a
         wellness companion, not a medical device or therapeutic service, and always encourages users to seek
         professional help when they need it.
       </p>

@@ -218,7 +218,7 @@ export default function BlogListClient({
           Words on feeling well
         </h1>
         <p className="mt-3 max-w-xl text-sm leading-7 text-zinc-400">
-          Thoughts on emotional wellness, mindfulness, multilingual AI, and
+          Thoughts on emotional wellness, mindfulness, many languages, and
           building a kinder inner world — from the Imotara team.
         </p>
         {categories.length > 1 && (

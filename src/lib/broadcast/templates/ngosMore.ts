@@ -195,7 +195,7 @@ What is your current uptake, if you track it?
 
 ${SIGN}`),
 
-    t("isnt-this-just-an-app", "\"Isn't this just a chatbot?\"",
+    t("isnt-this-just-an-app", "\"Isn't this just an app?\"",
       "Honest objection handler.",
       "A fair question about what this actually is",
       `Hello {{name|there}},

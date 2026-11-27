@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "erosion-human-agency-therapy",
-  title: "İnsan Özerkliğinin Erozyonu — Yapay Zeka Terapisi Sizin Yerinize Düşünmeye Başladığında",
+  title: "İnsan Özerkliğinin Erozyonu — Dijital Terapi Sizin Yerinize Düşünmeye Başladığında",
   description:
-    "Kolaylık, büyümeyi mümkün kılan mücadelenin yerini alabilir. Yapay zeka ruh sağlığı araçları ne zaman gerçekten yardımcı olur ve ne zaman özerkliğimizi sessizce aşındırır?",
+    "Kolaylık, büyümeyi mümkün kılan mücadelenin yerini alabilir. Dijital ruh sağlığı araçları ne zaman gerçekten yardımcı olur ve ne zaman özerkliğimizi sessizce aşındırır?",
   date: "2026-04-05",
   category: "Research",
-  tags: ["Turkish", "Türkçe", "AI therapy", "human agency", "mental health", "autonomy"],
+  tags: ["Turkish", "Türkçe", "digital therapy", "human agency", "mental health", "autonomy"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 5,
   coverEmoji: "🧭",
   featured: false,
   language: "Türkçe",
   languageCode: "tr",
-  titleEn: "The Erosion of Human Agency — When AI Therapy Starts Thinking for You",
+  titleEn: "The Erosion of Human Agency — When Digital Therapy Starts Thinking for You",
   descriptionEn:
-    "Convenience can quietly replace the struggle that makes growth possible. When do AI mental health tools genuinely help — and when do they silently erode our autonomy?",
+    "Convenience can quietly replace the struggle that makes growth possible. When do digital mental health tools genuinely help — and when do they silently erode our autonomy?",
 };
 
 function TurkishContent() {

@@ -6,17 +6,17 @@ import { brandTitle } from "@/lib/seo/brandTitle";
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: brandTitle("Imotara — आपकी भावनाओं का एक अमर दोस्त"),
+  title: brandTitle("Imotara — आपकी भावनाओं का एक अमर साथी"),
   description:
-    "Imotara एक शांत, निजी AI साथी है जो आपकी भावनाओं को सुनता है, याद रखता है, और बिना किसी निर्णय के प्रतिक्रिया देता है। कोई विज्ञापन नहीं, कोई निगरानी नहीं।",
+    "Imotara एक शांत, निजी साथी है जो आपकी भावनाओं को सुनता है, याद रखता है, और बिना किसी निर्णय के प्रतिक्रिया देता है। कोई विज्ञापन नहीं, कोई निगरानी नहीं।",
   keywords: [
     "Imotara हिंदी",
-    "AI भावनात्मक साथी",
+    "भावनात्मक साथी",
     "मानसिक स्वास्थ्य ऐप",
     "भावनाओं का ट्रैकर",
-    "AI मूड ट्रैकर",
+    "मूड ट्रैकर",
     "भावनात्मक डायरी",
-    "निजी AI चैट",
+    "निजी बातचीत",
     "मानसिक कल्याण ऐप",
   ],
   alternates: {
@@ -33,17 +33,17 @@ export const metadata: Metadata = {
     type: "website",
     url: `${SITE_URL}/hi`,
     siteName: "Imotara",
-    title: "Imotara — आपकी भावनाओं का एक अमर दोस्त",
+    title: "Imotara — आपकी भावनाओं का एक अमर साथी",
     description:
-      "एक AI साथी जो सुनता है, याद रखता है, और आपके साथ बढ़ता है — चुपचाप, नैतिक रूप से, और हमेशा के लिए।",
+      "एक साथी जो सुनता है, याद रखता है, और आपके साथ बढ़ता है — चुपचाप, नैतिक रूप से, और हमेशा के लिए।",
     images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara" }],
     locale: "hi_IN",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Imotara — आपकी भावनाओं का एक अमर दोस्त",
+    title: "Imotara — आपकी भावनाओं का एक अमर साथी",
     description:
-      "एक AI साथी जो सुनता है, याद रखता है, और आपके साथ बढ़ता है — चुपचाप, नैतिक रूप से, और हमेशा के लिए।",
+      "एक साथी जो सुनता है, याद रखता है, और आपके साथ बढ़ता है — चुपचाप, नैतिक रूप से, और हमेशा के लिए।",
     images: [`${SITE_URL}/og-image.png`],
   },
 };
@@ -52,11 +52,11 @@ export default function HindiPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Imotara — आपकी भावनाओं का एक अमर दोस्त",
+    name: "Imotara — आपकी भावनाओं का एक अमर साथी",
     url: `${SITE_URL}/hi`,
     inLanguage: "hi",
     description:
-      "Imotara एक शांत, निजी AI भावनात्मक साथी है। यह आपकी भावनाओं को सुनता है, याद रखता है, और आपके पैटर्न को समझता है — बिना विज्ञापन, बिना निगरानी।",
+      "Imotara एक शांत, निजी भावनात्मक साथी है। यह आपकी भावनाओं को सुनता है, याद रखता है, और आपके पैटर्न को समझता है — बिना विज्ञापन, बिना निगरानी।",
     isPartOf: { "@type": "WebSite", url: SITE_URL, name: "Imotara" },
   };
 
@@ -82,7 +82,7 @@ export default function HindiPage() {
               आपकी भावनाओं का
               <br />
               <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-200 bg-clip-text text-transparent">
-                एक अमर दोस्त
+                एक अमर साथी
               </span>
             </h1>
 

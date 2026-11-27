@@ -6,17 +6,17 @@ import { brandTitle } from "@/lib/seo/brandTitle";
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: brandTitle("Imotara — আপনার আবেগের একজন অমর বন্ধু"),
+  title: brandTitle("Imotara — আপনার আবেগের একজন অমর সঙ্গী"),
   description:
-    "Imotara একটি শান্ত, ব্যক্তিগত AI সঙ্গী যা আপনার আবেগ শোনে, মনে রাখে এবং বিচার ছাড়াই সাড়া দেয়। কোনো বিজ্ঞাপন নেই, কোনো নজরদারি নেই।",
+    "Imotara একটি শান্ত, ব্যক্তিগত সঙ্গী যা আপনার আবেগ শোনে, মনে রাখে এবং বিচার ছাড়াই সাড়া দেয়। কোনো বিজ্ঞাপন নেই, কোনো নজরদারি নেই।",
   keywords: [
     "Imotara বাংলা",
-    "AI মানসিক সঙ্গী",
+    "মানসিক সঙ্গী",
     "মানসিক স্বাস্থ্য অ্যাপ",
     "আবেগ ট্র্যাকার",
-    "AI মুড ট্র্যাকার",
+    "মুড ট্র্যাকার",
     "ভাবনার ডায়েরি",
-    "ব্যক্তিগত AI চ্যাট",
+    "ব্যক্তিগত কথোপকথন",
     "মানসিক সুস্থতা অ্যাপ",
   ],
   alternates: {
@@ -33,17 +33,17 @@ export const metadata: Metadata = {
     type: "website",
     url: `${SITE_URL}/bn`,
     siteName: "Imotara",
-    title: "Imotara — আপনার আবেগের একজন অমর বন্ধু",
+    title: "Imotara — আপনার আবেগের একজন অমর সঙ্গী",
     description:
-      "একজন AI সঙ্গী যে শোনে, মনে রাখে এবং আপনার সাথে বাড়ে — নিঃশব্দে, নৈতিকভাবে এবং চিরকালের জন্য।",
+      "একজন সঙ্গী যে শোনে, মনে রাখে এবং আপনার সাথে বাড়ে — নিঃশব্দে, নৈতিকভাবে এবং চিরকালের জন্য।",
     images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara" }],
     locale: "bn_BD",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Imotara — আপনার আবেগের একজন অমর বন্ধু",
+    title: "Imotara — আপনার আবেগের একজন অমর সঙ্গী",
     description:
-      "একজন AI সঙ্গী যে শোনে, মনে রাখে এবং আপনার সাথে বাড়ে — নিঃশব্দে, নৈতিকভাবে এবং চিরকালের জন্য।",
+      "একজন সঙ্গী যে শোনে, মনে রাখে এবং আপনার সাথে বাড়ে — নিঃশব্দে, নৈতিকভাবে এবং চিরকালের জন্য।",
     images: [`${SITE_URL}/og-image.png`],
   },
 };
@@ -52,11 +52,11 @@ export default function BengaliPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Imotara — আপনার আবেগের একজন অমর বন্ধু",
+    name: "Imotara — আপনার আবেগের একজন অমর সঙ্গী",
     url: `${SITE_URL}/bn`,
     inLanguage: "bn",
     description:
-      "Imotara একটি শান্ত, ব্যক্তিগত AI আবেগ সঙ্গী। এটি আপনার অনুভূতি শোনে, মনে রাখে এবং আপনার প্যাটার্ন বোঝে — বিজ্ঞাপন ছাড়া, নজরদারি ছাড়া।",
+      "Imotara একটি শান্ত, ব্যক্তিগত আবেগ সঙ্গী। এটি আপনার অনুভূতি শোনে, মনে রাখে এবং আপনার প্যাটার্ন বোঝে — বিজ্ঞাপন ছাড়া, নজরদারি ছাড়া।",
     isPartOf: { "@type": "WebSite", url: SITE_URL, name: "Imotara" },
   };
 
@@ -82,7 +82,7 @@ export default function BengaliPage() {
               আপনার আবেগের
               <br />
               <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-200 bg-clip-text text-transparent">
-                একজন অমর বন্ধু
+                একজন অমর সঙ্গী
               </span>
             </h1>
 

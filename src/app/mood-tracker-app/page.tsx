@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     "talk about feelings app",
     "emotion tracker app",
     "private emotional diary app",
-    "mood tracking with AI",
+    "mood tracking with a companion",
     "free mood tracker",
     "daily mood log app",
     "emotional wellness app",
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Private Mood Tracker App — Talk About Your Feelings — Imotara",
-    description: "Free, private mood tracking with AI-powered reflections. No ads, no account needed.",
+    description: "Free, private mood tracking with gentle companion reflections. No ads, no account needed.",
     images: [`${SITE_URL}/og-image.png`],
   },
 };
@@ -46,11 +46,11 @@ const faqs = [
   },
   {
     q: "How does Imotara help me talk about my feelings?",
-    a: "Imotara gives you a quiet chat space to write or speak what you're feeling. It responds with gentle AI reflections and over time builds a timeline of your emotional patterns so you can see how your mood shifts.",
+    a: "Imotara gives you a quiet chat space to write or speak what you're feeling. It responds with gentle reflections and over time builds a timeline of your emotional patterns so you can see how your mood shifts.",
   },
   {
     q: "Is Imotara's mood tracker free?",
-    a: "Yes. The mood tracker, conversation history, timeline, and AI reflections are all free. No subscription required.",
+    a: "Yes. The mood tracker, conversation history, timeline, and companion reflections are all free. No subscription required.",
   },
   {
     q: "Does Imotara share my mood data?",
@@ -62,7 +62,7 @@ const faqs = [
   },
   {
     q: "Can I use Imotara as a daily mood journal?",
-    a: "Yes. Many users use Imotara as a daily emotional journal — writing a quick note each morning or evening about how they feel. The AI responds thoughtfully and the history is always accessible.",
+    a: "Yes. Many users use Imotara as a daily emotional journal — writing a quick note each morning or evening about how they feel. Your companion responds thoughtfully and the history is always accessible.",
   },
 ];
 
@@ -84,7 +84,7 @@ export default function MoodTrackerAppPage() {
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-zinc-300">
             Imotara is a free mood tracker and emotional companion — a private space to write how you feel,
-            receive gentle AI reflections, and watch your emotional patterns unfold over time. No ads, no account
+            receive gentle reflections, and watch your emotional patterns unfold over time. No ads, no account
             required, no data selling.
           </p>
           {/* #77f: one tap from "how I feel" to a written opener in the chat */}
@@ -129,7 +129,7 @@ export default function MoodTrackerAppPage() {
               color: "text-violet-300",
             },
             {
-              title: "AI-powered reflections",
+              title: "Companion reflections",
               desc: "Imotara gives thoughtful, contextual responses — not scripted replies. It notices what you write and responds to you, not to a template.",
               color: "text-amber-300",
             },

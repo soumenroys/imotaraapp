@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "algorithmic-gaslighting",
-  title: "Gaslighting Algoritmico — Quando l'AI Ti Fa Dubitare delle Tue Emozioni",
+  title: "Gaslighting Algoritmico — Quando la Tecnologia Ti Fa Dubitare delle Tue Emozioni",
   description:
-    "I sistemi di AI addestrati su dati collettivi possono sottilmente invalidare la tua esperienza individuale. Capire questa dinamica è il primo passo per resistere.",
+    "Gli algoritmi addestrati su dati collettivi possono sottilmente invalidare la tua esperienza individuale. Capire questa dinamica è il primo passo per resistere.",
   date: "2026-04-08",
   category: "Research",
-  tags: ["Italian", "Italiano", "gaslighting", "AI bias", "emotional validation"],
+  tags: ["Italian", "Italiano", "gaslighting", "algorithmic bias", "emotional validation"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 6,
   coverEmoji: "🌀",
   featured: false,
   language: "Italiano",
   languageCode: "it",
-  titleEn: "Algorithmic Gaslighting — When AI Makes You Doubt Your Own Emotions",
+  titleEn: "Algorithmic Gaslighting — When Technology Makes You Doubt Your Own Emotions",
   descriptionEn:
-    "AI systems trained on population-level data can subtly invalidate your individual experience. Understanding this dynamic is the first step to resisting it.",
+    "Algorithms trained on population-level data can subtly invalidate your individual experience. Understanding this dynamic is the first step to resisting it.",
 };
 
 function ItalianContent() {

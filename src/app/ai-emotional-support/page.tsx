@@ -46,8 +46,8 @@ const faqs = [
     a: "Imotara is a private, always-available space where you can talk about how you feel — without judgment. Imotara listens, reflects your thoughts back gently, and helps you notice emotional patterns over time.",
   },
   {
-    q: "How is Imotara different from a chatbot?",
-    a: "Unlike generic chatbots, Imotara is purpose-built for emotional wellness. It remembers your conversations, surfaces mood patterns over time, and responds with empathy — not just information. It's more like a quiet friend than a search engine.",
+    q: "How is Imotara different from a generic chat app?",
+    a: "Unlike generic chat apps, Imotara is purpose-built for emotional wellness. It remembers your conversations, surfaces mood patterns over time, and responds with empathy — not just information. It's more like a quiet companion than a search engine.",
   },
   {
     q: "Is Imotara free?",

@@ -24,7 +24,7 @@ export default function AgeRestrictedPage() {
             href="/chat"
             className="rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500"
           >
-            Go to AI Chat
+            Talk to your companion
           </Link>
           <Link href="/" className="text-xs text-zinc-500 hover:text-zinc-300 transition">
             Return to Home

@@ -66,6 +66,11 @@ try {
       [/"version":\s*"[\d.]+"/, `"version": "${version}"`, "web version"],
       [/"buildNumber":\s*"\d+"/, `"buildNumber": "${buildNumber}"`, "web buildNumber"],
     ]),
+    // 27 Nov 2026: llms.txt is read by assistants and repeated verbatim — it said 1.6.9 while
+    // 1.7.3 was live, because nobody bumps it by hand. ⇒ bumped here with everything else.
+    applyEdits(path.join(WEB_ROOT, "public", "llms.txt"), [
+      [/- Current version: [\d.]+ on web, Android and iOS\./, `- Current version: ${version} on web, Android and iOS.`, "llms.txt current version"],
+    ]),
     applyEdits(path.join(MOBILE_ROOT, "package.json"), [
       [/"version":\s*"[\d.]+"/, `"version": "${version}"`, "mobile package.json version"],
     ]),
@@ -84,6 +89,7 @@ try {
 
   console.log(`Bumped to version ${version}, build ${buildNumber}:`);
   console.log(`  imotaraapp/package.json        (version, buildNumber)`);
+  console.log(`  imotaraapp/public/llms.txt     (current version line)`);
   console.log(`  imotara-mobile/package.json    (version)`);
   console.log(`  imotara-mobile/app.json        (expo.version, ios.buildNumber, android.versionCode)`);
   console.log(`\nReview the diff in both repos, then commit each yourself.`);

@@ -6,17 +6,17 @@ import { brandTitle } from "@/lib/seo/brandTitle";
 const SITE_URL = "https://www.imotara.com";
 
 export const metadata: Metadata = {
-  title: brandTitle("Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய நண்பர்"),
+  title: brandTitle("Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய துணை"),
   description:
-    "Imotara ஒரு அமைதியான, தனிப்பட்ட AI தோழன், உங்கள் உணர்வுகளை கேட்கிறது, நினைவில் வைத்திருக்கிறது, எந்த தீர்ப்பும் இல்லாமல் பதிலளிக்கிறது. விளம்பரங்கள் இல்லை, கண்காணிப்பு இல்லை.",
+    "Imotara ஒரு அமைதியான, தனிப்பட்ட துணை, உங்கள் உணர்வுகளை கேட்கிறது, நினைவில் வைத்திருக்கிறது, எந்த தீர்ப்பும் இல்லாமல் பதிலளிக்கிறது. விளம்பரங்கள் இல்லை, கண்காணிப்பு இல்லை.",
   keywords: [
     "Imotara தமிழ்",
-    "AI உணர்வு தோழன்",
+    "உணர்வுத் துணை",
     "மனநல பயன்பாடு",
     "உணர்வு கண்காணிப்பி",
-    "AI மனநிலை கண்காணிப்பி",
+    "மனநிலை கண்காணிப்பி",
     "உணர்வு நாட்குறிப்பு",
-    "தனிப்பட்ட AI அரட்டை",
+    "தனிப்பட்ட அரட்டை",
     "மனநல நலன் பயன்பாடு",
   ],
   alternates: {
@@ -33,17 +33,17 @@ export const metadata: Metadata = {
     type: "website",
     url: `${SITE_URL}/ta`,
     siteName: "Imotara",
-    title: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய நண்பர்",
+    title: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய துணை",
     description:
-      "ஒரு AI தோழன் கேட்கிறது, நினைவில் வைத்திருக்கிறது, உங்களுடன் வளர்கிறது — அமைதியாக, நெறிமுறையாக, என்றென்றும்.",
+      "ஒரு துணை கேட்கிறது, நினைவில் வைத்திருக்கிறது, உங்களுடன் வளர்கிறது — அமைதியாக, நெறிமுறையாக, என்றென்றும்.",
     images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Imotara" }],
     locale: "ta_IN",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய நண்பர்",
+    title: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய துணை",
     description:
-      "ஒரு AI தோழன் கேட்கிறது, நினைவில் வைத்திருக்கிறது, உங்களுடன் வளர்கிறது — அமைதியாக, நெறிமுறையாக, என்றென்றும்.",
+      "ஒரு துணை கேட்கிறது, நினைவில் வைத்திருக்கிறது, உங்களுடன் வளர்கிறது — அமைதியாக, நெறிமுறையாக, என்றென்றும்.",
     images: [`${SITE_URL}/og-image.png`],
   },
 };
@@ -52,11 +52,11 @@ export default function TamilPage() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    name: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய நண்பர்",
+    name: "Imotara — உங்கள் உணர்வுகளுக்கான ஒரு நித்திய துணை",
     url: `${SITE_URL}/ta`,
     inLanguage: "ta",
     description:
-      "Imotara ஒரு அமைதியான, தனிப்பட்ட AI உணர்வு தோழன். இது உங்கள் உணர்வுகளை கேட்கிறது, நினைவில் வைத்திருக்கிறது மற்றும் உங்கள் முறைகளை புரிந்துகொள்கிறது — விளம்பரங்கள் இல்லாமல், கண்காணிப்பு இல்லாமல்.",
+      "Imotara ஒரு அமைதியான, தனிப்பட்ட உணர்வுத் துணை. இது உங்கள் உணர்வுகளை கேட்கிறது, நினைவில் வைத்திருக்கிறது மற்றும் உங்கள் முறைகளை புரிந்துகொள்கிறது — விளம்பரங்கள் இல்லாமல், கண்காணிப்பு இல்லாமல்.",
     isPartOf: { "@type": "WebSite", url: SITE_URL, name: "Imotara" },
   };
 
@@ -75,14 +75,14 @@ export default function TamilPage() {
           {/* Hero */}
           <div className="imotara-glass-card px-6 py-8 sm:px-8 sm:py-10">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400">
-              <span>Imotara · உணர்வு தோழன்</span>
+              <span>Imotara · உணர்வுத் துணை</span>
             </div>
 
             <h1 className="mt-4 text-left text-4xl font-semibold tracking-tight text-zinc-50 sm:text-5xl">
               உங்கள் உணர்வுகளுக்கான
               <br />
               <span className="bg-gradient-to-r from-indigo-300 via-sky-300 to-emerald-200 bg-clip-text text-transparent">
-                ஒரு நித்திய நண்பர்
+                ஒரு நித்திய துணை
               </span>
             </h1>
 

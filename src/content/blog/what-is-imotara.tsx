@@ -30,7 +30,7 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        Imotara is an AI emotional wellness companion. A quiet, private space
+        Imotara is an emotional wellness companion. A quiet, private space
         where you can talk about how you feel without worrying about who is
         reading it, what algorithm is watching, or how many likes you're
         getting. There is no feed, no followers, no performance. Just you and
@@ -87,8 +87,9 @@ export default function Content({ lang: _lang }: { lang?: "en" } = {}) {
       </p>
 
       <p>
-        We use AI to understand your emotions — but the model doesn't receive
-        your name, email, location, or any identifying information. Just the
+        Your companion reads what you write to understand how you feel — but the
+        software that writes its replies never receives your name, email,
+        location, or any identifying information. Just the
         words you share, and nothing else.
       </p>
 

@@ -10,7 +10,7 @@ Imotara speaks 22 languages, across chat replies, read-aloud voices, and emotion
 
 **Global languages (10):** Spanish, French, German, Portuguese, Russian, Arabic, Chinese (Mandarin), Japanese, Hebrew, Indonesian.
 
-Every one of these works for AI replies (both online and offline), read-aloud voices, and mood detection.
+Every one of these works for replies (both online and offline), read-aloud voices, and mood detection.
 
 ## How Imotara decides which language to use
 

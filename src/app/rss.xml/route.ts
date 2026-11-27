@@ -30,7 +30,7 @@ export async function GET() {
   <channel>
     <title>Imotara Blog — Emotional Wellness &amp; Mental Health</title>
     <link>${SITE_URL}/blog</link>
-    <description>Thoughts on emotional wellness, mindfulness, AI ethics, and building a kinder inner world — from the Imotara team.</description>
+    <description>Thoughts on emotional wellness, mindfulness, technology ethics, and building a kinder inner world — from the Imotara team.</description>
     <language>en-us</language>
     <managingEditor>roysowmen@gmail.com (Soumen Roy)</managingEditor>
     <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>

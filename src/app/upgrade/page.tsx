@@ -10,6 +10,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import useLicense, { refreshLicense } from "@/hooks/useLicense";
 import { paiseFor, inr } from "@/lib/imotara/pricing";
 import { tallyFunnel } from "@/lib/analytics/visitTallyClient";
+import { purchaseMessage } from "@/lib/imotara/purchaseMessage";
 
 const PENDING_KEY = "imotara_pending_purchase";
 type PendingPurchase = { productId: string; description: string };
@@ -274,9 +275,9 @@ export default function UpgradePage() {
                         // still reads "Current plan: Free" right after paying —
                         // seen live on the first real payment, 2026-09-26.
                         refreshLicense();
-                        setStatus({ type: "success", msg: `Plan activated! You are now on ${confirm.tier?.toUpperCase() ?? "your new plan"}.` });
+                        setStatus({ type: "success", msg: purchaseMessage(productId, confirm) });
                     } else {
-                        setStatus({ type: "success", msg: "Payment received. Your plan will activate within a minute." });
+                        setStatus({ type: "success", msg: purchaseMessage(productId, confirm) });
                     }
                 },
                 modal: { ondismiss: () => { tallyFunnel("purchase_cancel"); setBusy(null); setStatus({ type: "error", msg: "Checkout closed. No payment was made." }); } },

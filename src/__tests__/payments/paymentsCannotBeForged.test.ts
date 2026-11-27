@@ -212,7 +212,8 @@ describe("Apple purchases", () => {
         expect(apple).toMatch(/const isSandbox = verification\.environment === "sandbox";/);
         expect(apple).toMatch(/if \(isSandbox && product\.type !== "subscription"\) \{/);
         expect(apple).toMatch(/\.eq\("currency", SANDBOX_CURRENCY\)/);
-        expect(apple).toMatch(/currency:\s+isSandbox \? SANDBOX_CURRENCY : "INR",/);
+        // #44 (27 Nov 2026): a real purchase records Apple's own signed currency, not a fixed "INR".
+        expect(apple).toMatch(/currency:\s+isSandbox \? SANDBOX_CURRENCY : \(verification\.paidCurrency \?\? "XXX"\),/);
     });
     it("the recovery path grants the RECORDED product, not the one the request names", () => {
         expect(apple).toMatch(/const recordedProduct = String\(existingPayment\.product_id \?\? ""\);/);

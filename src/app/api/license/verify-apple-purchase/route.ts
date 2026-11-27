@@ -207,10 +207,12 @@ export async function POST(req: Request) {
             user_id:      userId,
             product_id:   productId,
             tier:         product.type === "subscription" ? product.tier : "free",
-            amount_paise: product.paise, // INR paise (App Store pricing set per country by App Store Connect)
-            // Indian pricing basis; App Store handles local currency per region.
+            // #44 (27 Nov 2026): what the buyer actually paid, from Apple's SIGNED payload (their
+            // own currency). It used to be our INR catalog price labelled "INR" for everyone.
+            // "XXX" (ISO: no currency) when Apple did not say — never a guess.
+            amount_paise: verification.paidMinor ?? 0,
             // #172: sandbox rows are marked so they can be told apart (and rate-limited above).
-            currency:     isSandbox ? SANDBOX_CURRENCY : "INR",
+            currency:     isSandbox ? SANDBOX_CURRENCY : (verification.paidCurrency ?? "XXX"),
         });
         if (claim === "error") {
             return NextResponse.json({ ok: false, error: "Could not record transaction" }, { status: 503 });
@@ -242,8 +244,8 @@ export async function POST(req: Request) {
           description:    getProductDescription(productId),
           paymentGateway: "apple",
           gatewayRef:     transactionId as string,
-          amountPaise:    0, // Apple IAP amount not available server-side
-          currency:       "USD",
+          amountPaise:    verification.paidMinor ?? 0, // #44: Apple's signed price (was 0 + a false "USD")
+          currency:       verification.paidCurrency ?? "XXX",
           periodStart:    new Date().toISOString(),
           periodEnd:      result.expiresAt ?? undefined,
         }).catch((err: unknown) => console.error("[apple-iap] invoice creation failed:", err));

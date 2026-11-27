@@ -130,8 +130,15 @@ function fmtDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function fmtInr(paise: number): string {
-  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+// #44 (27 Nov 2026): a payment is shown in ITS currency — Apple records the buyer's own
+// currency now, and Play records "XXX" (not reported) instead of a false "USD".
+function fmtMoney(minor: number, currency: string): string {
+  if (!minor || currency === "XXX") return "—";
+  try {
+    return new Intl.NumberFormat("en", { style: "currency", currency, maximumFractionDigits: 2 }).format(minor / 100);
+  } catch {
+    return `${(minor / 100).toFixed(2)} ${currency}`;
+  }
 }
 
 function tierBadge(tier: string | null) {
@@ -672,8 +679,13 @@ function UserLicenseRow({
     setSaving(false);
     if (res.ok) {
       const data = await res.json();
-      setSavedMsg(`✓ Saved (${data.action})`);
-      setTimeout(() => setSavedMsg(""), 3000);
+      if (data.historySaved === false) {
+        // #44: the change is saved but its history entry is not — say so, and keep it on screen.
+        setSavedMsg(`✓ Saved (${data.action}) — ⚠️ but the history entry could not be written`);
+      } else {
+        setSavedMsg(`✓ Saved (${data.action})`);
+        setTimeout(() => setSavedMsg(""), 3000);
+      }
       // Refresh detail
       setDetail(null);
       onUpdated();
@@ -1029,7 +1041,7 @@ function UserLicenseRow({
                               {p.tier}
                             </span>
                           </td>
-                          <td className="py-1.5 text-zinc-400">{fmtInr(p.amount_paise)}</td>
+                          <td className="py-1.5 text-zinc-400">{fmtMoney(p.amount_paise ?? 0, p.currency || "INR")}</td>
                         </tr>
                       ))}
                     </tbody>

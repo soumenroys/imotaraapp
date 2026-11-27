@@ -16,6 +16,7 @@ import type { LicenseProductId } from "@/lib/imotara/grantLicense";
 import { createInvoice, getProductDescription } from "@/lib/imotara/invoiceUtils";
 import { claimPayment, releasePayment } from "@/lib/imotara/claimPayment";
 import { renewPlaySubscription } from "@/lib/imotara/playRenewal";
+import { markGranted, reportedPlayPrice, settleRepeatedPack } from "@/lib/imotara/playPackSettle";
 
 const PACKAGE_NAME = process.env.GOOGLE_PLAY_PACKAGE_NAME ?? "com.imotara.imotara";
 
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   //    this is the backstop. Unacknowledged, the purchase stays restorable after sign-in.
   if (authData?.user?.is_anonymous) return NextResponse.json({ ok: false, error: "sign_in_required" }, { status: 403 });
 
-  let body: { productId: string; purchaseToken: string; orderId?: string };
+  let body: { productId: string; purchaseToken: string; orderId?: string; paidMicros?: unknown; paidCurrency?: unknown };
   try { body = await req.json(); }
   catch { return NextResponse.json({ ok: false, error: "invalid JSON" }, { status: 400 }); }
 
@@ -77,14 +78,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: "Purchase not valid" }, { status: 400 });
   }
 
+  const paid = reportedPlayPrice(body.paidMicros, body.paidCurrency);
+
   // 🔴 ONE grant per purchase ⇒ lib/imotara/claimPayment.ts (6 Nov 2026).
   const claim = await claimPayment(admin, {
     payment_id:   purchaseToken,
     user_id:      userId,
     product_id:   productId,
     tier:         "pending", // updated below after grant
-    amount_paise: 0,   // Google Play amount unavailable server-side (set per country in Play Console)
-    currency:     "USD", // Default; actual local currency determined by Play Console per region
+    // #44 (27 Nov 2026): Google's purchase API carries NO price. This used to write a false
+    // "USD" for everyone; now it is what the app reports from the store (records only — never
+    // used to grant anything), else "XXX" (ISO 4217: not reported).
+    amount_paise: paid.minor,
+    currency:     paid.currency,
   });
   if (claim === "error") {
     return NextResponse.json({ ok: false, error: "Could not record the purchase — please retry" }, { status: 503 });
@@ -97,7 +103,7 @@ export async function POST(req: NextRequest) {
     // lost it after the first period. ⇒ a known subscription token is a
     // RENEWAL: extend to Google's own expiry (grant never shortens, adds no
     // tokens ⇒ safe to repeat). A token pack is genuinely done.
-    if (!isSubscription) return NextResponse.json({ ok: true, message: "already_processed" });
+    if (!isSubscription) return settleRepeatedPack(admin, userId, productId as LicenseProductId, purchaseToken);
     return renewPlaySubscription(admin, userId, productId as LicenseProductId, purchaseToken, verification);
   }
 
@@ -118,8 +124,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 500 });
   }
 
-  // Update with real tier
-  void admin.from("payment_licenses").update({ tier: result.tier }).eq("payment_id", purchaseToken);
+  // Update with real tier — AWAITED (#44): "pending" is how a later report knows the grant
+  // never finished (settleRepeatedPack), so this mark must really be written.
+  await markGranted(admin, purchaseToken, result.tier);
 
   // Create invoice
   createInvoice(admin, {
@@ -129,8 +136,8 @@ export async function POST(req: NextRequest) {
     description:    getProductDescription(productId),
     paymentGateway: "google_play",
     gatewayRef:     verification.orderId ?? purchaseToken.slice(0, 40),
-    amountPaise:    0,    // Google Play doesn't expose amount server-side
-    currency:       "USD", // Play Console handles local pricing per country
+    amountPaise:    paid.minor,    // #44: app-reported store price, else 0
+    currency:       paid.currency, // #44: else "XXX" (not reported) — never a false "USD"
     periodStart:    new Date().toISOString(),
     periodEnd:      result.expiresAt ?? verification.expiresAt ?? undefined,
   }).catch((err: unknown) => console.error("[google-play/verify] invoice creation failed:", err));

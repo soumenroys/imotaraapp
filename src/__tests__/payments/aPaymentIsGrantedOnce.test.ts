@@ -188,7 +188,8 @@ describe("the routes use the claim — and nothing asks-then-grants any more", (
 
   it("the Play route treats a known SUBSCRIPTION token as a renewal, not 'already processed'", () => {
     const s = src("src/app/api/payments/google-play/verify/route.ts");
-    expect(s).toMatch(/if \(!isSubscription\) return NextResponse\.json\(\{ ok: true, message: "already_processed" \}\)/);
+    // #44 (27 Nov 2026): a token pack goes to settleRepeatedPack (checks the grant really happened).
+    expect(s).toMatch(/if \(!isSubscription\) return settleRepeatedPack\(/);
     expect(s).toMatch(/renewPlaySubscription\(/);
   });
 });

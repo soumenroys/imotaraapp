@@ -131,7 +131,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       notes:         notes ?? null,
     });
 
-    await supabase.from("admin_license_history").insert({
+    const { error: assignHistoryError } = await supabase.from("admin_license_history").insert({
       admin_label:       adminLabel ?? "admin",
       user_id:           userId,
       user_email:        userEmail,
@@ -146,8 +146,12 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       new_token_balance: tokenBalance ?? (tokenDelta ?? 0),
       notes:             notes ?? null,
     });
+    if (assignHistoryError) {
+      console.error("[admin/licenses PATCH history]", assignHistoryError.message);
+      return NextResponse.json({ ok: true, action: "assign", historySaved: false });
+    }
 
-    return NextResponse.json({ ok: true, action: "assign" });
+    return NextResponse.json({ ok: true, action: "assign", historySaved: true });
   }
 
   // Resolve new token balance
@@ -190,7 +194,11 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
   else if (expiresAt !== undefined && expiresAt !== (existing.expires_at ?? null)) action = "extend";
   else if (tokenBalance !== undefined || tokenDelta !== undefined)               action = "token_adjust";
 
-  await supabase.from("admin_license_history").insert({
+  // #44 / payment-rails #8 (27 Nov 2026): the history write is AWAITED. It used to be
+  // fire-and-forget, so a failed audit entry still answered a plain "ok" and nobody knew a
+  // licence change had no record. The change itself is already saved ⇒ still ok, but the
+  // admin is told the history is missing.
+  const { error: historyError } = await supabase.from("admin_license_history").insert({
     admin_label:       adminLabel ?? "admin",
     user_id:           userId,
     user_email:        userEmail,
@@ -204,9 +212,11 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     old_token_balance: existing.token_balance ?? null,
     new_token_balance: resolvedBalance,
     notes:             notes ?? null,
-  }).then(({ error: hErr }) => {
-    if (hErr) console.error("[admin/licenses PATCH history]", hErr.message);
   });
+  if (historyError) {
+    console.error("[admin/licenses PATCH history]", historyError.message);
+    return NextResponse.json({ ok: true, action, historySaved: false });
+  }
 
-  return NextResponse.json({ ok: true, action });
+  return NextResponse.json({ ok: true, action, historySaved: true });
 }

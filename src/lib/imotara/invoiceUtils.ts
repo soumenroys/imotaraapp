@@ -107,7 +107,8 @@ export async function createInvoice(
  * Returns "—" when amount is 0 (e.g., Apple IAP where amount is unavailable server-side).
  */
 export function formatAmount(smallestUnit: number, currency = "INR"): string {
-  if (smallestUnit === 0) return "—";
+  // "XXX" = ISO 4217 "no currency": the store did not report what was paid (Google Play).
+  if (smallestUnit === 0 || currency === "XXX") return "—";
   const amount = smallestUnit / 100;
   try {
     return new Intl.NumberFormat("en", {

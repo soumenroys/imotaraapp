@@ -121,6 +121,14 @@ export function appleChainMode(): "report" | "enforce" {
  */
 export const APPLE_TRANSACTION_ID = /^\d{1,25}$/;
 
+/** #44: the buyer's own price + currency from a signed transaction payload, or nulls. */
+export function applePaid(tx: Record<string, unknown>): { paidMinor: number | null; paidCurrency: string | null } {
+    const price = Number(tx.price ?? NaN);
+    const currency = String(tx.currency ?? "");
+    if (!Number.isFinite(price) || price < 0 || !/^[A-Z]{3}$/.test(currency)) return { paidMinor: null, paidCurrency: null };
+    return { paidMinor: Math.round(price / 10), paidCurrency: currency };
+}
+
 export async function verifyAppleTransaction(transactionId: string): Promise<{
     ok: boolean;
     appleProductId?: string;
@@ -136,6 +144,12 @@ export async function verifyAppleTransaction(transactionId: string): Promise<{
     transactionId?: string;
     /** Apple refunded / revoked this transaction. */
     revoked?: boolean;
+    /**
+     * #44 (27 Nov 2026): what the buyer actually paid, from the SIGNED payload — amount in
+     * hundredths (Apple's `price` is ×1000 ⇒ ÷10) and ISO currency. Null when absent.
+     */
+    paidMinor?: number | null;
+    paidCurrency?: string | null;
     error?: string;
 }> {
     if (!APPLE_TRANSACTION_ID.test(transactionId)) return { ok: false, error: "Invalid transaction id" };
@@ -211,6 +225,7 @@ export async function verifyAppleTransaction(transactionId: string): Promise<{
             expiresAt,
             transactionId: signedId,
             revoked: txPayload.revocationDate != null,
+            ...applePaid(txPayload),
         };
     }
 

@@ -36,11 +36,11 @@ Work through these in order:
 4. **Force a sync:** on web make sure **Settings → Cloud backup** is ticked, then press **Back up now**; on mobile, bring the app to the foreground and give it a moment.
 5. Check the sync status line in Settings — it tells you whether the last sync succeeded.
 
-## "AI replies feel generic / the AI stopped replying properly"
+## "Replies feel generic / my companion stopped replying properly"
 
 If replies suddenly feel shorter and more templated, you've most likely reached the free daily limit:
 
-1. Free accounts get **20 cloud AI replies per day** (resets at midnight UTC). After that, Imotara switches to its simpler on-device replies rather than blocking you — that's the "generic" feel.
+1. Free accounts get **20 cloud replies per day** (resets at midnight UTC). After that, Imotara switches to its simpler on-device replies rather than blocking you — that's the "generic" feel.
 2. Your options: **wait for the daily reset**, buy a **token pack** (credits carry you past the daily 20 and never expire), or **upgrade** to an unlimited plan. See Plans & Payments.
 3. If you have credits or a paid plan and replies still feel off, check you're **signed in** (limits apply per account) and online, then restart the app. Still odd? Email **info@imotara.com**.
 

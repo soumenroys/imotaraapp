@@ -4,7 +4,7 @@ Imotara's plans and pricing, how to upgrade on web, Android, and iOS, token pack
 
 ## What a free account gets
 
-Imotara is free to use and **no subscription is required**. A free account includes full chat with **20 cloud AI replies per day** (after which Imotara smoothly switches to on-device replies — you're never cut off mid-conversation), mood check-ins, your last **7 days** of history, cloud sync, breathing exercises and all 22 languages.
+Imotara is free to use and **no subscription is required**. A free account includes full chat with **20 cloud replies per day** (after which Imotara smoothly switches to on-device replies — you're never cut off mid-conversation), mood check-ins, your last **7 days** of history, cloud sync, breathing exercises and all 22 languages.
 
 Imotara Plus adds unlimited cloud replies, unlimited history and the deeper insight features listed below. The plans table is what applies today.
 

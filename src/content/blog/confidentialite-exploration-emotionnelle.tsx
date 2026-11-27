@@ -6,10 +6,10 @@ export const meta: BlogPost = {
   slug: "confidentialite-exploration-emotionnelle",
   title: "La Confidentialité des Données Émotionnelles — Ce que les applis font vraiment de vos sentiments",
   description:
-    "Quand vous confiez vos émotions à une IA, à qui appartiennent ces données? Sur la vie privée émotionnelle à l'ère de l'intelligence artificielle et du marketing comportemental.",
+    "Quand vous confiez vos émotions à une application, à qui appartiennent ces données? Sur la vie privée émotionnelle à l'ère du numérique et du marketing comportemental.",
   date: "2026-02-28",
   category: "Research",
-  tags: ["French", "confidentialité", "données", "vie privée", "IA", "RGPD"],
+  tags: ["French", "confidentialité", "données", "vie privée", "numérique", "RGPD"],
   author: { name: "Équipe Imotara", role: "Imotara Team" },
   readingTime: 6,
   coverEmoji: "🔐",
@@ -18,7 +18,7 @@ export const meta: BlogPost = {
   languageCode: "fr",
   titleEn: "Emotional Privacy — What Apps Really Do With Your Feelings",
   descriptionEn:
-    "When you share your emotions with an AI, who owns that data? On emotional privacy in the age of artificial intelligence and behavioural advertising.",
+    "When you share your emotions with an app, who owns that data? On emotional privacy in an age of digital tracking and behavioural advertising.",
 };
 
 function FrenchContent() {

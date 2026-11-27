@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "ai-cultural-bias-discrimination",
-  title: "AI-এর সাংস্কৃতিক পক্ষপাত — যখন প্রযুক্তি সবার কথা বোঝে না",
+  title: "সফটওয়্যারের সাংস্কৃতিক পক্ষপাত — যখন প্রযুক্তি সবার কথা বোঝে না",
   description:
-    "পশ্চিমা মানসিকতায় তৈরি AI কি সত্যিই বাংলা, তামিল বা আরবি ভাষায় কথা বলা মানুষদের বুঝতে পারে? কীভাবে সাংস্কৃতিক পক্ষপাত মানসিক স্বাস্থ্য প্রযুক্তিকে ব্যর্থ করে।",
+    "পশ্চিমা মানসিকতায় তৈরি সফটওয়্যার কি সত্যিই বাংলা, তামিল বা আরবি ভাষায় কথা বলা মানুষদের বুঝতে পারে? কীভাবে সাংস্কৃতিক পক্ষপাত মানসিক স্বাস্থ্য প্রযুক্তিকে ব্যর্থ করে।",
   date: "2026-03-14",
   category: "Research",
-  tags: ["Bengali", "cultural bias", "AI discrimination", "multilingual", "বাংলা"],
+  tags: ["Bengali", "cultural bias", "algorithmic discrimination", "multilingual", "বাংলা"],
   author: { name: "Soumen Roy", role: "Founder, Imotara" },
   readingTime: 7,
   coverEmoji: "🌐",
   featured: true,
   language: "বাংলা",
   languageCode: "bn",
-  titleEn: "AI's Cultural Bias — When Technology Doesn't Understand Everyone",
+  titleEn: "The Cultural Bias of Software — When Technology Doesn't Understand Everyone",
   descriptionEn:
-    "Can AI built on Western psychology truly understand people who think in Bengali, Tamil or Arabic? How cultural bias causes mental health technology to fail non-Western users.",
+    "Can software built on Western psychology truly understand people who think in Bengali, Tamil or Arabic? How cultural bias causes mental health technology to fail non-Western users.",
 };
 
 function BengaliContent() {

@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
       engaging each week.
     </p>
     <p style="font-size:13px;color:#374151;line-height:1.7;margin-top:12px">
-      Imotara is a private, AI-powered emotional companion that helps individuals process emotions,
+      Imotara is a private emotional companion that helps individuals process emotions,
       build resilience, and develop self-awareness — with no ads, no social feed, and full privacy.
       All conversations remain confidential and are never shared with the organisation.
     </p>

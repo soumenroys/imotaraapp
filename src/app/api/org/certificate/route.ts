@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
   <p class="body-text">
     In recognition of outstanding commitment to emotional wellbeing and community care.
     This organisation has demonstrated leadership in making emotional support accessible
-    to those who need it most — helping build emotionally resilient communities in the age of AI.
+    to those who need it most — helping build emotionally resilient communities in a digital age.
   </p>
   <div class="stats">
     <div>

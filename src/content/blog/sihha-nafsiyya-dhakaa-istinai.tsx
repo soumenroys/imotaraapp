@@ -4,21 +4,21 @@ import type { BlogPost } from "@/lib/blog";
 
 export const meta: BlogPost = {
   slug: "sihha-nafsiyya-dhakaa-istinai",
-  title: "الصحة النفسية والذكاء الاصطناعي — هل يمكن لآلة أن تفهم ألمك؟",
+  title: "الصحة النفسية والتكنولوجيا — هل يمكن لآلة أن تفهم ألمك؟",
   description:
-    "في عالم يتسارع فيه الذكاء الاصطناعي، كيف نحافظ على صحتنا النفسية؟ عن العلاقة بين التكنولوجيا والمشاعر الإنسانية في الثقافة العربية.",
+    "في عالم رقمي متسارع، كيف نحافظ على صحتنا النفسية؟ عن العلاقة بين التكنولوجيا والمشاعر الإنسانية في الثقافة العربية.",
   date: "2026-03-22",
   category: "Mental Health",
-  tags: ["Arabic", "العربية", "صحة نفسية", "ذكاء اصطناعي", "emotional wellness"],
+  tags: ["Arabic", "العربية", "صحة نفسية", "تكنولوجيا", "emotional wellness"],
   author: { name: "فريق إيموتارا", role: "Imotara Team" },
   readingTime: 6,
   coverEmoji: "🌙",
   featured: true,
   language: "العربية",
   languageCode: "ar",
-  titleEn: "Mental Health and AI — Can a Machine Understand Your Pain?",
+  titleEn: "Mental Health and Technology — Can a Machine Understand Your Pain?",
   descriptionEn:
-    "In a world accelerating with AI, how do we protect our mental health? On the relationship between technology and human emotion in Arab cultures.",
+    "In a fast-moving digital world, how do we protect our mental health? On the relationship between technology and human emotion in Arab cultures.",
 };
 
 function ArabicContent() {

@@ -155,7 +155,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     intro: [
       "Everyone has days like this. Not a crisis — just a worry that will not settle, a conversation you keep replaying, a tiredness with no obvious cause. Friends are busy. Family would worry. And “talk to someone” is easy advice to give and hard advice to follow at 11 p.m. Imotara was built for exactly those days.",
-      "Imotara listens with patience, remembers what matters to you, and responds with warmth — in 22 languages including Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu and English. Type or simply speak, and it can answer in a natural voice. It talks the way a caring friend would, not a clinic. It was created by two mothers in Kolkata who wanted a safe, judgement-free space where feelings could be spoken.",
+      "Imotara listens with patience, remembers what matters to you, and responds with warmth — in 22 languages including Hindi, Bengali, Tamil, Telugu, Marathi, Gujarati, Punjabi, Kannada, Malayalam, Odia, Urdu and English. Type or simply speak, and it can answer in a natural voice. It talks the way a caring companion would, not a clinic. It was created by two mothers in Kolkata who wanted a safe, judgement-free space where feelings could be spoken.",
     ],
     cardsHeading: "What makes Imotara different",
     cards: [
@@ -198,7 +198,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     intro: [
       "Some days are just a lot. The exam you can’t stop thinking about. The group chat that went quiet. The thing you can’t say to your parents and don’t want to say to your friends either. Everyone says “talk to someone” — but at 11 p.m., who? That’s why Imotara exists.",
-      "Imotara is a companion that listens. Not a bot that says “I understand” and moves on — one that remembers what you told it last week, asks one good question at a time, and never lectures. Type or just speak, in English, Hindi, Bengali, Tamil or any of 22 languages, and it can talk back in a real voice.",
+      "Imotara is a companion that listens. Not an app that says “I understand” and moves on — one that remembers what you told it last week, asks one good question at a time, and never lectures. Type or just speak, in English, Hindi, Bengali, Tamil or any of 22 languages, and it can talk back in a real voice.",
     ],
     cardsHeading: "What it’s like",
     cards: [
@@ -263,7 +263,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
       "Free is not a trial. Unlimited costs less than one cab ride a month, and you can upgrade or cancel any time from inside the app. Imotara Connect sessions are paid per minute from a prepaid wallet — no packages, no commitments.",
     closing: {
       title: "Made by people who mean it",
-      body: "Imotara was started by two mothers in Kolkata who wanted a judgement-free space for feelings — not by a growth team chasing engagement. There are no streaks designed to guilt you, no notifications engineered to pull you back, no ads. It is not therapy and does not diagnose; it is the friend who listens at 1 a.m. and, when it matters, points you towards a real person.",
+      body: "Imotara was started by two mothers in Kolkata who wanted a judgement-free space for feelings — not by a growth team chasing engagement. There are no streaks designed to guilt you, no notifications engineered to pull you back, no ads. It is not therapy and does not diagnose; it is the companion that listens at 1 a.m. and, when it matters, points you towards a real person.",
     },
     pullQuote: ["You’ve spent your twenties being strong for everyone.", "Let something be there for you."],
     institutional: false,
@@ -412,7 +412,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     intro: [
       "Every day, your team meets people carrying more than they can say out loud — a widow who has stopped eating, a teenager who has gone quiet, a migrant worker far from home. You cannot be beside each of them at 2 a.m. when the weight is heaviest. Imotara was built so that someone always can be.",
-      "Imotara is a privacy-first AI wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages. It speaks the way a caring friend would, not a clinic. It was born not in a boardroom but in the quiet concern of two mothers who wanted a safe, judgement-free space where feelings could be spoken.",
+      "Imotara is a privacy-first wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages. It speaks the way a caring companion would, not a clinic. It was born not in a boardroom but in the quiet concern of two mothers who wanted a safe, judgement-free space where feelings could be spoken.",
     ],
     cardsHeading: "Why NGOs choose Imotara",
     cards: [
@@ -458,7 +458,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     intro: [
       "Somewhere on your campus tonight, a student is lying awake before an exam, a first-year is homesick in a hostel far from home, and a bright child in Class 9 has gone quiet and nobody has noticed yet. One counsellor cannot be with 800 students at 11 p.m. Imotara was built so that someone always can be.",
-      "Imotara is a privacy-first AI wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages. It talks like a caring senior or mentor, never like a clinic. It was born not in a boardroom but in the quiet concern of two mothers who wanted a safe, judgement-free space where young people could speak their feelings.",
+      "Imotara is a privacy-first wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages. It talks like a caring older companion, never like a clinic. It was born not in a boardroom but in the quiet concern of two mothers who wanted a safe, judgement-free space where young people could speak their feelings.",
     ],
     cardsHeading: "Why institutions choose Imotara",
     cards: [
@@ -504,7 +504,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     intro: [
       "In every hospital there is a patient lying awake the night before surgery, a mother in the oncology waiting area with no one to tell how frightened she is, and a nurse finishing a 14-hour shift with nothing left for herself. No hospital has enough counsellors for every anxious patient, exhausted caregiver and burnt-out resident. Imotara was built so that someone always can.",
-      "Imotara is a privacy-first AI wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages — so a patient from a village can speak in their own words, not the language of consent forms. It is not a diagnostic tool and does not replace a psychiatrist, psychologist or counsellor; it is the patient listener that sits alongside your clinical care.",
+      "Imotara is a privacy-first wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages — so a patient from a village can speak in their own words, not the language of consent forms. It is not a diagnostic tool and does not replace a psychiatrist, psychologist or counsellor; it is the patient listener that sits alongside your clinical care.",
     ],
     cardsHeading: "Where hospitals and medical colleges use Imotara",
     cards: [
@@ -550,7 +550,7 @@ export const AUDIENCE_PAGES: Record<AudienceSlug, AudiencePage> = {
     ],
     intro: [
       "In every home for the elderly there is a resident who waits by the phone for a call that doesn’t come, a retired teacher with stories nobody asks for anymore, and a widow who lies awake with memories she cannot share. No caregiver can sit and listen to forty residents, one at a time, every evening. Imotara was built so that someone always can.",
-      "Imotara is a privacy-first AI wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages — so an elder can speak in the language of their childhood, not the language of forms. It was born not in a boardroom but in the quiet concern of two mothers who wanted a safe, judgement-free space where feelings could be spoken.",
+      "Imotara is a privacy-first wellbeing companion that listens, remembers what matters, and responds with warmth in 22 languages — so an elder can speak in the language of their childhood, not the language of forms. It was born not in a boardroom but in the quiet concern of two mothers who wanted a safe, judgement-free space where feelings could be spoken.",
     ],
     cardsHeading: "Why homes for the elderly choose Imotara",
     cards: [

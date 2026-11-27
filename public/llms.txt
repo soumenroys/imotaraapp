@@ -42,7 +42,7 @@ Not translated English — ordinary conversational register, the way people actu
 
 - **Free, forever**: twenty full replies a day (simpler on-phone replies after that), all 22 languages, breathing and mood tools. No card, no account required.
 - **Imotara Plus**: ₹149 per month or ₹1,299 per year — unlimited replies and history, companion personas, a natural neural voice, emotion trends and companion letters.
-- **Imotara Connect**: a verified peer wellness companion to talk to, paid by the minute from a prepaid balance.
+- **Imotara Connect**: a verified peer wellness companion to talk to, paid by the minute from a prepaid balance. It is off by default; switch it on in Settings.
 - **Organisations**: seat-based licensing for NGOs, schools and companies.
 
 ## Imotara Connect — peer support, not clinical care
@@ -73,7 +73,7 @@ Imotara is not therapy, not a doctor, and not a crisis service, and it says so i
 
 - iOS and Android: React Native (Expo). Web: Next.js on Vercel. Database: Supabase.
 - Replies: written by our service providers, with a live backup; simpler on-phone replies when there is no connection or the daily limit is reached.
-- Current version: 1.6.9 (November 2026) on web, Android and iOS.
+- Current version: 1.7.3 on web, Android and iOS.
 - Speech: Azure Neural TTS, routed to the nearest region.
 
 ## Where to read more

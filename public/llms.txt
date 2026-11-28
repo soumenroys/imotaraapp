@@ -73,7 +73,7 @@ Imotara is not therapy, not a doctor, and not a crisis service, and it says so i
 
 - iOS and Android: React Native (Expo). Web: Next.js on Vercel. Database: Supabase.
 - Replies: written by our service providers, with a live backup; simpler on-phone replies when there is no connection or the daily limit is reached.
-- Current version: 1.7.3 on web, Android and iOS.
+- Current version: 1.7.4 on web, Android and iOS.
 - Speech: Azure Neural TTS, routed to the nearest region.
 
 ## Where to read more

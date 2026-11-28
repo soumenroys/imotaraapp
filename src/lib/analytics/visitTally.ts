@@ -54,6 +54,9 @@ export const FUNNEL_STEPS = {
     invite_no_push: 26,      // the browser cannot send notifications (e.g. iPhone Safari outside the home screen) or they are blocked
     invite_no_identity: 27,  // no sign-in cookie and no guest identity to attach the reminder to
     invite_already_on: 28,   // this browser already receives the check-in
+    // #185 Voice first (owner 28 Nov 2026): the person switched the message box to voice / to typing.
+    input_mode_voice: 29,
+    input_mode_type: 30,
 } as const;
 export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];

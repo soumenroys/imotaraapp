@@ -51,6 +51,19 @@ If you leave language on **Auto-detect** and type in a native script (or common 
 1. **On web:** **Settings → Appearance → Voice playback speed & pitch** (a **Plus** feature). Drag **Speed** (0.50–1.50×) and **Pitch** (0.50–1.50).
 2. **On mobile:** **Settings** has **Voice speed** and **Voice pitch** controls, grouped as **Voice speed & pitch**.
 
+## Talk or type — choosing how you send (web)
+
+When you open a chat on the website, the message box starts in **Voice** mode wherever your browser supports speech: a big **Tap to talk** microphone, with **Type instead** and a speaker switch beneath it. The words are in your chosen language.
+
+- **Tap to talk**, say what's on your mind, and it sends by itself. The reply is read aloud. While the mic is open, the label reads **Listening… tap to stop**.
+- Nothing is recorded until you tap. Your browser asks for microphone permission only at that first tap.
+- **Replies read aloud / Replies not read aloud** switches reading off or on for Voice mode.
+- If a reply is still being read when you tap the mic, the reading stops and Imotara listens to you.
+- **Type instead** brings back the text box. **Talk instead**, under the text box, switches back to Voice. Your choice is remembered on that browser.
+- If there's already text in the box (for example, from a landing page), the text box shows so you can send it.
+- Typing is the starting mode for **Punjabi** and **Odia** (speech recognition is less reliable for them) and in browsers without speech recognition (e.g. Firefox). You can still switch to Voice in Punjabi or Odia; a browser without speech recognition shows no voice option.
+- The phone apps will get the same choice in a later update.
+
 ## Voice input (speak instead of type)
 
 1. Tap the **microphone** button in the composer. On web the tooltip reads **Speak your message** (or **Speak — will send automatically** in hands-free mode); while active it shows **Stop listening**.

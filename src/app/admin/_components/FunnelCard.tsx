@@ -7,6 +7,7 @@ import type { FunnelSummary } from "@/lib/analytics/funnelSummary";
 
 const LABEL: Record<string, string> = {
   invite_shown: "Check-in invite shown", invite_accepted: "Invite accepted", invite_declined: "Invite declined",
+  invite_no_push: "Invite not possible — browser can't notify", invite_no_identity: "Invite not possible — no identity", invite_already_on: "Invite skipped — check-in already on",
   welcome_shown: "Welcome-back shown", welcome_pick: "Welcome-back → Pick up", welcome_fresh: "Welcome-back → Start fresh",
   checkin_opened: "Check-in reminder opened", upgrade_view: "Upgrade page viewed", checkout_start: "Checkout started",
   purchase_ok: "Payment done", purchase_cancel: "Checkout closed / failed", quota_hit: "Daily free limit reached",

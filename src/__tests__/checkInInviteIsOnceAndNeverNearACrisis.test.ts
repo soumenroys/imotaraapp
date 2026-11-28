@@ -25,7 +25,8 @@ describe("when the card may appear", () => {
   });
   it("#16 A: a guest with an identity is invited; nobody without one", () => {
     const page = src("src/app/chat/page.tsx");
-    expect(page).toMatch(/hasIdentity: signedInCookiePresent\(document\.cookie\) \|\| Boolean\(await guestChatToken\(\)\)/);
+    // #182 (28 Nov): the value is named first (so the reach count can reuse it), then passed as hasIdentity.
+    expect(page).toMatch(/(hasIdentity: |const hasIdentity = )signedInCookiePresent\(document\.cookie\) \|\| Boolean\(await guestChatToken\(\)\)/);
     expect(shouldOfferInvite({ ...base, hasIdentity: false })).toBe(false);
   });
   it("#16 A: a guest's reminder is saved, re-timed and removed under THEIR identity", () => {

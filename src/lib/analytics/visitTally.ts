@@ -49,6 +49,11 @@ export const FUNNEL_STEPS = {
     get_app_from_fb_story: 23,
     get_app_from_ig_story: 24,
     get_app_from_other: 25,
+    // #182 (owner 28 Nov 2026, 'measure first'): a chatter who WOULD get the check-in invite (unseen, no crisis,
+    // 1+ message) but cannot — why. Counted once per device per day, nothing about who.
+    invite_no_push: 26,      // the browser cannot send notifications (e.g. iPhone Safari outside the home screen) or they are blocked
+    invite_no_identity: 27,  // no sign-in cookie and no guest identity to attach the reminder to
+    invite_already_on: 28,   // this browser already receives the check-in
 } as const;
 export type FunnelStep = keyof typeof FUNNEL_STEPS;
 export type TallyKind = (typeof TALLY_KINDS)[number];

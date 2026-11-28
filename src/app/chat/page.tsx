@@ -1103,17 +1103,20 @@ export default function ChatPage() {
       const userTexts = msgs.filter((m) => m.role === "user").map((m) => m.content ?? "");
       const crisisInThread = userTexts.some((t) =>
         isCrisisTier2(t) || CRISIS_TIER1_RE.test(t) || CRISIS_INDIC_TIER1_RE.test(t) || CRISIS_ROMAN_INDIC_TIER1_RE.test(t));
-      const offer = shouldOfferInvite({
-        state: getInviteState(),
-        userMessageCount: userTexts.length,
-        crisisInThread,
-        // #16 A: a guest counts too, when their anonymous identity can be found.
-        hasIdentity: signedInCookiePresent(document.cookie) || Boolean(await guestChatToken()),
-        pushPossible: pushPossible(),
-      });
-      if (!offer) return;
+      const state = getInviteState();
+      // #16 A: a guest counts too, when their anonymous identity can be found.
+      const hasIdentity = signedInCookiePresent(document.cookie) || Boolean(await guestChatToken());
+      const canPush = pushPossible();
+      const offer = shouldOfferInvite({ state, userMessageCount: userTexts.length, crisisInThread, hasIdentity, pushPossible: canPush });
+      if (!offer) {
+        // #182 'measure first': would have been offered but cannot be — count why (anonymous, once a day).
+        if (shouldOfferInvite({ state, userMessageCount: userTexts.length, crisisInThread, hasIdentity: true, pushPossible: true })) {
+          tallyFunnel(!canPush ? "invite_no_push" : "invite_no_identity");
+        }
+        return;
+      }
       // Already receiving it on this browser — nothing to invite them to.
-      if (await alreadySubscribed()) { setInviteState("accepted"); return; }
+      if (await alreadySubscribed()) { tallyFunnel("invite_already_on"); setInviteState("accepted"); return; }
       inviteOfferedRef.current = true;
       const pref = getImotaraProfile()?.user?.preferredLang;
       setInviteLang(pref && String(pref) !== "auto" ? String(pref) : (detectScriptLang(userTexts[userTexts.length - 1] ?? "") ?? "en"));

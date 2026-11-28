@@ -144,11 +144,12 @@ The web/mobile client calls two endpoints:
 2. Client opens Razorpay checkout with that order; user pays.
 3. **`POST /api/license/verify-payment`** `{ paymentId, productId? }` — the user-initiated confirm. It:
    - Rejects `paymentId` not matching `^pay_[A-Za-z0-9]+$` (SSRF guard on the Razorpay URL).
-   - **Polls Razorpay up to 5×/10s** for `captured`; accepts `authorized` (UPI mandate pre-capture) and grants anyway, trusting the webhook to confirm.
-   - Idempotency: if `payment_licenses` already has this `paymentId`, returns the current license unchanged.
-   - Records the payment first (`payment_licenses` upsert, `ignoreDuplicates`), then calls `grantLicense(..., "razorpay")`, then creates an invoice (non-blocking).
+   - **Polls Razorpay up to 5×/10s** for `captured`. `authorized` (bank said yes, capture still to come) ⇒ **202 `{pending:true}`, nothing granted** — the webhook grants on capture; the page says "Payment received… within a minute" (#172, 27 Nov 2026).
+   - **The ORDER decides, never the payer (#172 D1, 27 Nov 2026):** the product and user come from the server-made order's notes (`lib/imotara/razorpayOrder.ts`: `fetchRzpOrder`, `licenseFromOrder`), and `paymentMatchesOrder` requires the captured amount/currency to equal the order's. Payment notes (set by Checkout, i.e. the payer) are ignored. Every web checkout (upgrade, settings, corporate) opens with a server order.
+   - Idempotency: `claimPayment` (one insert; only the winner grants) — browser verify + both webhook events cannot grant twice (owner's real ₹49 test 27 Nov: one grant, the second event logged "already processed").
+   - Then `grantLicense(..., "razorpay")` and an invoice (non-blocking). The page message: a plan says "Plan activated! You are now on PLUS."; a credit pack says "N message credits added. You now have M." (`lib/imotara/purchaseMessage.ts`, 28 Nov).
 
-**Webhook — `POST /api/payments/razorpay/webhook`** (`x-razorpay-signature`, HMAC-SHA256 of the *raw* body, timing-safe). This is the server-trust path and the safety net if the browser dies mid-flow. On `payment.captured`/`order.paid` it branches on the order's `notes`:
+**Webhook — `POST /api/payments/razorpay/webhook`** (`x-razorpay-signature`, HMAC-SHA256 of the *raw* body, timing-safe). This is the server-trust path and the safety net if the browser dies mid-flow. On `payment.captured`/`order.paid` it reads notes from the **ORDER only** (fetched for `payment.captured`; 503 ⇒ Razorpay retries if the order cannot be read), requires the payment to match the order, then branches on those `notes`:
 - `purpose: imotara_corporate` → creates a **pending** organisation + owner membership (see §4.5).
 - `purpose: imotara_license` → idempotent `grantLicense` + invoice.
 - No purpose note → checks in order: is it a **Connect recharge** (marks `connect_recharges` completed), a **wallet top-up** (`imotara_wallet_orders` → `credit_imotara_wallet` RPC), else logs it as a **donation**.
@@ -189,14 +190,19 @@ Bearer auth. Body `{ productId, transactionId }`. Flow:
 - Builds an ES256 App Store Server API JWT, calls production then sandbox (covers TestFlight), retries 3× on 404 (StoreKit indexing race).
 - **Verifies Apple's JWS signature** using the x5c leaf certificate (IEEE P1363 encoding), then confirms Apple's `productId` (after stripping the `com.imotara.imotara.` bundle prefix) matches the claimed catalog key.
 - **Certificate chain (8 Nov 2026, #80):** the signature alone only proves the payload matches the certificate it came with. `lib/apple/appleCertChain.ts` also checks the x5c chain: each certificate in date, each signed by the next, the top one **exactly Apple Root CA - G3** (pinned in code, SHA-256 `63:34:3A:BF…:91:79`), and Apple's marker OIDs on the intermediate and leaf. ⚠️ Starts in **report-only** mode (`APPLE_JWS_CHAIN_MODE` unset): a failing chain is logged as `[apple-jws] chain check failed (report-only…)` and still accepted, because no Apple key exists outside production to test with. Once the logs show `[apple-jws] chain check passed` on real answers, set `APPLE_JWS_CHAIN_MODE=enforce` (Production) and redeploy. ⛔ Must be `enforce` before App Store Server Notifications are ever added.
-- Records payment, grants `..., "apple"`, writes invoice.
+- **Enforced since 28 Nov 2026** (`APPLE_JWS_CHAIN_MODE=enforce` in Vercel production, after the first real PASS on the owner's TestFlight purchase; `app_settings.apple_jws_chain_last_pass` records each verdict). Undo = set it to `report`.
+- Transaction id must be digits (`APPLE_TRANSACTION_ID`), the signed payload must be THIS transaction of THIS bundle, refunded (revoked) purchases are refused (#172).
+- Records payment with **Apple's signed price + currency** (`applePaid`: price ÷ 10 = hundredths; `XXX` if Apple did not say), grants `..., "apple"`, writes invoice. **Sandbox (TestFlight) purchases**: recorded with currency `SANDBOX`, credit packs limited to one a day per account, and **no invoice** (28 Nov).
 
 ### 4.4 Google Play (Android) — `POST /api/payments/google-play/verify`
 
 Bearer auth. Body `{ productId, purchaseToken, orderId? }`. Flow:
 - Idempotency via `payment_licenses` keyed on `purchaseToken`.
 - Verifies with the Play Developer API (`verifyGooglePlaySubscription` / `verifyGooglePlayProduct`) using `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`; **acknowledges** the purchase (required within 3 days or Google auto-refunds).
-- Inserts an idempotency row (`tier: 'pending'`) **before** granting, then `grantLicense(..., "google_play")`, updates the row's tier, writes invoice. `PACKAGE_NAME` defaults to `com.imotara.imotara`.
+- Purchase token must be URL-safe text (`PLAY_PURCHASE_TOKEN`) and a subscription token must be for this product (#172). Google's PENDING (UPI/cash still completing) ⇒ **202 `{pending:true}`** with plain words (1.7.3 shows the text; 1.7.4 shows its own message and leaves the purchase unfinished).
+- Inserts an idempotency row (`tier: 'pending'`) **before** granting, then `grantLicense(..., "google_play")`, then **awaits** the row's tier update. `PACKAGE_NAME` defaults to `com.imotara.imotara`.
+- **A token-pack token seen again** (`lib/imotara/playPackSettle.ts`, 28 Nov): another account ⇒ 409; granted ⇒ `already_processed`; still `pending`/`granting` and fresh ⇒ 202; stale (> 2 min) ⇒ taken over (compare-and-set) and granted once. ⛔ Claims from before 28 Nov 00:00 UTC are never re-granted (their "granted" mark was fire-and-forget).
+- **Recorded price:** Play's API has none ⇒ the app (1.7.4+) sends `paidMicros`/`paidCurrency` from the store (records only, never to grant); otherwise `0` + `XXX` (not reported). **Licence-tester purchases** (`purchaseType 0` / subscriptions `testPurchase`) ⇒ currency `SANDBOX`, **no invoice**.
 
 ### 4.5 Corporate seat purchase (creates an org)
 
@@ -240,7 +246,7 @@ Auth via Bearer or cookie. Reads the user's license; refuses if tier is `free`. 
 ### 6.2 Invoices
 
 - **`GET /api/invoice`** — lists the caller's invoices from `payment_invoices` (last 50).
-- **`GET /api/invoice/[invoiceId]`** — renders an **HTML** invoice. Access control: the paying user, or an `owner`/`admin` of the org on the invoice. `?download=1` sets a `Content-Disposition` attachment header. Invoices are created (non-blocking) by every grant path via `createInvoice()`.
+- **`GET /api/invoice/[invoiceId]`** — renders an **HTML** invoice. Access control: the paying user, or an `owner`/`admin` of the org on the invoice. `?download=1` sets a `Content-Disposition` attachment header. Invoices are created (non-blocking) by every grant path via `createInvoice()` — except **test purchases** (Apple sandbox, Play licence tester), which get none (28 Nov 2026). `formatAmount` shows "—" for amount 0 or currency `XXX`. Old test invoices INV-001014 and INV-001020 are `status: void`, description "TEST PURCHASE — …". The admin page shows each payment in its own currency; a failed licence-history write answers `historySaved:false` and the admin page says so.
 
 ---
 

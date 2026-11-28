@@ -34,6 +34,7 @@ EDU and Enterprise are **self-serve**: choose your organisation type and number 
 1. **Settings → Your plan → Upgrade your plan** opens the upgrade sheet. You'll be asked to sign in first so the purchase is linked to your account (and can be restored later).
 2. Pick a plan and tap **Subscribe** — payment goes through Google Play billing.
 3. If it doesn't activate right away, give it a few seconds, then tap **Restore previous plan** (or **Settings → Your plan → Already purchased? Tap to check your plan**).
+4. Paid by **UPI or cash** and it is still completing? Imotara says your payment is still being completed — that is not a failure. Once Google confirms it (usually within minutes), your plan or credits are added; if not, tap **Restore previous plan**.
 
 ## Buying a plan on iOS
 

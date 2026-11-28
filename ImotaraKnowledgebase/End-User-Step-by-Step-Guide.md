@@ -77,6 +77,15 @@ Steps:
 3. **On web:** start a fresh conversation with the **New conversation** button (top of the thread list); rename or delete threads from the thread list (**Rename**, **Delete thread**).
 4. **On mobile (v1.4.1+):** **long-press any empty space** in the conversation — the background around the bubbles, not a bubble — to open the **⋯ overflow menu** (**Breathing exercise**, **Unsent letter**, **Clear chat**) without reaching the top bar. Long-pressing a message bubble is unchanged.
 
+### 3a-2. Talk or type — the message box mode (web, since 28 Nov 2026)
+1. **On web**, a new chat opens in **Voice** mode where the browser supports speech: a big **Tap to talk** mic, plus **Type instead** and **Replies read aloud** / **Replies not read aloud**. The labels follow the chosen language (22 languages).
+2. Tap the mic: the browser asks for microphone permission (first time only). After the person speaks, the words **send automatically** and the reply is **read aloud**, unless the speaker switch is off. While listening, the label reads **Listening… tap to stop**.
+3. Tapping the mic while a reply is being read **stops the reading** and listens, so the person's words are not lost.
+4. **Type instead** shows the normal text box. **Talk instead**, under the text box, returns to Voice. The choice is saved per browser (`imotara.inputMode.v1`; speaker `imotara.voiceMode.readAloud.v1`).
+5. The text box shows instead of the voice panel when the box already has text (e.g. a landing-page starter). Typing is the default for **Punjabi / Odia** and for browsers without speech recognition (Firefox).
+6. Hands-free, Auto-read and Confirm before sending work as before. Hands-free and Confirm still come first when they are on.
+7. **Support:** "it sends before I can edit" ⇒ switch on **Confirm before sending**, or use **Type instead**. "It talks out loud" ⇒ tap the speaker switch so it reads **Replies not read aloud**. Mobile apps: not yet (planned for the next app release).
+
 ### 3b. Voice input (microphone)
 1. Tap the **microphone** button in the composer. **On web** the tooltip reads **Speak your message** (or **Speak — will send automatically** in hands-free mode); while active it shows **Stop listening**.
 2. The first time, allow microphone access when the browser/OS prompts. **On web**, if you blocked it you'll see **"Microphone access denied — allow it in your browser settings."**

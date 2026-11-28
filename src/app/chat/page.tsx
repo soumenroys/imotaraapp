@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Mic,
   MicOff,
+  Keyboard,
   Search,
   X as XIcon,
   Star,
@@ -80,6 +81,8 @@ import { isWithinLaunchOffer } from "@/lib/imotara/license";
 import CheckInInviteCard from "@/components/imotara/CheckInInviteCard";
 import { shouldShowWelcomeBack, welcomeBackText, isSessionTopic, type LastSession, type SessionTopic } from "@/lib/imotara/welcomeBackTopic";
 import { getInviteState, setInviteState, shouldOfferInvite } from "@/lib/imotara/checkInInviteStrings";
+import { isRtlLang } from "@/lib/lang/rtlLangs";
+import { getVoiceFirstStrings, initialInputMode, INPUT_MODE_KEY, VOICE_READ_ALOUD_KEY, voiceReadAloudOn, type InputMode } from "@/lib/imotara/voiceFirstStrings";
 import { alreadySubscribed, pushPossible } from "@/lib/imotara/enableDailyCheckIn";
 import { signedInCookiePresent } from "@/lib/imotara/guestChatIdentity";
 import useLicense from "@/hooks/useLicense";
@@ -1237,6 +1240,48 @@ export default function ChatPage() {
     window.addEventListener("imotara:handsfreeChanged", load);
     return () => window.removeEventListener("imotara:handsfreeChanged", load);
   }, []);
+
+  // 🎤 #185 Voice first (owner, 28 Nov 2026) ⇒ lib/imotara/voiceFirstStrings. The message box opens in
+  // VOICE mode where speech can work (big "Tap to talk"); the person can switch to typing, and the
+  // choice is remembered. ⛔ Nothing records until they tap. Replies are read aloud in voice mode
+  // unless the speaker switch is off. Hands-free and every other voice setting are unchanged.
+  const [inputMode, setInputModeState] = useState<InputMode>("type");
+  const inputModeRef = useRef<InputMode>("type");
+  const [voiceReadAloud, setVoiceReadAloud] = useState(true);
+  const voiceReadAloudRef = useRef(true);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  useEffect(() => {
+    try {
+      const sr = Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition);
+      setSpeechSupported(sr);
+      const mode = initialInputMode({ saved: localStorage.getItem(INPUT_MODE_KEY), speechSupported: sr, lang: getImotaraProfile()?.user?.preferredLang ?? null });
+      setInputModeState(mode); inputModeRef.current = mode;
+      const ra = voiceReadAloudOn(localStorage.getItem(VOICE_READ_ALOUD_KEY));
+      setVoiceReadAloud(ra); voiceReadAloudRef.current = ra;
+    } catch { /* storage unavailable — typing, as before */ }
+  }, []);
+  function chooseInputMode(m: InputMode) {
+    setInputModeState(m); inputModeRef.current = m;
+    try { localStorage.setItem(INPUT_MODE_KEY, m); } catch { /* private mode */ }
+    tallyFunnel(m === "voice" ? "input_mode_voice" : "input_mode_type");
+    // Cursor into the box on desktop only: on a phone, focusing it makes iOS Safari zoom the page
+    // (seen 28 Nov in the iPhone simulator) — there the person taps the box themselves, as before.
+    if (m === "type") { try { if (!window.matchMedia("(pointer: coarse)").matches) setTimeout(() => composerRef.current?.focus(), 0); } catch { /* no matchMedia */ } }
+  }
+  function toggleVoiceReadAloud() {
+    const v = !voiceReadAloudRef.current;
+    setVoiceReadAloud(v); voiceReadAloudRef.current = v;
+    try { localStorage.setItem(VOICE_READ_ALOUD_KEY, v ? "1" : "0"); } catch { /* private mode */ }
+  }
+  // Labels: the chosen language; with none, the browser's (if we have it), else English.
+  const voiceUiLang = (() => {
+    const pref = mounted ? getImotaraProfile()?.user?.preferredLang : null;
+    if (pref && String(pref) !== "auto") return String(pref);
+    try { return mounted ? (navigator.language || "en").split("-")[0] : "en"; } catch { return "en"; }
+  })();
+  const voiceUi = getVoiceFirstStrings(voiceUiLang);
+  // Voice panel only while the box is empty: text carried in (landing page, starter, draft) shows the text box.
+  const voicePanelShown = mounted && speechSupported && inputMode === "voice" && !draft.trim();
 
   // Re-read feature-flag settings when the Settings page writes them (same-tab)
   useEffect(() => {
@@ -2962,7 +3007,7 @@ export default function ChatPage() {
           meta: { replySource: assistantMsg.replySource ?? "fallback" },
         });
 
-        if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void speakReplyWithMicShut(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
+        if (handsfreeRef.current || (inputModeRef.current === "voice" && voiceReadAloudRef.current) || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void speakReplyWithMicShut(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
 
         void logAssistantMessageToHistory(assistantMsg, respEmotionLabel, respEmotionIntensity);
 
@@ -3143,7 +3188,7 @@ export default function ChatPage() {
         meta: { replySource: assistantMsg.replySource ?? "fallback" },
       });
 
-      if (handsfreeRef.current || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void speakReplyWithMicShut(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
+      if (handsfreeRef.current || (inputModeRef.current === "voice" && voiceReadAloudRef.current) || (() => { try { return localStorage.getItem("imotara.tts.autoRead.v1") === "1"; } catch { return false; } })()) void speakReplyWithMicShut(assistantMsg.content, mapDebugEmotionForTTS(assistantMsg.debugEmotion));
 
       void logAssistantMessageToHistory(assistantMsg, debugEmotion ?? "neutral", 0);
 
@@ -3413,6 +3458,10 @@ export default function ChatPage() {
       return;
     }
 
+    // #185: a tap while a reply is being read means "let me speak" — stop the reading first,
+    // so this session is not muted by speakingRef (which would drop every word they say).
+    if (speakingRef.current && stopAutoSpeech()) speakingRef.current = false;
+
     const rec = new SpeechRecognition();
     // In handsfree mode the user expects speak → auto-send → speak again without
     // re-tapping the mic. continuous=true keeps the session alive between utterances.
@@ -3466,6 +3515,9 @@ export default function ChatPage() {
       } else if (voiceConfirmEnabled) {
         // Show confirmation banner before inserting into draft
         setPendingVoiceTranscript(transcript.trim());
+      } else if (inputModeRef.current === "voice") {
+        // #185: in voice mode, speaking IS sending (as hands-free does for one turn).
+        if (!analyzingRef.current) sendMessageRef.current(transcript.trim());
       } else {
         setDraft((prev) => (prev.trim() ? `${prev} ${transcript.trim()}` : transcript.trim()));
       }
@@ -5106,9 +5158,10 @@ export default function ChatPage() {
               </div>
             )}
             <div className="mx-auto max-w-3xl">
-              {/* Mobile-only secondary button row — shown above textarea on small screens */}
-              <div className="mb-2 flex items-center gap-2 sm:hidden">
-                {mounted && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+              {/* Mobile-only secondary button row — shown above textarea on small screens
+                  (#185: on every screen size in voice mode, where the text row is replaced) */}
+              <div className={`mb-2 flex items-center gap-2 ${voicePanelShown ? "" : "sm:hidden"}`}>
+                {mounted && !voicePanelShown && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
                   <button
                     type="button"
                     onClick={toggleVoice}
@@ -5164,7 +5217,49 @@ export default function ChatPage() {
                 </button>
               </div>
 
+              {/* 🎤 #185 Voice first — replaces the text row in voice mode (only while the box is empty). */}
+              {voicePanelShown && (
+                <div className="flex flex-col items-center gap-2 py-1" dir={isRtlLang(voiceUiLang) ? "rtl" : undefined}>
+                  <button
+                    type="button"
+                    onClick={toggleVoice}
+                    disabled={analyzing && !isListening}
+                    aria-label={isListening ? voiceUi.listening : voiceUi.tap}
+                    className={`inline-flex h-16 w-16 items-center justify-center rounded-full border shadow-lg transition disabled:opacity-50 ${
+                      isListening
+                        ? "border-rose-400/60 bg-rose-500/25 text-rose-200 animate-pulse"
+                        : "im-cta-bg border-white/20 text-white hover:brightness-110"
+                    }`}
+                  >
+                    {isListening ? <MicOff className="h-7 w-7" /> : <Mic className="h-7 w-7" />}
+                  </button>
+                  <span className="text-xs text-zinc-300">{isListening ? voiceUi.listening : voiceUi.tap}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { if (isListening) toggleVoice(); chooseInputMode("type"); }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/10"
+                    >
+                      <Keyboard className="h-3.5 w-3.5" /> {voiceUi.typeInstead}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={toggleVoiceReadAloud}
+                      aria-pressed={voiceReadAloud}
+                      title={voiceReadAloud ? voiceUi.speakerOn : voiceUi.speakerOff}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition ${
+                        voiceReadAloud ? "border-violet-400/40 bg-violet-500/15 text-violet-200" : "border-white/15 bg-white/5 text-zinc-400"
+                      }`}
+                    >
+                      {voiceReadAloud ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+                      {voiceReadAloud ? voiceUi.speakerOn : voiceUi.speakerOff}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Main composer row — textarea + desktop secondary buttons + send */}
+              {!voicePanelShown && (
               <div className="flex items-end gap-2">
                 <textarea
                   ref={composerRef}
@@ -5241,6 +5336,19 @@ export default function ChatPage() {
                   <Send className="h-4 w-4" /> Send
                 </button>
               </div>
+              )}
+              {/* #185: from typing, one tap back to voice (only where speech can work). */}
+              {mounted && speechSupported && inputMode === "type" && !draft.trim() && (
+                <div className="mt-1.5 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => chooseInputMode("voice")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] text-zinc-400 hover:bg-white/10 hover:text-zinc-200"
+                  >
+                    <Mic className="h-3 w-3" /> {voiceUi.useVoice}
+                  </button>
+                </div>
+              )}
             </div>
             {/* Crisis note — and who is replying. 🔑 Owner, 30 Oct 2026: Imotara is
                 positioned as a "private companion" (the old wording is retired), so this
@@ -5764,8 +5872,21 @@ function armedSignal(parent: AbortSignal, ms: number): {
   };
 }
 
+// #185 (28 Nov 2026): the reading in progress, so a tap on the mic can stop it ("barge in").
+// Before this, tapping the mic while a reply was being read opened a session whose words were
+// all dropped (onresult ignores everything while speakingRef is true) — the person's answer was lost.
+let currentAutoSpeech: AbortController | null = null;
+function stopAutoSpeech(): boolean {
+  const a = currentAutoSpeech;
+  if (!a) return false;
+  currentAutoSpeech = null;
+  try { a.abort(); } catch { /* already stopped */ }
+  return true;
+}
+
 async function autoSpeakText(text: string, emotion?: string): Promise<void> {
   const abort = new AbortController();
+  currentAutoSpeech = abort;
   // 🔴 THIS USED TO BE ABLE TO HANG FOREVER, WEDGING HANDS-FREE SHUT.
   //
   //   await new Promise<void>((resolve) => {
@@ -5791,7 +5912,11 @@ async function autoSpeakText(text: string, emotion?: string): Promise<void> {
   //
   // ⛔ Deliberately NOT a timeout race: a long reply legitimately takes a long
   // time to speak, and cutting it off would degrade the thing we are fixing.
-  await playChunkedTTS(text, { signal: abort.signal, emotion }).catch(() => {});
+  try {
+    await playChunkedTTS(text, { signal: abort.signal, emotion }).catch(() => {});
+  } finally {
+    if (currentAutoSpeech === abort) currentAutoSpeech = null;
+  }
 }
 
 // Normalizes this file's own local debug-emotion labels (from

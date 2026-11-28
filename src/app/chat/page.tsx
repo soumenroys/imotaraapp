@@ -1264,7 +1264,9 @@ export default function ChatPage() {
     setInputModeState(m); inputModeRef.current = m;
     try { localStorage.setItem(INPUT_MODE_KEY, m); } catch { /* private mode */ }
     tallyFunnel(m === "voice" ? "input_mode_voice" : "input_mode_type");
-    if (m === "type") setTimeout(() => composerRef.current?.focus(), 0);
+    // Cursor into the box on desktop only: on a phone, focusing it makes iOS Safari zoom the page
+    // (seen 28 Nov in the iPhone simulator) — there the person taps the box themselves, as before.
+    if (m === "type") { try { if (!window.matchMedia("(pointer: coarse)").matches) setTimeout(() => composerRef.current?.focus(), 0); } catch { /* no matchMedia */ } }
   }
   function toggleVoiceReadAloud() {
     const v = !voiceReadAloudRef.current;
